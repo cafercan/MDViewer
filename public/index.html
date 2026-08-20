@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profesyonel Markdown Viewer & Editor</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <!-- Raster favicons: Edge --app pencere/görev çubuğu ikonu SVG'yi
-         kullanamıyor, bu yüzden .ico/.png raster sürümleri de veriyoruz. -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <!-- Görev çubuğu ikonu: Edge --app penceresi görev çubuğu simgesini sayfa
+         favicon'undan üretir. Raster/ICO'yu ÖNE alıyoruz; Edge SVG'yi taskbar
+         için kullanamıyor. /favicon.ico kök yolda da veriliyor (Edge app modu
+         çoğu zaman doğrudan bunu ister). -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-    <link rel="shortcut icon" href="/mdflow.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <!-- Highlight.js for Code Highlighting -->
     <link rel="stylesheet" href="/vendor/highlight.js/styles/tokyo-night-dark.min.css">
