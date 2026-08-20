@@ -96,18 +96,41 @@ begin
 end;
 
 // .NET 8 Masaüstü Çalışma Zamanı uyarısı (MDFlowViewer.exe buna bağımlı).
+// Not: kurulum 32-bit çalışır; HKLM okuması Wow6432Node'a yönlenir ve 64-bit
+// dotnet anahtarını KAÇIRIR. Bu yüzden 64-bit hive için HKLM64 kullanıyoruz,
+// ayrıca güvence olarak paylaşılan çalışma zamanı klasörünü de kontrol ediyoruz.
 function IsDotNet8DesktopInstalled(): Boolean;
 var
   Names: TArrayOfString;
   I: Integer;
   Key: String;
+  FindRec: TFindRec;
+  BasePath: String;
 begin
   Result := False;
+
+  // 1) 64-bit kayıt defteri (native hive)
   Key := 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
-  if RegGetValueNames(HKLM, Key, Names) then
+  if RegGetValueNames(HKLM64, Key, Names) then
     for I := 0 to GetArrayLength(Names) - 1 do
       if Copy(Names[I], 1, 2) = '8.' then
         Result := True;
+  if Result then Exit;
+
+  // 2) Dosya sistemi yedeği: 64-bit Program Files altındaki paylaşılan runtime
+  BasePath := ExpandConstant('{commonpf64}\dotnet\shared\Microsoft.WindowsDesktop.App');
+  if FindFirst(BasePath + '\8.*', FindRec) then
+  try
+    repeat
+      if (FindRec.Attributes and $10) <> 0 then  // FILE_ATTRIBUTE_DIRECTORY
+      begin
+        Result := True;
+        Break;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
 end;
 
 function InitializeSetup(): Boolean;
