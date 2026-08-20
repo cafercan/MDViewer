@@ -849,9 +849,14 @@ async function saveFile(contentToSave = null) {
 
 // STATUS UTILITY
 function setSyncStatus(state, text) {
+    // Durum rozeti arayüzden kaldırıldı (boştayken "Bağlandı" kullanıcının
+    // kafasını karıştırıyordu). Öğeler yoksa sessizce çık; çağrı yerlerini
+    // değiştirmeye gerek kalmasın.
+    if (!statusDot || !statusText) return;
+
     statusDot.className = 'status-dot';
     statusText.textContent = text;
-    
+
     if (state === 'connected') {
         statusDot.classList.add('green');
     } else if (state === 'syncing') {
