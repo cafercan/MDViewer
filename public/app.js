@@ -1107,8 +1107,8 @@ function clearDraft(filePath = currentFilePath) {
 // STORAGE STORAGE PERSISTENCE
 // Satır numarası oluğunu aç/kapat (hem okuma hem düzenleme paneli).
 function applyLineNumbers(on) {
-    paneRead.classList.toggle('line-numbers', on);
-    paneEdit.classList.toggle('line-numbers', on);
+    paneRead.classList.toggle('md-linenums', on);
+    paneEdit.classList.toggle('md-linenums', on);
 }
 
 function collectSettings() {

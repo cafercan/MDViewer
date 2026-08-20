@@ -1009,26 +1009,26 @@ img.asset-missing {
 
 /* ============================================================
    SATIR NUMARASI OLUĞU (line numbers) — okuma + düzenleme
-   .line-numbers panele eklendiğinde her üst düzey blok (.md-block)
+   .md-linenums panele eklendiğinde her üst düzey blok (.md-block)
    soldaki oluğa kaynak satır numarasını (data-ln) gösterir.
    ============================================================ */
-.line-numbers .markdown-body {
+.md-linenums .markdown-body {
     padding-left: 3.6em;
 }
-.line-numbers .md-block {
-    position: relative;
-}
-.line-numbers .md-block[data-ln]::before {
+/* Numara normal akışta inline-block; negatif margin ile soldaki oluğa çekilir.
+   position:absolute kullanılmıyor (merkezli yerleşimde içeriği boyamayı bozuyordu). */
+.md-linenums .md-block[data-ln]::before {
     content: attr(data-ln);
-    position: absolute;
-    left: -3.4em;
-    width: 2.7em;
+    display: inline-block;
+    width: 2.4em;
+    margin-left: -3.6em;
+    margin-right: 1.2em;
     text-align: right;
     color: var(--text-muted);
     font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-    font-size: 0.75em;
-    line-height: 1.9;
-    opacity: 0.7;
+    font-size: 0.78em;
+    opacity: 0.6;
+    vertical-align: top;
     user-select: none;
     pointer-events: none;
 }
