@@ -315,6 +315,18 @@ app.get('/api/watch', (req, res) => {
     });
 });
 
+// Pencere kapanışı: istemci pagehide'da buraya sendBeacon atar. SSE bağlantısı
+// Edge'in arka plan süreçleri yüzünden hemen kapanmayabildiğinden, sunucunun
+// arkada öksüz kalmaması için asıl kapanış sinyali budur. Yalnızca launcher'ın
+// başlattığı örnekte (AUTO_EXIT) etki eder; `npm start` ile geliştirmede no-op.
+app.post('/api/shutdown', (req, res) => {
+    res.status(204).end();
+    if (AUTO_EXIT) {
+        clearTimeout(shutdownTimer);
+        setTimeout(() => process.exit(0), 200);
+    }
+});
+
 // Wildcard to serve public/index.html for client side routing if any.
 // Dosya gibi görünen (uzantılı) istekler buraya düşerse gerçekten yok demektir;
 // bunlara index.html dönmek görselleri sessizce bozar, o yüzden 404 veriyoruz.

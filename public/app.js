@@ -20,6 +20,13 @@ let workspaceFiles = [];
 let currentTokens = [];
 let hasUnsavedChanges = false;
 
+// Pencere kapanınca sunucuyu arkada bırakma: pagehide anında sendBeacon ile
+// kapanış sinyali gönder. sendBeacon tam da bu iş için (sayfa yıkılırken bile
+// iletilir). Sunucu yalnızca launcher tarafından açıldıysa (AUTO_EXIT) kapanır.
+window.addEventListener('pagehide', () => {
+    try { navigator.sendBeacon('/api/shutdown'); } catch (e) { /* yok say */ }
+});
+
 // DOM ELEMENTS
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
