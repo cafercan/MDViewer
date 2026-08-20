@@ -1026,9 +1026,94 @@ img.asset-missing {
     text-align: right;
     color: var(--text-muted);
     font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-    font-size: 0.78em;
+    font-size: 0.68em;
     opacity: 0.6;
     vertical-align: top;
     user-select: none;
     pointer-events: none;
+}
+
+/* ============================================================
+   EK AÇIK TEMALAR (üst bar swatch'leriyle seçilir)
+   ============================================================ */
+[data-theme="github-light"] {
+    --bg-base: #ffffff;
+    --bg-surface: rgba(246, 248, 250, 0.92);
+    --bg-surface-hover: #eaeef2;
+    --bg-control: #f6f8fa;
+    --border-color: #d0d7de;
+    --border-color-active: rgba(9, 105, 218, 0.4);
+    --text-primary: #1f2328;
+    --text-secondary: #57606a;
+    --text-muted: #8c959f;
+    --accent-primary: #0969da;
+    --accent-secondary: #1a7f37;
+    --accent-gradient: linear-gradient(135deg, #0969da 0%, #1a7f37 100%);
+    --accent-glow: rgba(9, 105, 218, 0.15);
+    --success: #1a7f37;
+    --warning: #9a6700;
+    --error: #cf222e;
+    --glass-shadow: 0 8px 32px 0 rgba(31, 35, 40, 0.08);
+}
+
+[data-theme="sepia-light"] {
+    --bg-base: #f4ecd8;
+    --bg-surface: rgba(250, 244, 229, 0.92);
+    --bg-surface-hover: #efe6cf;
+    --bg-control: #e8dcc0;
+    --border-color: rgba(90, 70, 40, 0.18);
+    --border-color-active: rgba(161, 92, 43, 0.45);
+    --text-primary: #4b3f2f;
+    --text-secondary: #6b5d47;
+    --text-muted: #9a8c72;
+    --accent-primary: #a15c2b;
+    --accent-secondary: #7d6b3f;
+    --accent-gradient: linear-gradient(135deg, #a15c2b 0%, #7d6b3f 100%);
+    --accent-glow: rgba(161, 92, 43, 0.15);
+    --success: #5c7d3f;
+    --warning: #a1791f;
+    --error: #b23a2e;
+    --glass-shadow: 0 8px 32px 0 rgba(75, 63, 47, 0.1);
+}
+
+/* ============================================================
+   ÜST BAR TEMA SWATCH'LERİ
+   ============================================================ */
+.theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 0.25rem;
+}
+.theme-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--sw-bg);
+    border: 1.5px solid var(--border-color);
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.theme-swatch::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--sw-ac);
+    opacity: 0.9;
+}
+.theme-swatch:hover {
+    transform: scale(1.12);
+}
+.theme-swatch.active {
+    box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-primary);
+}
+
+/* Satır numarası toggle butonu aktif durumu */
+.icon-btn.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
 }

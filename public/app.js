@@ -20,6 +20,8 @@ let headingElements = [];
 let workspaceFiles = [];
 let currentTokens = [];
 let hasUnsavedChanges = false;
+let currentTheme = 'minimal-light';
+let lineNumbersOn = true;
 
 // Pencere kapanınca sunucuyu arkada bırakma: pagehide anında sendBeacon ile
 // kapanış sinyali gönder. sendBeacon tam da bu iş için (sayfa yıkılırken bile
@@ -49,13 +51,13 @@ const paneEdit = document.getElementById('pane-edit');
 const markdownViewer = document.getElementById('markdown-viewer');
 const inlineEditor = document.getElementById('inline-editor');
 const chkAutosave = document.getElementById('chk-autosave');
-const chkLineNumbers = document.getElementById('chk-line-numbers');
+const btnLineNumbers = document.getElementById('btn-line-numbers');
 const saveStatus = document.getElementById('save-status');
 
 const settingsDrawer = document.getElementById('settings-drawer');
 const settingsDrawerOverlay = document.getElementById('settings-drawer-overlay');
 const btnCloseSettings = document.getElementById('btn-close-settings');
-const themeSelector = document.getElementById('theme-selector');
+const themeSwitch = document.getElementById('theme-switch');
 const customCssPath = document.getElementById('custom-css-path');
 const btnApplyCssPath = document.getElementById('btn-apply-css-path');
 const customInlineCss = document.getElementById('custom-inline-css');
@@ -313,39 +315,13 @@ function resolveLocalAssets(container) {
     });
 }
 
-// Her üst düzey bloğun KAYNAK satır numarasını hesaplar. marked.lexer üst düzey
-// token'lar verir; her token'ın .raw'ındaki satır sayısıyla ilerleyerek başlangıç
-// satırını buluruz. 'space' token'ları render edilmez ama satırları sayılır.
-function computeBlockLineStarts(markdownText) {
-    const tokens = marked.lexer(markdownText);
-    let line = 1;
-    const starts = [];
-    for (const t of tokens) {
-        if (t.type !== 'space') starts.push(line);
-        line += (t.raw.match(/\n/g) || []).length;
-    }
-    return starts;
-}
-
-// Read modunda üst düzey render öğelerine kaynak satır numarasını (data-ln) ekler.
-// Her üst düzey token tam bir üst düzey öğe ürettiği için sıra birebir eşleşir;
-// pipeline değişmez (regresyon yok). Sayı uyuşmazsa elde olanı işaretler.
-function annotateReadLineNumbers(container, markdownText) {
-    const starts = computeBlockLineStarts(markdownText);
-    const children = Array.from(container.children);
-    children.forEach((el, i) => {
-        el.classList.add('md-block');
-        if (starts[i] !== undefined) el.dataset.ln = starts[i];
-        else el.removeAttribute('data-ln');
-    });
-}
-
 // MARKDOWN RENDERING PIPELINE (Read Mode)
+// Not: satır numaraları yalnızca düzenleme modunda gösterilir; okuma modunda
+// render'lı çıktının kaynak satırıyla birebir hizası olmadığı için eklenmez.
 function renderMarkdown(markdownText) {
     // Render Markdown through marked.js
     const renderedHtml = marked.parse(markdownText);
     markdownViewer.innerHTML = preprocessRenderedHTML(renderedHtml);
-    annotateReadLineNumbers(markdownViewer, markdownText);
     resolveLocalAssets(markdownViewer);
 
     // Code Block Syntax Highlighting (Highlight.js)
@@ -983,16 +959,20 @@ function setupEventListeners() {
         closeDrawer();
     });
 
-    // 7. Theme selector dropdown (anında uygula + kalıcı kaydet)
-    themeSelector.addEventListener('change', (e) => {
-        document.documentElement.setAttribute('data-theme', e.target.value);
-        saveSettings();
-    });
+    // 7. Üst bar tema swatch'leri (anında uygula + kalıcı kaydet)
+    if (themeSwitch) {
+        themeSwitch.querySelectorAll('.theme-swatch').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                setTheme(btn.dataset.themeValue);
+                saveSettings();
+            });
+        });
+    }
 
-    // 7b. Satır numarası aç/kapa (anında uygula + kalıcı kaydet)
-    if (chkLineNumbers) {
-        chkLineNumbers.addEventListener('change', () => {
-            applyLineNumbers(chkLineNumbers.checked);
+    // 7b. Üst bar satır numarası aç/kapa (yalnızca düzenleme; kalıcı kaydet)
+    if (btnLineNumbers) {
+        btnLineNumbers.addEventListener('click', () => {
+            applyLineNumbers(!lineNumbersOn);
             saveSettings();
         });
     }
@@ -1106,18 +1086,31 @@ function clearDraft(filePath = currentFilePath) {
 
 // STORAGE STORAGE PERSISTENCE
 // Satır numarası oluğunu aç/kapat (hem okuma hem düzenleme paneli).
+// Satır numaraları YALNIZCA düzenleme modunda. Toggle butonunu da günceller.
 function applyLineNumbers(on) {
-    paneRead.classList.toggle('md-linenums', on);
+    lineNumbersOn = on;
     paneEdit.classList.toggle('md-linenums', on);
+    paneRead.classList.remove('md-linenums');
+    if (btnLineNumbers) btnLineNumbers.classList.toggle('active', on);
+}
+
+// Temayı uygular + üst bardaki aktif swatch'i işaretler.
+function setTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    if (themeSwitch) {
+        themeSwitch.querySelectorAll('.theme-swatch').forEach((b) =>
+            b.classList.toggle('active', b.dataset.themeValue === theme));
+    }
 }
 
 function collectSettings() {
     return {
-        theme: themeSelector.value,
+        theme: currentTheme,
         cssPath: customCssPath.value,
         inlineCss: customInlineCss.value,
         autosave: chkAutosave.checked,
-        lineNumbers: chkLineNumbers.checked
+        lineNumbers: lineNumbersOn
     };
 }
 
@@ -1149,14 +1142,10 @@ async function loadSettings() {
     }
 
     // Tema — varsayılan AÇIK (minimal-light)
-    const theme = settings.theme || 'minimal-light';
-    themeSelector.value = theme;
-    document.documentElement.setAttribute('data-theme', theme);
+    setTheme(settings.theme || 'minimal-light');
 
-    // Satır numarası — varsayılan AÇIK
-    const ln = settings.lineNumbers !== undefined ? settings.lineNumbers : true;
-    chkLineNumbers.checked = ln;
-    applyLineNumbers(ln);
+    // Satır numarası — varsayılan AÇIK (yalnızca düzenleme modu)
+    applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
 
     if (settings.autosave !== undefined) chkAutosave.checked = settings.autosave;
     if (settings.cssPath) { customCssPath.value = settings.cssPath; loadExternalCSS(); }

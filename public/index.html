@@ -76,6 +76,27 @@
                     </button>
                 </div>
 
+                <!-- Satır numarası aç/kapa (yalnızca düzenleme modunu etkiler) -->
+                <button class="icon-btn" id="btn-line-numbers" title="Satır numaralarını göster (düzenleme modu)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="10" y1="6" x2="21" y2="6"></line>
+                        <line x1="10" y1="12" x2="21" y2="12"></line>
+                        <line x1="10" y1="18" x2="21" y2="18"></line>
+                        <text x="2.5" y="8" font-size="7" fill="currentColor" stroke="none">1</text>
+                        <text x="2.5" y="14" font-size="7" fill="currentColor" stroke="none">2</text>
+                        <text x="2.5" y="20" font-size="7" fill="currentColor" stroke="none">3</text>
+                    </svg>
+                </button>
+
+                <!-- Tema seçimi: üst barda küçük renk swatch'leri -->
+                <div class="theme-switch" id="theme-switch">
+                    <button class="theme-swatch" data-theme-value="minimal-light" title="Classic Light" style="--sw-bg:#f8fafc;--sw-ac:#4f46e5"></button>
+                    <button class="theme-swatch" data-theme-value="github-light" title="GitHub Light" style="--sw-bg:#ffffff;--sw-ac:#0969da"></button>
+                    <button class="theme-swatch" data-theme-value="sepia-light" title="Sepia (Sıcak Kağıt)" style="--sw-bg:#f4ecd8;--sw-ac:#a15c2b"></button>
+                    <button class="theme-swatch" data-theme-value="slate-dark" title="Obsidian Dark" style="--sw-bg:#0f172a;--sw-ac:#6366f1"></button>
+                    <button class="theme-swatch" data-theme-value="nord-dark" title="Nord Frost" style="--sw-bg:#2e3440;--sw-ac:#88c0d0"></button>
+                </div>
+
                 <!-- Custom Styling Button -->
                 <button class="icon-btn" id="btn-settings" title="Özel CSS & Ayarlar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -144,7 +165,7 @@
             <!-- MAIN WORKSPACE -->
             <section class="workspace-viewport">
                 <!-- VIEW MODE: READ -->
-                <div class="viewport-pane read-pane md-linenums" id="pane-read">
+                <div class="viewport-pane read-pane" id="pane-read">
                     <div class="markdown-body" id="markdown-viewer">
                         <!-- Markdown HTML is injected here -->
                     </div>
@@ -183,23 +204,6 @@
                 <button class="drawer-close-btn" id="btn-close-settings">&times;</button>
             </div>
             <div class="drawer-content">
-                <div class="form-group">
-                    <label>Tema Seçimi</label>
-                    <select id="theme-selector">
-                        <option value="slate-dark">Obsidian Dark (Modern Koyu)</option>
-                        <option value="nord-dark">Nord Frost (Soğuk Koyu)</option>
-                        <option value="minimal-light" selected>Classic Light (Temiz Açık)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Görünüm</label>
-                    <label class="checkbox-label" title="Okuma ve düzenleme modunda solda kaynak satır numaralarını gösterir">
-                        <input type="checkbox" id="chk-line-numbers" checked>
-                        <span>Satır numaralarını göster</span>
-                    </label>
-                </div>
-
                 <div class="form-group">
                     <label>Özel CSS Dosya Yolu</label>
                     <div class="input-with-button">
