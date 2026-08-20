@@ -1,0 +1,35 @@
+# Claude Code
+.claude/
+
+# Dependencies
+node_modules/
+.npm-cache/
+
+# Build & installer output (setup .exe is published via GitHub Releases)
+build/
+dist/
+
+# Binaries — built from source (src/ or `dotnet build`), not tracked
+*.exe
+
+# Logs & runtime artifacts
+*.log
+server-test*.log
+*.pid
+*.seed
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor & OS
+.vscode/
+.idea/
+.cache/
+.eslintcache
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp

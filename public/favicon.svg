@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded badge -->
+  <rect x="2" y="8" width="60" height="48" rx="10" fill="url(#bg)"/>
+  <rect x="2" y="8" width="60" height="48" rx="10" fill="none" stroke="#1e3a8a" stroke-width="1.5" opacity="0.5"/>
+  <!-- Markdown mark: M + down arrow -->
+  <g fill="#ffffff">
+    <path d="M12 44V20h7l7 9 7-9h7v24h-7V30l-7 9-7-9v14z"/>
+    <path d="M52 20v13h5l-8 11-8-11h5V20z"/>
+  </g>
+</svg>
