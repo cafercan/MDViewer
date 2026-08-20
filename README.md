@@ -19,12 +19,14 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🎨 Özel CSS / tema, `:::info` `:::warning` `:::danger` kutuları
 - 🖼️ Belgeye göreli yerel görselleri servis eder
 - 🪟 **Kendi penceresi** (pywebview / WebView2) — kendi ikonu, kapanınca temiz çıkış
+- 🔢 Satır numaraları (oku + düzenle), ayardan aç/kapa
+- 🎚️ Ayarlar (tema, satır no) kalıcı — sonraki açılışlarda korunur; varsayılan **açık tema**
 - 🔒 Yalnızca `127.0.0.1` dinler; dosya erişimi açılan belgenin klasörüne hapsedilir
 
 ## Kurulum (kullanıcılar)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.0.0.exe`** kurulumunu indirin.
+   **`MDViewer-v2.1.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -68,7 +70,7 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.0.0.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.1.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 

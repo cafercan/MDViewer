@@ -24,6 +24,30 @@ def resource_dir(name: str) -> str:
 
 PUBLIC_DIR = resource_dir("public")
 
+
+def settings_path() -> str:
+    """Ayar dosyası yolu. Port her açılışta değiştiği için localStorage kalıcı
+    değil; ayarlar bu dosyada tutulur (kullanıcı bazlı, tüm örnekler paylaşır)."""
+    base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    d = os.path.join(base, "MDFlowViewer")
+    return os.path.join(d, "settings.json")
+
+
+def load_settings_file() -> dict:
+    try:
+        with open(settings_path(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings_file(data: dict) -> None:
+    p = settings_path()
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
 WELCOME_MD = """# MD Flow Viewer
 
 Hoş geldiniz. Bir `.md` dosyasını **MD Flow Viewer ile Aç** diyerek açın; bu
@@ -94,6 +118,27 @@ def create_app() -> Flask:
     @app.get("/api/health")
     def health():
         return _json({"success": True, "app": "MD Flow Viewer"})
+
+    @app.post("/api/shutdown")
+    def shutdown():
+        # pywebview penceresi kapanınca süreç zaten biter; bu uç sadece istemcinin
+        # pagehide beacon'ına 405 yerine sessiz 204 döner (no-op).
+        return Response(status=204)
+
+    @app.get("/api/settings")
+    def get_settings():
+        return _json({"success": True, "settings": load_settings_file()})
+
+    @app.post("/api/settings")
+    def set_settings():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return _json({"success": False, "error": "Geçersiz ayar verisi."}, 400)
+        try:
+            save_settings_file(body)
+            return _json({"success": True})
+        except OSError as e:
+            return _json({"success": False, "error": str(e)}, 500)
 
     @app.get("/api/files")
     def files():

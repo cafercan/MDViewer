@@ -1,7 +1,8 @@
 // INITIAL CONFIGURATION FOR EXTERNAL LIBRARIES
 mermaid.initialize({
     startOnLoad: false,
-    theme: 'dark',
+    // Varsayılan tema açık olduğu için mermaid 'default' (açık) ile uyumlu.
+    theme: 'default',
     // 'strict': mermaid, etiket içeriğindeki HTML'i temizler ve tıklama/JS
     // yönlendirmelerini kapatır. Güvenilmeyen bir .md dosyasındaki diyagram
     // kodunun script çalıştırmasını engeller.
@@ -48,6 +49,7 @@ const paneEdit = document.getElementById('pane-edit');
 const markdownViewer = document.getElementById('markdown-viewer');
 const inlineEditor = document.getElementById('inline-editor');
 const chkAutosave = document.getElementById('chk-autosave');
+const chkLineNumbers = document.getElementById('chk-line-numbers');
 const saveStatus = document.getElementById('save-status');
 
 const settingsDrawer = document.getElementById('settings-drawer');
@@ -311,11 +313,39 @@ function resolveLocalAssets(container) {
     });
 }
 
+// Her üst düzey bloğun KAYNAK satır numarasını hesaplar. marked.lexer üst düzey
+// token'lar verir; her token'ın .raw'ındaki satır sayısıyla ilerleyerek başlangıç
+// satırını buluruz. 'space' token'ları render edilmez ama satırları sayılır.
+function computeBlockLineStarts(markdownText) {
+    const tokens = marked.lexer(markdownText);
+    let line = 1;
+    const starts = [];
+    for (const t of tokens) {
+        if (t.type !== 'space') starts.push(line);
+        line += (t.raw.match(/\n/g) || []).length;
+    }
+    return starts;
+}
+
+// Read modunda üst düzey render öğelerine kaynak satır numarasını (data-ln) ekler.
+// Her üst düzey token tam bir üst düzey öğe ürettiği için sıra birebir eşleşir;
+// pipeline değişmez (regresyon yok). Sayı uyuşmazsa elde olanı işaretler.
+function annotateReadLineNumbers(container, markdownText) {
+    const starts = computeBlockLineStarts(markdownText);
+    const children = Array.from(container.children);
+    children.forEach((el, i) => {
+        el.classList.add('md-block');
+        if (starts[i] !== undefined) el.dataset.ln = starts[i];
+        else el.removeAttribute('data-ln');
+    });
+}
+
 // MARKDOWN RENDERING PIPELINE (Read Mode)
 function renderMarkdown(markdownText) {
     // Render Markdown through marked.js
     const renderedHtml = marked.parse(markdownText);
     markdownViewer.innerHTML = preprocessRenderedHTML(renderedHtml);
+    annotateReadLineNumbers(markdownViewer, markdownText);
     resolveLocalAssets(markdownViewer);
 
     // Code Block Syntax Highlighting (Highlight.js)
@@ -344,14 +374,23 @@ function renderInlineEditor(markdownText) {
     // Parse Markdown text into top-level token blocks
     currentTokens = marked.lexer(markdownText);
     inlineEditor.innerHTML = '';
-    
+
+    // Her token'ın kaynak başlangıç satırı (space dahil ilerleyerek).
+    const tokenLineStarts = [];
+    let _ln = 1;
+    for (const t of currentTokens) {
+        tokenLineStarts.push(_ln);
+        _ln += (t.raw.match(/\n/g) || []).length;
+    }
+
     currentTokens.forEach((token, index) => {
         // Skip spaces but keep them in token array for file reconstructions
         if (token.type === 'space') return;
-        
+
         const blockWrapper = document.createElement('div');
-        blockWrapper.className = 'inline-block-wrapper';
+        blockWrapper.className = 'inline-block-wrapper md-block';
         blockWrapper.setAttribute('data-index', index);
+        blockWrapper.dataset.ln = tokenLineStarts[index];
         
         // 1. Rendered representation of the block
         const renderedDiv = document.createElement('div');
@@ -944,11 +983,19 @@ function setupEventListeners() {
         closeDrawer();
     });
 
-    // 7. Theme selector dropdown
+    // 7. Theme selector dropdown (anında uygula + kalıcı kaydet)
     themeSelector.addEventListener('change', (e) => {
-        const theme = e.target.value;
-        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', e.target.value);
+        saveSettings();
     });
+
+    // 7b. Satır numarası aç/kapa (anında uygula + kalıcı kaydet)
+    if (chkLineNumbers) {
+        chkLineNumbers.addEventListener('change', () => {
+            applyLineNumbers(chkLineNumbers.checked);
+            saveSettings();
+        });
+    }
 
     // 8. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
@@ -1058,46 +1105,60 @@ function clearDraft(filePath = currentFilePath) {
 }
 
 // STORAGE STORAGE PERSISTENCE
-function saveSettings() {
-    const settings = {
+// Satır numarası oluğunu aç/kapat (hem okuma hem düzenleme paneli).
+function applyLineNumbers(on) {
+    paneRead.classList.toggle('line-numbers', on);
+    paneEdit.classList.toggle('line-numbers', on);
+}
+
+function collectSettings() {
+    return {
         theme: themeSelector.value,
         cssPath: customCssPath.value,
         inlineCss: customInlineCss.value,
-        autosave: chkAutosave.checked
+        autosave: chkAutosave.checked,
+        lineNumbers: chkLineNumbers.checked
     };
-    
-    localStorage.setItem('md_viewer_settings', JSON.stringify(settings));
 }
 
-function loadSettings() {
-    const stored = localStorage.getItem('md_viewer_settings');
-    if (!stored) return;
-    
+// Ayarlar sunucuda (%APPDATA%\MDFlowViewer\settings.json) saklanır. Port her
+// açılışta değiştiği için localStorage kalıcı değil; bu yüzden sunucuya yazıyoruz.
+async function saveSettings() {
+    const settings = collectSettings();
     try {
-        const settings = JSON.parse(stored);
-        
-        // Apply theme
-        if (settings.theme) {
-            themeSelector.value = settings.theme;
-            document.documentElement.setAttribute('data-theme', settings.theme);
-        }
-        
-        // Apply autosave check
-        if (settings.autosave !== undefined) {
-            chkAutosave.checked = settings.autosave;
-        }
-        
-        // Restore paths and text
-        if (settings.cssPath) {
-            customCssPath.value = settings.cssPath;
-            loadExternalCSS(); // Load the file
-        }
-        
-        if (settings.inlineCss) {
-            customInlineCss.value = settings.inlineCss;
-            applyCustomCSS();
-        }
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
     } catch (e) {
-        console.error('Ayarlar yüklenemedi:', e);
+        console.error('Ayarlar sunucuya kaydedilemedi:', e);
     }
+    try { localStorage.setItem('md_viewer_settings', JSON.stringify(settings)); } catch (e) { /* yut */ }
+}
+
+async function loadSettings() {
+    let settings = {};
+    try {
+        const r = await fetch('/api/settings');
+        const d = await r.json();
+        if (d && d.success && d.settings) settings = d.settings;
+    } catch (e) {
+        // Sunucuya ulaşılamazsa localStorage yedeği (aynı oturum).
+        try { settings = JSON.parse(localStorage.getItem('md_viewer_settings') || '{}'); } catch (_) { settings = {}; }
+    }
+
+    // Tema — varsayılan AÇIK (minimal-light)
+    const theme = settings.theme || 'minimal-light';
+    themeSelector.value = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+
+    // Satır numarası — varsayılan AÇIK
+    const ln = settings.lineNumbers !== undefined ? settings.lineNumbers : true;
+    chkLineNumbers.checked = ln;
+    applyLineNumbers(ln);
+
+    if (settings.autosave !== undefined) chkAutosave.checked = settings.autosave;
+    if (settings.cssPath) { customCssPath.value = settings.cssPath; loadExternalCSS(); }
+    if (settings.inlineCss) { customInlineCss.value = settings.inlineCss; applyCustomCSS(); }
 }
