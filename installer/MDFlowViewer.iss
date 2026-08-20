@@ -1,4 +1,4 @@
-; MD Flow Viewer - Inno Setup kurulum betiği
+﻿; MD Flow Viewer - Inno Setup kurulum betiği
 ; Program Files'a kurar, kurulum klasörü seçilebilir, Ekle/Kaldır'da görünür,
 ; .md/.markdown için sağ tık "Birlikte Aç" girişi ve varsayılan atanabilir kayıt ekler.
 ; Taşınabilir node.exe gömülüdür; hedef makinede Node.js kurulu olması gerekmez.
@@ -69,6 +69,12 @@ Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\comm
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".md"; ValueData: ""
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".markdown"; ValueData: ""
 
+; --- Gömülü node.exe ve kaldırıcıyı "Birlikte Aç" listesinden gizle ---
+; node.exe launcher tarafından dahili kullanılıyor; kullanıcının .md için
+; yanlışlıkla node.exe'yi (veya kaldırıcıyı) seçmesini engeller.
+Root: HKLM; Subkey: "Software\Classes\Applications\node.exe"; ValueType: string; ValueName: "NoOpenWith"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Classes\Applications\unins000.exe"; ValueType: string; ValueName: "NoOpenWith"; ValueData: ""; Flags: uninsdeletevalue
+
 ; --- Sağ tık bağlam menüsü ---
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer ile Aç"; Flags: uninsdeletekey
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\public\mdflow.ico"
@@ -88,11 +94,17 @@ procedure SHChangeNotify(wEventId: Integer; uFlags: Cardinal; dwItem1, dwItem2: 
   external 'SHChangeNotify@shell32.dll stdcall';
 
 // Kurulumdan sonra kabuğa dosya ilişkilendirmelerinin değiştiğini bildir ki
-// yeni ikon ve "Birlikte Aç" girişi hemen görünsün (SHCNE_ASSOCCHANGED).
+// yeni ikon ve "Birlikte Aç" girişi hemen görünsün (SHCNE_ASSOCCHANGED),
+// ardından Explorer ilişkilendirme/ikon önbelleğini tazele.
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
+  begin
     SHChangeNotify($08000000, $0000, 0, 0);
+    Exec(ExpandConstant('{sys}\ie4uinit.exe'), '-show', '', SW_HIDE, ewNoWait, ResultCode);
+  end;
 end;
 
 // .NET 8 Masaüstü Çalışma Zamanı uyarısı (MDFlowViewer.exe buna bağımlı).
