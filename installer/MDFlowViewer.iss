@@ -1,10 +1,10 @@
-﻿; MD Flow Viewer - Inno Setup kurulum betiği
+﻿; MD Flow Viewer - Inno Setup kurulum betiği (pywebview / Python sürümü)
 ; Program Files'a kurar, kurulum klasörü seçilebilir, Ekle/Kaldır'da görünür,
 ; .md/.markdown için sağ tık "Birlikte Aç" girişi ve varsayılan atanabilir kayıt ekler.
-; Taşınabilir node.exe gömülüdür; hedef makinede Node.js kurulu olması gerekmez.
+; Kendi penceresi WebView2 kullanır; ayrı Node.js / .NET gerekmez.
 
 #define AppName "MD Flow Viewer"
-#define AppVersion "1.0.0"
+#define AppVersion "2.0.0"
 #define AppPublisher "cafercan"
 #define AppExeName "MDFlowViewer.exe"
 #define AppUrl "https://github.com/cafercan/MDViewer"
@@ -42,19 +42,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\build\stage\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; PyInstaller one-dir çıktısı (MDFlowViewer.exe + _internal\...)
+Source: "..\dist\MDFlowViewer\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; İkonu sabit bir yola da koy (kayıt defteri/kısayollar bunu gösterir)
+Source: "..\public\mdflow.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\MD Flow Viewer"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\public\mdflow.ico"
+Name: "{group}\MD Flow Viewer"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\mdflow.ico"
 Name: "{group}\{cm:UninstallProgram,MD Flow Viewer}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\MD Flow Viewer"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\public\mdflow.ico"; Tasks: desktopicon
+Name: "{autodesktop}\MD Flow Viewer"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\mdflow.ico"; Tasks: desktopicon
 
 [Registry]
 ; --- ProgId tanımı ---
 Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer"; ValueType: string; ValueName: ""; ValueData: "Markdown Belgesi"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\public\mdflow.ico"
+Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\mdflow.ico"
 Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\shell\open"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer ile Aç"
-Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\shell\open"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\public\mdflow.ico"
+Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\shell\open"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\mdflow.ico"
 Root: HKLM; Subkey: "Software\Classes\MDFlow.Viewer\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 ; --- Uzantıları "Birlikte Aç" listesine bağla (varsayılanı KULLANICI seçer) ---
@@ -63,24 +66,21 @@ Root: HKLM; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: str
 
 ; --- Uygulama kaydı (Birlikte Aç listesinde görünür ad) ---
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\public\mdflow.ico"
+Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\mdflow.ico"
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer ile Aç"
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".md"; ValueData: ""
 Root: HKLM; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".markdown"; ValueData: ""
 
-; --- Gömülü node.exe ve kaldırıcıyı "Birlikte Aç" listesinden gizle ---
-; node.exe launcher tarafından dahili kullanılıyor; kullanıcının .md için
-; yanlışlıkla node.exe'yi (veya kaldırıcıyı) seçmesini engeller.
-Root: HKLM; Subkey: "Software\Classes\Applications\node.exe"; ValueType: string; ValueName: "NoOpenWith"; ValueData: ""; Flags: uninsdeletevalue
+; --- Kaldırıcıyı "Birlikte Aç" listesinden gizle ---
 Root: HKLM; Subkey: "Software\Classes\Applications\unins000.exe"; ValueType: string; ValueName: "NoOpenWith"; ValueData: ""; Flags: uninsdeletevalue
 
 ; --- Sağ tık bağlam menüsü ---
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer ile Aç"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\public\mdflow.ico"
+Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\mdflow.ico"
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.md\shell\OpenWithMDFlow\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\OpenWithMDFlow"; ValueType: string; ValueName: ""; ValueData: "MD Flow Viewer ile Aç"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\OpenWithMDFlow"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\public\mdflow.ico"
+Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\OpenWithMDFlow"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\mdflow.ico"
 Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\OpenWithMDFlow\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 [Run]
@@ -93,9 +93,7 @@ Type: filesandordirs; Name: "{app}"
 procedure SHChangeNotify(wEventId: Integer; uFlags: Cardinal; dwItem1, dwItem2: Cardinal);
   external 'SHChangeNotify@shell32.dll stdcall';
 
-// Kurulumdan sonra kabuğa dosya ilişkilendirmelerinin değiştiğini bildir ki
-// yeni ikon ve "Birlikte Aç" girişi hemen görünsün (SHCNE_ASSOCCHANGED),
-// ardından Explorer ilişkilendirme/ikon önbelleğini tazele.
+// Kurulum sonrası kabuğa ilişkilendirme değişikliğini bildir + ikon önbelleğini tazele.
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
@@ -107,50 +105,29 @@ begin
   end;
 end;
 
-// .NET 8 Masaüstü Çalışma Zamanı uyarısı (MDFlowViewer.exe buna bağımlı).
-// Not: kurulum 32-bit çalışır; HKLM okuması Wow6432Node'a yönlenir ve 64-bit
-// dotnet anahtarını KAÇIRIR. Bu yüzden 64-bit hive için HKLM64 kullanıyoruz,
-// ayrıca güvence olarak paylaşılan çalışma zamanı klasörünü de kontrol ediyoruz.
-function IsDotNet8DesktopInstalled(): Boolean;
+// WebView2 Runtime kontrolü (Evergreen). Kurulum 32-bit çalışır; EdgeUpdate
+// anahtarı WOW6432Node altında olduğundan HKLM okuması doğrudan oraya gider.
+// Ayrıca HKCU (kullanıcı bazlı kurulum) kontrol edilir.
+function IsWebView2Installed(): Boolean;
 var
-  Names: TArrayOfString;
-  I: Integer;
-  Key: String;
-  FindRec: TFindRec;
-  BasePath: String;
+  pv: String;
+  guid: String;
 begin
+  guid := '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   Result := False;
-
-  // 1) 64-bit kayıt defteri (native hive)
-  Key := 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App';
-  if RegGetValueNames(HKLM64, Key, Names) then
-    for I := 0 to GetArrayLength(Names) - 1 do
-      if Copy(Names[I], 1, 2) = '8.' then
-        Result := True;
-  if Result then Exit;
-
-  // 2) Dosya sistemi yedeği: 64-bit Program Files altındaki paylaşılan runtime
-  BasePath := ExpandConstant('{commonpf64}\dotnet\shared\Microsoft.WindowsDesktop.App');
-  if FindFirst(BasePath + '\8.*', FindRec) then
-  try
-    repeat
-      if (FindRec.Attributes and $10) <> 0 then  // FILE_ATTRIBUTE_DIRECTORY
-      begin
-        Result := True;
-        Break;
-      end;
-    until not FindNext(FindRec);
-  finally
-    FindClose(FindRec);
-  end;
+  if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + guid, 'pv', pv) then
+    if (pv <> '') and (pv <> '0.0.0.0') then Result := True;
+  if not Result then
+    if RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + guid, 'pv', pv) then
+      if (pv <> '') and (pv <> '0.0.0.0') then Result := True;
 end;
 
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  if not IsDotNet8DesktopInstalled() then
-    if MsgBox('MD Flow Viewer için .NET 8 Masaüstü Çalışma Zamanı (Desktop Runtime x64) gerekli ve şu an bulunamadı.'#13#10#13#10 +
-              'https://dotnet.microsoft.com/download/dotnet/8.0 adresinden kurabilirsiniz.'#13#10#13#10 +
+  if not IsWebView2Installed() then
+    if MsgBox('MD Flow Viewer için Microsoft Edge WebView2 Runtime gerekli ve şu an bulunamadı.'#13#10#13#10 +
+              'https://developer.microsoft.com/microsoft-edge/webview2/ adresinden ücretsiz kurabilirsiniz.'#13#10#13#10 +
               'Yine de kuruluma devam edilsin mi?', mbConfirmation, MB_YESNO) = IDNO then
       Result := False;
 end;

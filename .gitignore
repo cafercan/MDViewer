@@ -33,3 +33,9 @@ Thumbs.db
 *.tmp
 *.bak
 *.swp
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.spec

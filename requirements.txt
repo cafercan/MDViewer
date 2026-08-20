@@ -1,0 +1,5 @@
+# Runtime
+flask>=3.0
+pywebview>=6.0
+# Build-time only
+pyinstaller>=6.0
