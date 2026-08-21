@@ -27,7 +27,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum (kullanıcılar)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.2.1.exe`** kurulumunu indirin.
+   **`MDViewer-v2.2.2.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -71,7 +71,7 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.2.1.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.2.2.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 

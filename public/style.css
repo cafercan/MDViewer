@@ -904,11 +904,17 @@ body {
 
 .inline-block-wrapper {
     position: relative;
-    margin-bottom: 0.5rem;
-    padding: 0.4rem 0.6rem;
+    margin-bottom: 0;
+    padding: 0.1rem 0.6rem;
     border-left: 3px solid transparent;
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-left-color 0.2s ease;
+}
+/* Okuma modundaki sade aralığı taklit et: blok içi ilk elemanın üst margin'ini
+   kaldır ki wrapper'lar arası boşluk (collapse olmadığı için) katlanmasın.
+   Böylece bloklar arası boşluk ~ elemanın alt margin'i (read modu gibi). */
+.inline-block-wrapper .block-rendered > :first-child {
+    margin-top: 0;
 }
 
 .inline-block-wrapper:hover {
