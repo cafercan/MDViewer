@@ -1094,6 +1094,47 @@ img.asset-missing {
 }
 
 /* ============================================================
+   METİN SEÇİMİ
+   Pencere text_select=True ile açılıyor (bkz. app/main.py): belge metni fare
+   ile seçilebilir ve Ctrl+C ile kopyalanabilir. Buna karşılık üst bar, kenar
+   çubuğu gibi kabuk öğelerinde seçim istenmez — çift tıklamada buton yazısı
+   maviye boyanmasın.
+   ============================================================ */
+.app-header,
+.app-sidebar,
+.sidebar-toggle-grip,
+.editor-header,
+.toggle-container,
+.theme-switch {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Dosya yolu kopyalanabilir kalsın */
+.current-file-badge,
+#file-name-display {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+/* Belge içeriği: okuma paneli, blok düzenleyici ve ham markdown alanları */
+.markdown-body,
+.inline-editor,
+.block-textarea,
+.read-pane,
+.edit-pane {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: auto;
+}
+
+/* Seçim rengi temayla uyumlu olsun */
+::selection {
+    background: var(--accent-primary);
+    color: #fff;
+}
+
+/* ============================================================
    YAZDIRMA / PDF ÇIKTISI
    Üst bar, kenar çubuğu ve düzenleyici çıktıya girmez; okuma panelindeki
    render'lı markdown tek akış hâlinde sayfalanır.

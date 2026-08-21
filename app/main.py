@@ -126,9 +126,14 @@ def main() -> int:
         url += "?file=" + urllib.parse.quote(fp, safe="")
 
     api = JsApi(workspace)
+    # text_select=True olmadan pywebview sayfaya
+    # "body { user-select: none; cursor: default }" enjekte eder; belge metni
+    # seçilemez ve Ctrl+C çalışmaz. Kabuk öğelerinin seçilmezliği CSS'te
+    # ayrıca yönetiliyor (public/style.css, "METİN SEÇİMİ" bölümü).
     api.attach(webview.create_window(APP_TITLE, url=url, js_api=api,
                                      width=1280, height=860,
-                                     min_size=(820, 560)))
+                                     min_size=(820, 560),
+                                     text_select=True))
     # Pencere kapanınca start() döner -> süreç biter (daemon server ölür).
     webview.start()
     server.shutdown()
