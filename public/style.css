@@ -1013,22 +1013,26 @@ img.asset-missing {
    soldaki oluğa kaynak satır numarasını (data-ln) gösterir.
    ============================================================ */
 .md-linenums .markdown-body {
-    padding-left: 3.6em;
+    padding-left: 3.4em;
 }
-/* Numara normal akışta inline-block; negatif margin ile soldaki oluğa çekilir.
-   position:absolute kullanılmıyor (merkezli yerleşimde içeriği boyamayı bozuyordu). */
+/* Numara, bloğun sol oluğuna ABSOLUTE oturur: akışı bozmaz, ilk satırın
+   soluna hizalanır (edit blokları wrapper olduğu için inline-block üste
+   düşüyordu; absolute bunu çözer). */
+.md-linenums .md-block {
+    position: relative;
+}
 .md-linenums .md-block[data-ln]::before {
     content: attr(data-ln);
-    display: inline-block;
-    width: 2.4em;
-    margin-left: -3.6em;
-    margin-right: 1.2em;
+    position: absolute;
+    left: -3.2em;
+    top: 0.2em;
+    width: 2.6em;
     text-align: right;
     color: var(--text-muted);
     font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-    font-size: 0.68em;
-    opacity: 0.6;
-    vertical-align: top;
+    font-size: 0.7em;
+    line-height: inherit;
+    opacity: 0.55;
     user-select: none;
     pointer-events: none;
 }
