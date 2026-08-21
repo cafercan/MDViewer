@@ -17,9 +17,11 @@ import urllib.request
 import webview
 from werkzeug.serving import make_server
 
-from server import create_app
+from server import Workspace, create_app, get_last_dir, remember_last_dir
 
 APP_TITLE = "MD Flow Viewer"
+
+MD_FILE_TYPES = ("Markdown (*.md;*.markdown)", "Tum dosyalar (*.*)")
 
 
 def free_port() -> int:
@@ -38,9 +40,9 @@ def file_arg() -> str | None:
 
 
 class ServerThread(threading.Thread):
-    def __init__(self, port: int) -> None:
+    def __init__(self, port: int, workspace: Workspace) -> None:
         super().__init__(daemon=True)
-        self._srv = make_server("127.0.0.1", port, create_app(), threaded=True)
+        self._srv = make_server("127.0.0.1", port, create_app(workspace), threaded=True)
 
     def run(self) -> None:
         self._srv.serve_forever()
@@ -50,6 +52,49 @@ class ServerThread(threading.Thread):
             self._srv.shutdown()
         except Exception:
             pass
+
+
+class JsApi:
+    """Arayüzün (public/app.js) çağırabildiği native köprü.
+
+    Tarayıcıdan native dosya seçme penceresi açılamaz; üst bardaki "Dosya Aç"
+    butonu bu API üzerinden pywebview'in kendi diyaloğunu açar.
+    """
+
+    def __init__(self, workspace: Workspace) -> None:
+        self._ws = workspace
+        # DİKKAT: pencere referansı '_' ile başlamalı. pywebview, js_api
+        # nesnesinin public üyelerini JS'e aktarmak için gezer; Window nesnesi
+        # public olursa window.native.AccessibilityObject... zincirinde sonsuz
+        # döngüye girip "maximum recursion depth exceeded" ile köprüyü hiç
+        # kurmaz (belirti: window.pywebview.api tanımsız).
+        self._window: webview.Window | None = None
+
+    def attach(self, window: webview.Window) -> None:
+        self._window = window
+
+    def open_file(self) -> str | None:
+        """Dosya seçme penceresini son kullanılan klasörde açar.
+
+        Seçim yapılırsa çalışma kökü o dosyanın klasörüne taşınır (kullanıcı
+        açıkça seçti) ve yol arayüze döner; iptal edilirse None.
+        """
+        if self._window is None:
+            return None
+
+        result = self._window.create_file_dialog(
+            webview.FileDialog.OPEN,
+            directory=get_last_dir(),
+            allow_multiple=False,
+            file_types=MD_FILE_TYPES,
+        )
+        if not result:
+            return None
+
+        path = os.path.abspath(result[0])
+        self._ws.rebase(path)
+        remember_last_dir(path)
+        return path
 
 
 def wait_health(port: int, timeout: float = 8.0) -> bool:
@@ -67,7 +112,8 @@ def wait_health(port: int, timeout: float = 8.0) -> bool:
 
 def main() -> int:
     port = free_port()
-    server = ServerThread(port)
+    workspace = Workspace()
+    server = ServerThread(port, workspace)
     server.start()
 
     if not wait_health(port):
@@ -79,8 +125,10 @@ def main() -> int:
     if fp:
         url += "?file=" + urllib.parse.quote(fp, safe="")
 
-    webview.create_window(APP_TITLE, url=url, width=1280, height=860,
-                          min_size=(820, 560))
+    api = JsApi(workspace)
+    api.attach(webview.create_window(APP_TITLE, url=url, js_api=api,
+                                     width=1280, height=860,
+                                     min_size=(820, 560)))
     # Pencere kapanınca start() döner -> süreç biter (daemon server ölür).
     webview.start()
     server.shutdown()

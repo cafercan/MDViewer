@@ -204,9 +204,12 @@ body {
 
 .header-center {
     flex-grow: 1;
-    max-width: 40%;
+    max-width: 52%;
     display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 0.6rem;
+    min-width: 0;
 }
 
 .current-file-badge {
@@ -224,6 +227,8 @@ body {
     text-overflow: ellipsis;
     overflow: hidden;
     max-width: 100%;
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .header-right {
@@ -757,141 +762,6 @@ body {
     tab-size: 4;
 }
 
-/* SETTINGS/CUSTOM CSS DRAWER */
-.drawer-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 150;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--transition-speed);
-}
-.drawer-overlay.open {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.drawer {
-    position: fixed;
-    top: 0;
-    right: -420px;
-    width: 400px;
-    height: 100vh;
-    background: var(--bg-surface);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-left: 1px solid var(--border-color);
-    box-shadow: -8px 0 32px rgba(0,0,0,0.5);
-    z-index: 200;
-    display: flex;
-    flex-direction: column;
-    transition: right var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
-}
-.drawer.open {
-    right: 0;
-}
-
-.drawer-header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.drawer-header h3 {
-    font-size: 1.1rem;
-    font-weight: 700;
-}
-.drawer-close-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.75rem;
-    cursor: pointer;
-    line-height: 1;
-}
-.drawer-close-btn:hover {
-    color: var(--text-primary);
-}
-
-.drawer-content {
-    padding: 1.5rem;
-    flex-grow: 1;
-    overflow-y: auto;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-.form-group label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-}
-.form-group select, 
-.form-group input[type="text"] {
-    width: 100%;
-    background: var(--bg-control);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 0.6rem 0.8rem;
-    color: var(--text-primary);
-    font-family: var(--font-ui);
-    font-size: 0.9rem;
-    outline: none;
-}
-.form-group select:focus, 
-.form-group input[type="text"]:focus {
-    border-color: var(--accent-primary);
-}
-
-.input-with-button {
-    display: flex;
-    gap: 0.5rem;
-}
-.input-with-button input {
-    flex-grow: 1;
-}
-
-.form-group textarea.code-textarea {
-    width: 100%;
-    height: 180px;
-    background: var(--bg-control);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 0.75rem;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    resize: vertical;
-    outline: none;
-}
-.form-group textarea.code-textarea:focus {
-    border-color: var(--accent-primary);
-}
-
-.form-group small {
-    display: block;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    margin-top: 0.35rem;
-}
-
-.drawer-actions {
-    margin-top: 1rem;
-}
-.fill-width {
-    width: 100%;
-    justify-content: center;
-}
-
 /* INLINE EDITOR STYLING */
 .inline-editor {
     max-width: 100%;
@@ -1126,4 +996,192 @@ img.asset-missing {
     background: var(--accent-primary);
     color: #fff;
     border-color: var(--accent-primary);
+}
+
+/* ============================================================
+   ÜST BAR: SAYFA İÇİ ARAMA (FIND BAR)
+   ============================================================ */
+.find-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--bg-control);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0 0.35rem 0 0.6rem;
+    height: 34px;
+    flex: 1 1 220px;
+    min-width: 150px;
+    max-width: 320px;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+.find-bar:focus-within {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Mercek ikonu: kutunun arama kutusu olduğunu belli eder */
+.find-icon {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+.find-bar:focus-within .find-icon {
+    color: var(--accent-primary);
+}
+
+#find-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    padding: 0 0.15rem;
+}
+#find-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* "3/12" sayaç */
+.find-count {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding: 0 0.15rem;
+}
+.find-count.no-match {
+    color: var(--error);
+}
+
+/* Mini önceki/sonraki/temizle butonları */
+.find-nav {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    transition: background var(--transition-speed), color var(--transition-speed);
+}
+.find-nav:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+.find-nav:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* Eşleşme vurguları (CSS Custom Highlight API) */
+::highlight(md-find-all) {
+    background-color: rgba(250, 204, 21, 0.45);
+    color: inherit;
+}
+::highlight(md-find-current) {
+    background-color: var(--accent-primary);
+    color: #fff;
+}
+
+/* ============================================================
+   YAZDIRMA / PDF ÇIKTISI
+   Üst bar, kenar çubuğu ve düzenleyici çıktıya girmez; okuma panelindeki
+   render'lı markdown tek akış hâlinde sayfalanır.
+   ============================================================ */
+@media print {
+    @page {
+        margin: 16mm 14mm;
+    }
+
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+
+    /* Ekran kromu: yazdırmada tamamen dışarıda */
+    .app-header,
+    .app-sidebar,
+    .sidebar-toggle-grip,
+    .edit-pane {
+        display: none !important;
+    }
+
+    /* Sabit yükseklikli flex yerleşimi tek akışa çevir */
+    .app-container,
+    .main-layout,
+    .workspace-viewport {
+        display: block !important;
+        height: auto !important;
+        width: auto !important;
+        overflow: visible !important;
+    }
+
+    .viewport-pane {
+        position: static !important;
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+        padding: 0 !important;
+    }
+
+    .markdown-body {
+        max-width: none !important;
+        width: 100% !important;
+        color: #111 !important;
+        font-size: 11pt !important;
+    }
+
+    .markdown-body a {
+        color: #111 !important;
+        text-decoration: underline;
+    }
+
+    /* Kod blokları: koyu tema yazdırmada okunmaz; nötr açık zemine çevir */
+    .markdown-body pre,
+    .markdown-body pre code,
+    .markdown-body .hljs {
+        background: #f6f8fa !important;
+        border: 1px solid #d8dee4 !important;
+        box-shadow: none !important;
+    }
+    .markdown-body pre code,
+    .markdown-body .hljs,
+    .markdown-body .hljs * {
+        color: #111 !important;
+    }
+
+    .markdown-body img,
+    .markdown-body svg {
+        max-width: 100% !important;
+    }
+
+    /* Sayfa kırılmaları: blokları ortadan bölme, başlığı içeriğinden ayırma */
+    pre, table, blockquote, img, .mermaid,
+    .info-box, .warning-box, .danger-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4 {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    /* Satır numarası oluğu yazdırmada gereksiz */
+    .md-linenums .markdown-body {
+        padding-left: 0 !important;
+    }
 }

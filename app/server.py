@@ -42,6 +42,27 @@ def load_settings_file() -> dict:
         return {}
 
 
+def get_last_dir() -> str:
+    """Dosya seçme penceresinin açılacağı klasör (en son açılan dosyanın yeri)."""
+    d = load_settings_file().get("lastDir")
+    return d if isinstance(d, str) and os.path.isdir(d) else ""
+
+
+def remember_last_dir(file_path: str) -> None:
+    """Açılan dosyanın klasörünü ayarlara yazar (değiştiyse)."""
+    directory = os.path.dirname(os.path.abspath(file_path))
+    if not os.path.isdir(directory):
+        return
+    settings = load_settings_file()
+    if settings.get("lastDir") == directory:
+        return
+    settings["lastDir"] = directory
+    try:
+        save_settings_file(settings)
+    except OSError:
+        pass  # ayar yazılamazsa akışı bozmaya değmez
+
+
 def save_settings_file(data: dict) -> None:
     p = settings_path()
     os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -70,6 +91,17 @@ class Workspace:
         if self.root or not file_path:
             return
         self.root = os.path.dirname(os.path.abspath(file_path))
+
+    def rebase(self, file_path: str) -> str:
+        """Çalışma kökünü verilen dosyanın klasörüne TAŞIR.
+
+        Yalnızca kullanıcının native dosya seçme penceresinde açıkça seçtiği
+        dosya için çağrılır (bkz. app/main.py JsApi.open_file). HTTP uçlarından
+        tetiklenemez; kök hapsi böylece kullanıcı niyetiyle sınırlı kalır.
+        """
+        abs_path = os.path.abspath(file_path)
+        self.root = os.path.dirname(abs_path)
+        return abs_path
 
     def get_abs(self, file_path: str | None) -> str | None:
         if not file_path:
@@ -106,9 +138,11 @@ def _forbidden() -> Response:
     return _json({"success": False, "error": "Erişim reddedildi: çalışma klasörü dışında."}, 403)
 
 
-def create_app() -> Flask:
+def create_app(workspace: Workspace | None = None) -> Flask:
     app = Flask(__name__)
-    ws = Workspace()
+    # Kabuk (app/main.py) aynı Workspace'i paylaşır: native dosya seçiciyle
+    # başka klasördeki bir belge açıldığında kökü o klasöre taşıyabilsin.
+    ws = workspace if workspace is not None else Workspace()
 
     @app.after_request
     def _no_store(resp: Response) -> Response:
@@ -135,7 +169,12 @@ def create_app() -> Flask:
         if not isinstance(body, dict):
             return _json({"success": False, "error": "Geçersiz ayar verisi."}, 400)
         try:
-            save_settings_file(body)
+            # Birleştir, ezme: arayüz yalnızca kendi bildiği anahtarları gönderir
+            # (tema, autosave, satır no). lastDir gibi kabuk tarafı anahtarlar
+            # tam yazımda kaybolurdu.
+            settings = load_settings_file()
+            settings.update(body)
+            save_settings_file(settings)
             return _json({"success": True})
         except OSError as e:
             return _json({"success": False, "error": str(e)}, 500)
@@ -175,6 +214,7 @@ def create_app() -> Flask:
         try:
             with open(abs_path, "r", encoding="utf-8") as f:
                 data = f.read()
+            remember_last_dir(abs_path)
             return _json({"success": True, "name": os.path.basename(abs_path),
                           "path": abs_path, "content": data})
         except OSError as e:
@@ -192,22 +232,6 @@ def create_app() -> Flask:
             return _json({"success": False, "error": "Varlık bulunamadı: " + str(abs_path)}, 404)
         ctype = mimetypes.guess_type(abs_path)[0] or "application/octet-stream"
         return send_file(abs_path, mimetype=ctype)
-
-    @app.get("/api/css")
-    def css():
-        css_path = request.args.get("path")
-        if not css_path:
-            return _json({"success": False, "error": "CSS yolu belirtilmedi."}, 400)
-        abs_path = ws.resolve_confined(css_path)
-        if abs_path is False:
-            return _forbidden()
-        if not os.path.exists(abs_path):
-            return _json({"success": False, "error": "CSS dosyası bulunamadı: " + abs_path}, 404)
-        try:
-            with open(abs_path, "r", encoding="utf-8") as f:
-                return _json({"success": True, "css": f.read()})
-        except OSError as e:
-            return _json({"success": False, "error": str(e)}, 500)
 
     @app.post("/api/save")
     def save():

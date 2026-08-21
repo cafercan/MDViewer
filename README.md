@@ -16,9 +16,12 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - ✏️ Blok bazlı satır içi düzenleyici, otomatik kaydetme
 - 🔄 Dosya diskte değişince otomatik yenileme (SSE)
 - 🧜 Mermaid diyagramları, `highlight.js` kod vurgulama
-- 🎨 Özel CSS / tema, `:::info` `:::warning` `:::danger` kutuları
+- 🎨 `:::info` `:::warning` `:::danger` kutuları
 - 🖼️ Belgeye göreli yerel görselleri servis eder
 - 🪟 **Kendi penceresi** (pywebview / WebView2) — kendi ikonu, kapanınca temiz çıkış
+- 📂 Üst bardan **dosya aç** (Ctrl+O) — native seçici son açılan klasörde başlar
+- 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
+- 🖨️ PDF olarak dışa aktarma (Ctrl+P) — çıktıda üst bar/kenar çubuğu yok
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
 - 🎨 5 tema (3 açık + 2 koyu) üst barda renk swatch'leriyle; varsayılan açık
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
@@ -27,7 +30,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum (kullanıcılar)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.2.3.exe`** kurulumunu indirin.
+   **`MDViewer-v2.3.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -49,10 +52,11 @@ temiz kaldırılır (dosya ilişkilendirmeleri dahil).
 - **Frontend** — `public/` (marked, mermaid, highlight.js, DOMPurify). Çizilen
   HTML DOMPurify ile sanitize edilir, Mermaid `strict` modda.
 - **Backend** — `app/server.py`: `127.0.0.1`'de küçük Flask sunucusu; `/api/*`
-  uçları (content, save, files, asset, css, watch/SSE). Tüm dosya erişimi açılan
+  uçları (content, save, files, asset, settings, watch/SSE). Tüm dosya erişimi açılan
   belgenin klasörüne **hapsedilir** (path traversal `403`).
-- **Kabuk** — `app/main.py`: pywebview ile kendi WebView2 penceresi. Pencere
-  kapanınca süreç tamamen biter; arka planda sunucu kalmaz.
+- **Kabuk** — `app/main.py`: pywebview ile kendi WebView2 penceresi. Native
+  dosya seçici `JsApi` köprüsüyle açılır; seçilen belgenin klasörü yeni çalışma
+  kökü olur. Pencere kapanınca süreç tamamen biter; arka planda sunucu kalmaz.
 
 ## Geliştirme
 
@@ -71,7 +75,7 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.2.3.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.3.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 

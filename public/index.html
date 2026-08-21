@@ -29,9 +29,6 @@
 
     <!-- Custom Application CSS -->
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Inline Custom Styles Placeholder (dynamically updated) -->
-    <style id="custom-css-styles"></style>
 </head>
 <body>
     <div class="app-container">
@@ -45,6 +42,14 @@
                     </svg>
                     <span>MD<span class="logo-accent">Flow</span></span>
                 </div>
+
+                <!-- Dosya aç: native seçici, son açılan klasörde başlar -->
+                <button class="icon-btn" id="btn-open-file" title="Dosya aç (Ctrl+O)" aria-label="Dosya aç">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v1"></path>
+                        <path d="M3 8h17.5a1 1 0 0 1 .95 1.32l-2.4 7.2A2 2 0 0 1 17.1 18H5a2 2 0 0 1-2-2z"></path>
+                    </svg>
+                </button>
             </div>
             
             <div class="header-center">
@@ -54,6 +59,32 @@
                         <polyline points="14 2 14 8 20 8"></polyline>
                     </svg>
                     <span id="file-name-display">sample.md</span>
+                </div>
+
+                <!-- SAYFA İÇİ ARAMA -->
+                <div class="find-bar" id="find-bar">
+                    <svg class="find-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+                    </svg>
+                    <input type="text" id="find-input" placeholder="Sayfada ara..." spellcheck="false" autocomplete="off" aria-label="Sayfada ara">
+                    <span class="find-count" id="find-count"></span>
+                    <button class="find-nav" id="btn-find-prev" title="Önceki eşleşme (Shift+Enter)" aria-label="Önceki eşleşme" disabled>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                        </svg>
+                    </button>
+                    <button class="find-nav" id="btn-find-next" title="Sonraki eşleşme (Enter)" aria-label="Sonraki eşleşme" disabled>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <button class="find-nav" id="btn-find-clear" title="Aramayı temizle (Esc)" aria-label="Aramayı temizle" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
             </div>
             
@@ -97,11 +128,12 @@
                     <button class="theme-swatch" data-theme-value="nord-dark" title="Nord Frost" style="--sw-bg:#2e3440;--sw-ac:#88c0d0"></button>
                 </div>
 
-                <!-- Custom Styling Button -->
-                <button class="icon-btn" id="btn-settings" title="Özel CSS & Ayarlar">
+                <!-- PDF olarak dışa aktar (tarayıcının "PDF olarak kaydet" yazıcısı) -->
+                <button class="icon-btn" id="btn-export-pdf" title="PDF olarak dışa aktar (Ctrl+P)">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M6 9V2h12v7"></path>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
                     </svg>
                 </button>
 
@@ -196,35 +228,6 @@
             </section>
         </main>
         
-        <!-- SETTINGS / CUSTOM CSS DRAWER -->
-        <div class="drawer-overlay" id="settings-drawer-overlay"></div>
-        <div class="drawer" id="settings-drawer">
-            <div class="drawer-header">
-                <h3>Görünüm ve CSS Özelleştirme</h3>
-                <button class="drawer-close-btn" id="btn-close-settings">&times;</button>
-            </div>
-            <div class="drawer-content">
-                <div class="form-group">
-                    <label>Özel CSS Dosya Yolu</label>
-                    <div class="input-with-button">
-                        <input type="text" id="custom-css-path" placeholder="Örn: C:/my-styles.css veya custom.css">
-                        <button class="secondary-btn" id="btn-apply-css-path">Yükle</button>
-                    </div>
-                    <small>Yerel bilgisayarınızdaki bir CSS dosyasının mutlak yolunu girin.</small>
-                </div>
-                
-                <div class="form-group">
-                    <label>Özel Satır İçi CSS Kodları</label>
-                    <textarea id="custom-inline-css" class="code-textarea" placeholder="h1 { color: #ff0055; }
-.info-box { border-left: 4px solid cyan; }"></textarea>
-                    <small>Bu sayfada anında uygulanacak CSS kurallarını buraya yazabilirsiniz.</small>
-                </div>
-                
-                <div class="drawer-actions">
-                    <button class="primary-btn fill-width" id="btn-save-settings">Ayarları Uygula</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Application Script -->

@@ -38,8 +38,9 @@ const currentFileBadge = document.getElementById('current-file');
 
 const btnReadMode = document.getElementById('btn-read-mode');
 const btnEditMode = document.getElementById('btn-edit-mode');
-const btnSettings = document.getElementById('btn-settings');
 const btnSave = document.getElementById('btn-save');
+const btnExportPdf = document.getElementById('btn-export-pdf');
+const btnOpenFile = document.getElementById('btn-open-file');
 
 const sidebar = document.getElementById('sidebar');
 const sidebarGrip = document.getElementById('sidebar-grip');
@@ -54,15 +55,14 @@ const chkAutosave = document.getElementById('chk-autosave');
 const btnLineNumbers = document.getElementById('btn-line-numbers');
 const saveStatus = document.getElementById('save-status');
 
-const settingsDrawer = document.getElementById('settings-drawer');
-const settingsDrawerOverlay = document.getElementById('settings-drawer-overlay');
-const btnCloseSettings = document.getElementById('btn-close-settings');
 const themeSwitch = document.getElementById('theme-switch');
-const customCssPath = document.getElementById('custom-css-path');
-const btnApplyCssPath = document.getElementById('btn-apply-css-path');
-const customInlineCss = document.getElementById('custom-inline-css');
-const btnSaveSettings = document.getElementById('btn-save-settings');
-const customStylesTag = document.getElementById('custom-css-styles');
+
+// Sayfa içi arama (find bar)
+const findInput = document.getElementById('find-input');
+const findCount = document.getElementById('find-count');
+const btnFindPrev = document.getElementById('btn-find-prev');
+const btnFindNext = document.getElementById('btn-find-next');
+const btnFindClear = document.getElementById('btn-find-clear');
 
 // APP INIT
 window.addEventListener('DOMContentLoaded', () => {
@@ -343,6 +343,9 @@ function renderMarkdown(markdownText) {
 
     // Generate Table of Contents (TOC) & register Scroll Spy
     buildTableOfContents();
+
+    // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
+    refreshFind();
 }
 
 // INLINE WYSIWYG BLOCK EDITOR RENDERING (Edit Mode)
@@ -516,6 +519,9 @@ function renderInlineEditor(markdownText) {
             console.error(e);
         }
     }
+
+    // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
+    refreshFind();
 }
 
 // NOTION-STYLE NEW BLOCK ADDITION
@@ -949,34 +955,16 @@ function setupEventListeners() {
         saveFile();
     });
 
-    // 3. Settings Drawer Open / Close
-    btnSettings.addEventListener('click', () => {
-        settingsDrawer.classList.add('open');
-        settingsDrawerOverlay.classList.add('open');
-    });
+    // 3. Dosya aç (native seçici)
+    if (btnOpenFile) btnOpenFile.addEventListener('click', openFileDialog);
 
-    const closeDrawer = () => {
-        settingsDrawer.classList.remove('open');
-        settingsDrawerOverlay.classList.remove('open');
-    };
-    btnCloseSettings.addEventListener('click', closeDrawer);
-    settingsDrawerOverlay.addEventListener('click', closeDrawer);
+    // 3b. PDF olarak dışa aktar
+    if (btnExportPdf) btnExportPdf.addEventListener('click', exportToPdf);
 
-    // 4. Custom Inline CSS input changes
-    customInlineCss.addEventListener('input', () => {
-        applyCustomCSS();
-    });
+    // 4. Sayfa içi arama kutusu
+    setupFindBar();
 
-    // 5. Custom CSS Path fetching
-    btnApplyCssPath.addEventListener('click', loadExternalCSS);
-
-    // 6. Save Drawer Settings button
-    btnSaveSettings.addEventListener('click', () => {
-        saveSettings();
-        closeDrawer();
-    });
-
-    // 7. Üst bar tema swatch'leri (anında uygula + kalıcı kaydet)
+    // 5. Üst bar tema swatch'leri (anında uygula + kalıcı kaydet)
     if (themeSwitch) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -986,7 +974,7 @@ function setupEventListeners() {
         });
     }
 
-    // 7b. Üst bar satır numarası aç/kapa (yalnızca düzenleme; kalıcı kaydet)
+    // 5b. Üst bar satır numarası aç/kapa (yalnızca düzenleme; kalıcı kaydet)
     if (btnLineNumbers) {
         btnLineNumbers.addEventListener('click', () => {
             applyLineNumbers(!lineNumbersOn);
@@ -994,7 +982,7 @@ function setupEventListeners() {
         });
     }
 
-    // 8. Global Keyboard Shortcuts
+    // 6. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
         // Support Ctrl + S hotkey to save
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -1003,6 +991,26 @@ function setupEventListeners() {
             saveFile();
         }
         
+        // Ctrl + O: dosya aç
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+            e.preventDefault();
+            openFileDialog();
+        }
+
+        // Ctrl + P: yazdır/PDF. Kendimiz yakalıyoruz; düzenleme modunda okuma
+        // paneli gizli olduğu için tarayıcının doğrudan yazdırması boş çıktı verir.
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+            e.preventDefault();
+            exportToPdf();
+        }
+
+        // Ctrl + F: sayfa içi arama kutusuna odaklan (tarayıcı aramasını değiştir)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+            e.preventDefault();
+            findInput.focus();
+            findInput.select();
+        }
+
         // Support Ctrl + E hotkey to toggle mode
         if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
             e.preventDefault();
@@ -1014,11 +1022,11 @@ function setupEventListeners() {
         }
     });
 
-    // 9. Scroll Spy scroll listener on read pane & inline editor scrollable area
+    // 7. Scroll Spy scroll listener on read pane & inline editor scrollable area
     paneRead.addEventListener('scroll', handleScrollSpy);
     inlineEditor.addEventListener('scroll', handleScrollSpy);
 
-    // 10. Sidebar grip toggle
+    // 8. Sidebar grip toggle
     sidebarGrip.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
     });
@@ -1029,45 +1037,6 @@ function setupEventListeners() {
         event.preventDefault();
         event.returnValue = '';
     });
-}
-
-// STYLING/SETTINGS MANAGER
-async function loadExternalCSS() {
-    const cssPath = customCssPath.value.trim();
-    if (!cssPath) {
-        applyCustomCSS(); // reset to only inline
-        return;
-    }
-
-    try {
-        btnApplyCssPath.textContent = 'Yükleniyor...';
-        btnApplyCssPath.disabled = true;
-        
-        const response = await fetch(`/api/css?path=${encodeURIComponent(cssPath)}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            btnApplyCssPath.textContent = 'Yüklendi!';
-            setTimeout(() => {
-                btnApplyCssPath.textContent = 'Yükle';
-                btnApplyCssPath.disabled = false;
-            }, 1500);
-            
-            applyCustomCSS(data.css);
-        } else {
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        console.error('Özel CSS yükleme hatası:', error);
-        alert(`CSS Dosyası Yüklenemedi: ${error.message}`);
-        btnApplyCssPath.textContent = 'Yükle';
-        btnApplyCssPath.disabled = false;
-    }
-}
-
-function applyCustomCSS(externalCss = '') {
-    const inlineCss = customInlineCss.value;
-    customStylesTag.textContent = `${externalCss}\n\n/* Inline Rules */\n${inlineCss}`;
 }
 
 // DRAFT PERSISTENCE
@@ -1149,8 +1118,6 @@ function scrollToBlock(scroller, blocks, index) {
 function collectSettings() {
     return {
         theme: currentTheme,
-        cssPath: customCssPath.value,
-        inlineCss: customInlineCss.value,
         autosave: chkAutosave.checked,
         lineNumbers: lineNumbersOn
     };
@@ -1190,6 +1157,337 @@ async function loadSettings() {
     applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
 
     if (settings.autosave !== undefined) chkAutosave.checked = settings.autosave;
-    if (settings.cssPath) { customCssPath.value = settings.cssPath; loadExternalCSS(); }
-    if (settings.inlineCss) { customInlineCss.value = settings.inlineCss; applyCustomCSS(); }
+}
+
+// ============================================================
+// SAYFA İÇİ ARAMA (FIND BAR)
+// Eşleşmeler CSS Custom Highlight API ile boyanır: DOM'a <mark> eklemediğimiz
+// için render'lı markdown, mermaid SVG'leri ve blok düzenleyici bozulmaz.
+// ============================================================
+let findMatches = [];      // Range[]
+let findIndex = -1;        // aktif eşleşmenin sırası
+let findLastQuery = '';
+let findTimer = null;
+
+const FIND_HL_ALL = 'md-find-all';
+const FIND_HL_CURRENT = 'md-find-current';
+const findHighlightSupported =
+    typeof CSS !== 'undefined' && CSS.highlights && typeof Highlight !== 'undefined';
+
+// Arama hangi panelde yapılacak: aktif moda göre içerik kökü ve kaydırıcı.
+function findScope() {
+    return isEditMode ? inlineEditor : markdownViewer;
+}
+function findScroller() {
+    return isEditMode ? inlineEditor : paneRead;
+}
+
+// Aramayı normalize eder: küçük harf + tüm boşluk türlerini tek boşluğa
+// indirger (HTML kaynaklı satır sonu/girinti aramayı bozmasın). JS'de
+// 'İ'.toLowerCase() iki kod birimi ürettiği ve boşluk dizileri kısaldığı için
+// uzunluk KORUNMAZ; bu yüzden her normalize karakter için kaynak metindeki
+// başlangıç/bitiş konumunu da tutuyoruz. Range'ler bu konumlarla kurulur.
+function findFoldChars(text) {
+    let folded = '';
+    const starts = [];
+    const ends = [];
+    let pos = 0;
+    let prevSpace = false;
+
+    for (const ch of text) {
+        const len = ch.length;
+
+        if (/\s/.test(ch)) {
+            // Boşluk dizisi -> tek boşluk (yalnızca ilk karakteri işaretlenir)
+            if (!prevSpace) {
+                folded += ' ';
+                starts.push(pos);
+                ends.push(pos + len);
+            }
+            prevSpace = true;
+        } else {
+            prevSpace = false;
+            const lower = ch.toLowerCase();
+            // Uzunluk büyürse ('İ' -> 'i' + birleşen nokta) ilk birimi al;
+            // eşitse olduğu gibi kullan (astral karakterler bozulmasın).
+            const piece = lower.length === len ? lower : lower.slice(0, 1);
+            for (let k = 0; k < piece.length; k++) {
+                starts.push(pos);
+                ends.push(pos + len);
+            }
+            folded += piece;
+        }
+        pos += len;
+    }
+
+    return { text: folded, starts, ends };
+}
+
+function findFold(text) {
+    return findFoldChars(text).text;
+}
+
+// Aranabilir metin düğümleri: ham markdown textarea'ları, gizli bloklar ve
+// script/style içerikleri dışarıda kalır.
+function collectFindTextNodes(root) {
+    const nodes = [];
+    if (!root) return nodes;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+            const parent = node.parentElement;
+            if (!parent) return NodeFilter.FILTER_REJECT;
+            if (parent.closest('textarea, script, style, .block-editor, .hidden')) {
+                return NodeFilter.FILTER_REJECT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+
+    let node;
+    while ((node = walker.nextNode())) nodes.push(node);
+    return nodes;
+}
+
+// Verilen konumun hangi metin düğümüne düştüğünü ikili aramayla bulur.
+function findLocateNode(map, pos) {
+    let lo = 0;
+    let hi = map.length - 1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const entry = map[mid];
+        if (pos < entry.start) hi = mid - 1;
+        else if (pos >= entry.start + entry.node.nodeValue.length) lo = mid + 1;
+        else return entry;
+    }
+    return null;
+}
+
+// Tüm panel metnini tek dizeye çevirip eşleşmeleri Range olarak döndürür.
+// Tek dize üzerinden aradığımız için <strong>/<em> gibi satır içi etiketlerle
+// bölünmüş kelimeler de bulunur.
+function computeFindMatches(query) {
+    const ranges = [];
+    const needle = findFold(query);
+    if (!needle) return ranges;
+
+    const nodes = collectFindTextNodes(findScope());
+    if (!nodes.length) return ranges;
+
+    let raw = '';
+    const map = [];
+    for (const node of nodes) {
+        map.push({ node, start: raw.length });
+        raw += node.nodeValue;
+    }
+
+    const folded = findFoldChars(raw);
+    let from = 0;
+
+    for (;;) {
+        const hit = folded.text.indexOf(needle, from);
+        if (hit === -1) break;
+
+        // Normalize edilmiş konumdan kaynak metin konumuna dön
+        const srcStart = folded.starts[hit];
+        const srcEnd = folded.ends[hit + needle.length - 1];
+        const startEntry = findLocateNode(map, srcStart);
+        const endEntry = findLocateNode(map, srcEnd - 1);
+
+        if (startEntry && endEntry) {
+            try {
+                const range = document.createRange();
+                range.setStart(startEntry.node, srcStart - startEntry.start);
+                range.setEnd(endEntry.node, srcEnd - endEntry.start);
+                ranges.push(range);
+            } catch (e) { /* kopmuş düğüm: bu eşleşmeyi atla */ }
+        }
+        from = hit + needle.length;
+    }
+    return ranges;
+}
+
+function applyFindHighlights() {
+    if (!findHighlightSupported) {
+        // Highlight API yoksa aktif eşleşmeyi seçim olarak göster.
+        const selection = window.getSelection();
+        if (!selection) return;
+        selection.removeAllRanges();
+        if (findMatches[findIndex]) selection.addRange(findMatches[findIndex]);
+        return;
+    }
+
+    CSS.highlights.delete(FIND_HL_ALL);
+    CSS.highlights.delete(FIND_HL_CURRENT);
+    if (!findMatches.length) return;
+
+    CSS.highlights.set(FIND_HL_ALL, new Highlight(...findMatches));
+    if (findMatches[findIndex]) {
+        const current = new Highlight(findMatches[findIndex]);
+        current.priority = 1;   // aktif eşleşme diğerlerinin üstüne boyanır
+        CSS.highlights.set(FIND_HL_CURRENT, current);
+    }
+}
+
+function scrollToFindMatch() {
+    const range = findMatches[findIndex];
+    if (!range) return;
+
+    const rect = range.getBoundingClientRect();
+    if (!rect.height && !rect.width) return;
+
+    const scroller = findScroller();
+    const box = scroller.getBoundingClientRect();
+    const target = scroller.scrollTop + (rect.top - box.top) - box.height / 3;
+    scroller.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+}
+
+function updateFindUI() {
+    const hasQuery = !!findInput.value;
+    const total = findMatches.length;
+
+    findCount.textContent = hasQuery ? `${total ? findIndex + 1 : 0}/${total}` : '';
+    findCount.classList.toggle('no-match', hasQuery && total === 0);
+
+    btnFindPrev.disabled = total === 0;
+    btnFindNext.disabled = total === 0;
+    btnFindClear.hidden = !hasQuery;
+}
+
+// delta: 0 = yeniden hesapla (aynı eşleşmede kal), 1 = sonraki, -1 = önceki.
+// DOM her çağrıda yeniden taranır; blok düzenleyici açılıp kapandığında bile
+// eşleşmeler güncel kalır.
+function runFind(delta = 0, jump = true) {
+    const query = findInput.value;
+
+    if (!query) {
+        clearFind(false);
+        return;
+    }
+
+    if (query !== findLastQuery) {
+        findLastQuery = query;
+        findIndex = -1;
+    }
+
+    findMatches = computeFindMatches(query);
+
+    if (!findMatches.length) {
+        findIndex = -1;
+    } else if (delta === 0) {
+        findIndex = findIndex < 0 ? 0 : Math.min(findIndex, findMatches.length - 1);
+    } else {
+        const base = findIndex < 0 ? (delta > 0 ? -1 : 0) : findIndex;
+        findIndex = (base + delta + findMatches.length) % findMatches.length;
+    }
+
+    applyFindHighlights();
+    if (jump) scrollToFindMatch();
+    updateFindUI();
+}
+
+function clearFind(resetInput = true) {
+    if (resetInput) findInput.value = '';
+    findLastQuery = findInput.value;
+    findMatches = [];
+    findIndex = -1;
+
+    if (findHighlightSupported) {
+        CSS.highlights.delete(FIND_HL_ALL);
+        CSS.highlights.delete(FIND_HL_CURRENT);
+    }
+    updateFindUI();
+}
+
+// Yeniden render sonrası (mod değişimi, dosya değişimi, disk güncellemesi)
+// eski Range'ler kopmuş düğümlere işaret eder; sıradaki eşleşmeyi koruyarak
+// yeniden hesaplıyoruz.
+function refreshFind() {
+    if (!findInput || !findInput.value) return;
+    runFind(0, false);
+}
+
+function setupFindBar() {
+    if (!findInput) return;
+
+    findInput.addEventListener('input', () => {
+        clearTimeout(findTimer);
+        findTimer = setTimeout(() => runFind(0, true), 120);
+    });
+
+    findInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(findTimer);
+            runFind(e.shiftKey ? -1 : 1, true);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            clearFind(true);
+        }
+    });
+
+    btnFindNext.addEventListener('click', () => runFind(1, true));
+    btnFindPrev.addEventListener('click', () => runFind(-1, true));
+    btnFindClear.addEventListener('click', () => {
+        clearFind(true);
+        findInput.focus();
+    });
+
+    updateFindUI();
+}
+
+// ============================================================
+// PDF DIŞA AKTARMA
+// Tarayıcının yazdırma diyaloğunu açar; hedef yazıcı olarak "PDF olarak
+// kaydet" seçilir. Çıktı okuma modundaki render'dır (@media print kuralları
+// üst bar, kenar çubuğu ve düzenleyiciyi gizler).
+// ============================================================
+function exportToPdf() {
+    if (isEditMode) {
+        // Düzenleme modunda blok textarea'ları yazdırılır; önce okuma moduna
+        // geçip (açık düzenleyiciler kapanır, içerik yeniden render edilir)
+        // yerleşim oturduktan sonra yazdır.
+        btnReadMode.click();
+        setTimeout(() => window.print(), 400);
+        return;
+    }
+    window.print();
+}
+
+// ============================================================
+// DOSYA AÇ (native seçici)
+// Tarayıcıdan native diyalog açılamadığı için pywebview köprüsünü kullanır
+// (app/main.py JsApi.open_file). Seçici son açılan klasörde başlar; seçilen
+// dosyanın klasörü aynı zamanda yeni çalışma kökü olur.
+// ============================================================
+function nativeApi() {
+    return (window.pywebview && window.pywebview.api) || null;
+}
+
+async function openFileDialog() {
+    const api = nativeApi();
+    if (!api || typeof api.open_file !== 'function') {
+        alert('Dosya seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        return;
+    }
+
+    // Düzenleme modunda kaydedilmemiş değişiklik varsa sor (dosya listesindeki
+    // davranışın aynısı).
+    if (isEditMode) {
+        closeAllBlockEditors();
+        if (reconstructMarkdownFromBlocks() !== currentContent) {
+            if (!confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosya açmak istiyor musunuz?')) {
+                return;
+            }
+        }
+    }
+
+    try {
+        const path = await api.open_file();
+        if (path) await loadFile(path);
+    } catch (error) {
+        console.error('Dosya seçme hatası:', error);
+        alert('Dosya seçme penceresi açılamadı: ' + error);
+    }
 }
