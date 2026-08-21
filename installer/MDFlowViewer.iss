@@ -4,7 +4,7 @@
 ; Kendi penceresi WebView2 kullanır; ayrı Node.js / .NET gerekmez.
 
 #define AppName "MD Flow Viewer"
-#define AppVersion "2.2.3"
+#define AppVersion "2.3.0"
 #define AppPublisher "cafercan"
 #define AppExeName "MDFlowViewer.exe"
 #define AppUrl "https://github.com/cafercan/MDViewer"
@@ -40,6 +40,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[InstallDelete]
+; Yükseltmede eski PyInstaller çıktısını tamamen sil. Aksi halde eski sürümün
+; _internal\ dosyaları yeni bundle'la karışır (belirti: ModuleNotFoundError).
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 ; PyInstaller one-dir çıktısı (MDFlowViewer.exe + _internal\...)
@@ -90,6 +95,9 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,MD Flow Viewer}
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+const
+  WV2_GUID = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+
 procedure SHChangeNotify(wEventId: Integer; uFlags: Cardinal; dwItem1, dwItem2: Cardinal);
   external 'SHChangeNotify@shell32.dll stdcall';
 
@@ -105,21 +113,31 @@ begin
   end;
 end;
 
-// WebView2 Runtime kontrolü (Evergreen). Kurulum 32-bit çalışır; EdgeUpdate
-// anahtarı WOW6432Node altında olduğundan HKLM okuması doğrudan oraya gider.
-// Ayrıca HKCU (kullanıcı bazlı kurulum) kontrol edilir.
-function IsWebView2Installed(): Boolean;
+// WebView2 Runtime kontrolü (Evergreen).
+// DİKKAT: ArchitecturesInstallIn64BitMode=x64compatible olduğu için sade HKLM
+// okuması 64-bit kayıt görünümüne gider; WebView2 ise pv değerini 32-bit
+// görünüme (WOW6432Node) yazar. Bu yüzden HKLM32 açıkça sorulur — aksi halde
+// runtime kurulu olsa bile "bulunamadı" uyarısı çıkar.
+function WebView2Version(RootKey: Integer): String;
 var
   pv: String;
-  guid: String;
 begin
-  guid := '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
-  Result := False;
-  if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + guid, 'pv', pv) then
-    if (pv <> '') and (pv <> '0.0.0.0') then Result := True;
-  if not Result then
-    if RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + guid, 'pv', pv) then
-      if (pv <> '') and (pv <> '0.0.0.0') then Result := True;
+  Result := '';
+  if RegQueryStringValue(RootKey, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WV2_GUID, 'pv', pv) then
+    if (pv <> '') and (pv <> '0.0.0.0') then
+      Result := pv;
+end;
+
+function IsWebView2Installed(): Boolean;
+var
+  found: String;
+begin
+  found := WebView2Version(HKLM32);              // per-machine (normal durum)
+  if found = '' then
+    found := WebView2Version(HKCU);              // kullanıcı bazlı kurulum
+  if (found = '') and IsWin64 then
+    found := WebView2Version(HKLM64);            // ileride 64-bit'e taşınırsa
+  Result := found <> '';
 end;
 
 function InitializeSetup(): Boolean;
