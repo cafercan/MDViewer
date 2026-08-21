@@ -4,7 +4,7 @@
 ; Kendi penceresi WebView2 kullanır; ayrı Node.js / .NET gerekmez.
 
 #define AppName "MD Flow Viewer"
-#define AppVersion "2.2.2"
+#define AppVersion "2.2.3"
 #define AppPublisher "cafercan"
 #define AppExeName "MDFlowViewer.exe"
 #define AppUrl "https://github.com/cafercan/MDViewer"

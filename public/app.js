@@ -893,37 +893,54 @@ function setupEventListeners() {
     // 1. Oku / Düzenle toggling
     btnReadMode.addEventListener('click', () => {
         if (!isEditMode) return;
-        
+
+        // Kaydırma senkronu: düzenleme panelinde en üstteki blok indeksini yakala.
+        const anchorIndex = topBlockIndex(inlineEditor, editBlocks());
+
         // First close any open block textareas to save their content
         closeAllBlockEditors();
-        
+
         isEditMode = false;
-        
+
         btnReadMode.classList.add('active');
         btnEditMode.classList.remove('active');
-        
+
         paneRead.classList.remove('hidden');
         paneEdit.classList.add('hidden');
         btnSave.classList.add('hidden');
-        
+
         // Reconstruct content and render read viewer
         currentContent = reconstructMarkdownFromBlocks();
         renderMarkdown(currentContent);
+
+        // Hedefte aynı bloğu tepeye getir (layout + mermaid/hljs için rAF + kısa gecikme).
+        const restore = () => scrollToBlock(paneRead, readBlocks(), anchorIndex);
+        requestAnimationFrame(restore);
+        setTimeout(restore, 160);
     });
 
     btnEditMode.addEventListener('click', () => {
         if (isEditMode) return;
+
+        // Kaydırma senkronu: okuma panelinde en üstteki blok indeksini yakala.
+        const anchorIndex = topBlockIndex(paneRead, readBlocks());
+
         isEditMode = true;
-        
+
         btnEditMode.classList.add('active');
         btnReadMode.classList.remove('active');
-        
+
         paneEdit.classList.remove('hidden');
         paneRead.classList.add('hidden');
         btnSave.classList.remove('hidden');
-        
+
         // Render block inline editor
         renderInlineEditor(currentContent);
+
+        // Hedefte aynı bloğu tepeye getir.
+        const restore = () => scrollToBlock(inlineEditor, editBlocks(), anchorIndex);
+        requestAnimationFrame(restore);
+        setTimeout(restore, 160);
     });
 
     // 2. Manual Save Button click
@@ -1102,6 +1119,31 @@ function setTheme(theme) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((b) =>
             b.classList.toggle('active', b.dataset.themeValue === theme));
     }
+}
+
+// --- Okuma <-> Düzenleme kaydırma senkronu ---
+// İki panel de aynı belge bloklarını AYNI SIRADA içerir (read: render öğeleri,
+// edit: .inline-block-wrapper). Bloklar birebir eşleştiği için, kaynaktaki en
+// üstteki bloğun indeksini bulup hedefte o bloğu tepeye getiriyoruz.
+function readBlocks() {
+    return Array.from(markdownViewer.children);
+}
+function editBlocks() {
+    return Array.from(inlineEditor.querySelectorAll(':scope > .inline-block-wrapper:not(.add-block-wrapper)'));
+}
+function topBlockIndex(scroller, blocks) {
+    if (!blocks.length) return 0;
+    const cTop = scroller.getBoundingClientRect().top;
+    for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].getBoundingClientRect().bottom > cTop + 4) return i;
+    }
+    return blocks.length - 1;
+}
+function scrollToBlock(scroller, blocks, index) {
+    const el = blocks[index];
+    if (!el) return;
+    const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTop += delta;
 }
 
 function collectSettings() {
