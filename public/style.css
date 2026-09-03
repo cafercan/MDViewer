@@ -351,18 +351,158 @@ body {
     border-right: none;
 }
 
+/* Sekmeli sidebar: yalnız aktif bölüm görünür, tüm yüksekliği alır. */
 .sidebar-section {
-    display: flex;
+    display: none;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
+    min-height: 0;
 }
-.toc-section {
-    flex: 3;
+.sidebar-section.active {
+    display: flex;
+}
+
+.sidebar-tabs {
+    display: flex;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
-.files-section {
-    flex: 2;
+.sidebar-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.8rem 0.25rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
+.sidebar-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+}
+.sidebar-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+.sidebar-tab svg {
+    flex-shrink: 0;
+}
+
+/* Gezgin araç çubuğu: [üst klasör] kök adı [kilit] */
+.explorer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.explorer-root {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.explorer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+.explorer-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+}
+.explorer-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.explorer-btn .icon-locked { display: none; }
+.explorer-section.locked .explorer-btn .icon-locked { display: block; }
+.explorer-section.locked .explorer-btn .icon-unlocked { display: none; }
+.explorer-section.locked #explorer-lock {
+    color: var(--accent-primary);
+    border-color: var(--border-color-active);
+    background: var(--bg-control);
+}
+
+.explorer-container {
+    padding: 0.5rem 0.4rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+/* Ağaç satırları: girinti --depth ile */
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.32rem 0.5rem;
+    padding-left: calc(0.5rem + var(--depth, 0) * 0.9rem);
+    margin-bottom: 1px;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+.tree-row:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+.tree-row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tree-row svg { flex-shrink: 0; }
+.tree-chevron {
+    color: var(--text-muted);
+    transition: transform 0.15s;
+}
+.tree-dir.open .tree-chevron { transform: rotate(90deg); }
+.tree-folder-icon { color: var(--warning); }
+.tree-file .tree-file-icon { color: var(--accent-primary); }
+.tree-file.active {
+    background: var(--bg-control);
+    color: var(--text-primary);
+    font-weight: 600;
+    border-left: 2px solid var(--accent-primary);
+}
+.tree-children[hidden] { display: none; }
+.tree-note {
+    display: block;
+    padding: 0.25rem 0.5rem;
+    padding-left: calc(0.5rem + var(--depth, 0) * 0.9rem + 1.2rem);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.tree-note.error { color: var(--error); font-style: normal; }
 
 .sidebar-header {
     padding: 1rem 1.25rem;
@@ -379,7 +519,7 @@ body {
     letter-spacing: 1.5px;
 }
 
-.toc-container, .files-container {
+.toc-container {
     padding: 0.75rem 0.5rem;
     overflow-y: auto;
     flex-grow: 1;
@@ -419,33 +559,6 @@ body {
     color: var(--accent-secondary);
     border-left-color: var(--accent-secondary);
     font-weight: 500;
-}
-
-/* File list item links */
-.file-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 0.2rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-.file-item:hover {
-    background: var(--bg-surface-hover);
-    color: var(--text-primary);
-}
-.file-item.active {
-    background: var(--bg-control);
-    color: var(--text-primary);
-    font-weight: 600;
-    border-left: 2px solid var(--accent-primary);
-}
-.file-icon {
-    color: var(--accent-primary);
 }
 
 /* SIDEBAR COLLAPSE GRIP */

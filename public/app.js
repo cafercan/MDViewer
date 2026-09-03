@@ -17,7 +17,6 @@ let isEditMode = false;
 let eventSource = null;
 let autosaveTimer = null;
 let headingElements = [];
-let workspaceFiles = [];
 let currentTokens = [];
 let hasUnsavedChanges = false;
 let currentTheme = 'minimal-light';
@@ -45,7 +44,12 @@ const btnOpenFile = document.getElementById('btn-open-file');
 const sidebar = document.getElementById('sidebar');
 const sidebarGrip = document.getElementById('sidebar-grip');
 const tocList = document.getElementById('toc-list');
-const filesList = document.getElementById('files-list');
+const sidebarTabs = document.getElementById('sidebar-tabs');
+const explorerSection = document.getElementById('explorer-section');
+const explorerTree = document.getElementById('explorer-tree');
+const explorerRootLabel = document.getElementById('explorer-root');
+const btnExplorerUp = document.getElementById('explorer-up');
+const btnExplorerLock = document.getElementById('explorer-lock');
 
 const paneRead = document.getElementById('pane-read');
 const paneEdit = document.getElementById('pane-edit');
@@ -80,8 +84,8 @@ async function initApp() {
     // 2. Fetch file content
     await loadFile(fileParam || '');
     
-    // 3. Load workspace files list
-    await loadWorkspaceFiles();
+    // 3. Gezgin (native köprü hazır olunca)
+    initExplorer();
 }
 
 // FETCH AND RENDER A MARKDOWN FILE
@@ -137,11 +141,8 @@ async function loadFile(filePath) {
             setupSSEWatcher(data.path);
             setSyncStatus('connected', 'Bağlandı');
             
-            // Auto update active document in document list
+            // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
-            
-            // Reload local directory files
-            await loadWorkspaceFiles();
         } else {
             throw new Error(data.error || 'Bilinmeyen sunucu hatası');
         }
@@ -155,64 +156,228 @@ async function loadFile(filePath) {
     }
 }
 
-// WORKSPACE FILES BROWSER
-async function loadWorkspaceFiles() {
-    try {
-        const url = `/api/files?file=${encodeURIComponent(currentFilePath)}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.success && data.files.length > 0) {
-            workspaceFiles = data.files;
-            renderWorkspaceFilesList();
-        } else {
-            filesList.innerHTML = `<span class="empty-state">MD dosyası bulunamadı</span>`;
-        }
-    } catch (error) {
-        console.error('Dizin listeleme hatası:', error);
-        filesList.innerHTML = `<span class="empty-state">Dizin yüklenemedi</span>`;
-    }
-}
-
-function renderWorkspaceFilesList() {
-    filesList.innerHTML = '';
-    workspaceFiles.forEach(file => {
-        const fileDiv = document.createElement('div');
-        fileDiv.className = 'file-item';
-        fileDiv.setAttribute('data-path', file.path);
-        if (file.path === currentFilePath) {
-            fileDiv.classList.add('active');
-        }
-        
-        fileDiv.innerHTML = `
-            <svg class="file-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-            <span title="${file.path}">${file.name}</span>
-        `;
-        
-        fileDiv.addEventListener('click', () => {
-            if (isEditMode && reconstructMarkdownFromBlocks() !== currentContent) {
-                if (!confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?')) {
-                    return;
-                }
-            }
-            loadFile(file.path);
-        });
-        
-        filesList.appendChild(fileDiv);
-    });
-}
-
 function highlightActiveFile() {
-    document.querySelectorAll('.file-item').forEach(item => {
+    document.querySelectorAll('.tree-file').forEach(item => {
         if (item.getAttribute('data-path') === currentFilePath) {
             item.classList.add('active');
         } else {
             item.classList.remove('active');
         }
     });
+}
+
+// Düzenleme modunda kaydedilmemiş değişiklik varsa kullanıcıya sorar.
+// true = devam edilebilir.
+function confirmLeaveUnsaved() {
+    if (!isEditMode) return true;
+    closeAllBlockEditors();
+    if (reconstructMarkdownFromBlocks() === currentContent) return true;
+    return confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?');
+}
+
+// ============================================================
+// SIDEBAR SEKMELERİ (İçindekiler / Gezgin)
+// ============================================================
+let activeSidebarTab = 'toc';
+
+function setSidebarTab(name, persist = true) {
+    if (!['toc', 'explorer'].includes(name)) name = 'toc';
+    activeSidebarTab = name;
+    sidebarTabs.querySelectorAll('.sidebar-tab').forEach((btn) => {
+        const on = btn.dataset.tab === name;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    sidebar.querySelectorAll('.sidebar-section').forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.panel === name);
+    });
+    if (persist) saveSettings();
+}
+
+// ============================================================
+// GEZGİN (dosya ağacı, vault kilidi, üst klasör)
+// Klasör listeleme ve kök değişimi HTTP değil pywebview köprüsü (JsApi)
+// üzerinden yapılır: kök hapsi yalnızca uygulama penceresinden genişler.
+// ============================================================
+let explorerState = null; // { root, vault, locked, canUp }
+
+function whenNativeReady(timeoutMs = 4000) {
+    return new Promise((resolve) => {
+        if (nativeApi()) return resolve(nativeApi());
+        const timer = setTimeout(() => resolve(nativeApi()), timeoutMs);
+        window.addEventListener('pywebviewready', () => {
+            clearTimeout(timer);
+            resolve(nativeApi());
+        }, { once: true });
+    });
+}
+
+async function initExplorer() {
+    const api = await whenNativeReady();
+    if (!api || typeof api.explorer_state !== 'function') {
+        explorerTree.innerHTML = '<span class="empty-state">Dosya gezgini yalnızca MD Flow Viewer uygulama penceresinde çalışır.</span>';
+        btnExplorerUp.disabled = true;
+        btnExplorerLock.disabled = true;
+        return;
+    }
+    try {
+        applyExplorerState(await api.explorer_state());
+    } catch (error) {
+        console.error('Gezgin başlatılamadı:', error);
+        explorerTree.innerHTML = '<span class="empty-state">Gezgin yüklenemedi</span>';
+    }
+}
+
+function applyExplorerState(state) {
+    explorerState = state || null;
+    const root = state && state.root;
+    explorerSection.classList.toggle('locked', !!(state && state.locked));
+    btnExplorerLock.setAttribute('aria-pressed', state && state.locked ? 'true' : 'false');
+    btnExplorerLock.title = state && state.locked
+        ? 'Sabitlemeyi kaldır (belge klasörüne dön)'
+        : 'Bu klasörü sabitle (vault)';
+    btnExplorerLock.disabled = !root;
+    btnExplorerUp.disabled = !(state && state.canUp);
+    explorerRootLabel.textContent = root ? (basename(root) || root) : 'Klasör yok';
+    explorerRootLabel.title = root || '';
+
+    explorerTree.innerHTML = '';
+    if (!root) {
+        explorerTree.innerHTML = '<span class="empty-state">Bir dosya açın ya da klasör sabitleyin.</span>';
+        return;
+    }
+    renderDirChildren(explorerTree, root, 0);
+}
+
+function basename(p) {
+    return String(p).replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+}
+
+async function renderDirChildren(container, dirPath, depth) {
+    const api = nativeApi();
+    const note = document.createElement('span');
+    note.className = 'tree-note';
+    note.style.setProperty('--depth', depth);
+    note.textContent = 'Yükleniyor...';
+    container.appendChild(note);
+
+    let data;
+    try {
+        data = await api.list_dir(dirPath);
+    } catch (error) {
+        data = { success: false, error: String(error) };
+    }
+    container.innerHTML = '';
+
+    if (!data || !data.success) {
+        const err = document.createElement('span');
+        err.className = 'tree-note error';
+        err.style.setProperty('--depth', depth);
+        err.textContent = (data && data.error) || 'Klasör okunamadı';
+        container.appendChild(err);
+        return;
+    }
+    if (data.dirs.length === 0 && data.files.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'tree-note';
+        empty.style.setProperty('--depth', depth);
+        empty.textContent = depth === 0 ? 'Bu klasörde MD dosyası yok' : 'Boş';
+        container.appendChild(empty);
+        return;
+    }
+    data.dirs.forEach((d) => container.appendChild(buildDirNode(d, depth)));
+    data.files.forEach((f) => container.appendChild(buildFileRow(f, depth)));
+}
+
+const SVG_CHEVRON = '<svg class="tree-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+const SVG_FOLDER = '<svg class="tree-folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>';
+const SVG_FILE = '<svg class="tree-file-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+
+function buildDirNode(dir, depth) {
+    const node = document.createElement('div');
+    node.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row tree-dir';
+    row.style.setProperty('--depth', depth);
+    row.title = dir.path + '\nÜç kez tıkla: bu klasöre in (kilit açıkken)';
+    row.innerHTML = SVG_CHEVRON + SVG_FOLDER;
+    const label = document.createElement('span');
+    label.textContent = dir.name;
+    row.appendChild(label);
+
+    const children = document.createElement('div');
+    children.className = 'tree-children';
+    children.hidden = true;
+    let loaded = false;
+
+    row.addEventListener('click', (e) => {
+        // Üçlü tık (kilit açıkken): bu klasöre in, kök burası olsun.
+        // Kilitliyken vault sabittir; kaç tık olsa da kök değişmez.
+        if (e.detail === 3 && explorerState && !explorerState.locked) {
+            explorerEnter(dir.path);
+            return;
+        }
+        const open = row.classList.toggle('open');
+        children.hidden = !open;
+        if (open && !loaded) {
+            loaded = true;
+            renderDirChildren(children, dir.path, depth + 1);
+        }
+    });
+
+    node.appendChild(row);
+    node.appendChild(children);
+    return node;
+}
+
+function buildFileRow(file, depth) {
+    const row = document.createElement('div');
+    row.className = 'tree-row tree-file';
+    row.style.setProperty('--depth', depth);
+    row.setAttribute('data-path', file.path);
+    row.title = file.path;
+    if (file.path === currentFilePath) row.classList.add('active');
+    row.innerHTML = SVG_FILE;
+    const label = document.createElement('span');
+    label.textContent = file.name;
+    row.appendChild(label);
+    row.addEventListener('click', () => {
+        if (!confirmLeaveUnsaved()) return;
+        loadFile(file.path);
+    });
+    return row;
+}
+
+async function explorerEnter(dirPath) {
+    const api = nativeApi();
+    if (!api || !explorerState || explorerState.locked) return;
+    try {
+        applyExplorerState(await api.explorer_enter(dirPath));
+    } catch (error) {
+        console.error('Klasöre inilemedi:', error);
+    }
+}
+
+async function explorerGoUp() {
+    const api = nativeApi();
+    if (!api || !explorerState || !explorerState.canUp) return;
+    try {
+        applyExplorerState(await api.explorer_up());
+    } catch (error) {
+        console.error('Üst klasöre çıkılamadı:', error);
+    }
+}
+
+async function explorerToggleLock() {
+    const api = nativeApi();
+    if (!api || !explorerState || !explorerState.root) return;
+    try {
+        const next = explorerState.locked ? null : explorerState.root;
+        applyExplorerState(await api.set_vault(next));
+    } catch (error) {
+        console.error('Sabitleme değiştirilemedi:', error);
+    }
 }
 
 // SETUP LIVE RELOAD (Server-Sent Events)
@@ -1031,6 +1196,14 @@ function setupEventListeners() {
         sidebar.classList.toggle('collapsed');
     });
 
+    // 9. Sidebar sekmeleri ve gezgin
+    sidebarTabs.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sidebar-tab');
+        if (btn) setSidebarTab(btn.dataset.tab);
+    });
+    btnExplorerUp.addEventListener('click', explorerGoUp);
+    btnExplorerLock.addEventListener('click', explorerToggleLock);
+
     window.addEventListener('beforeunload', (event) => {
         if (!hasUnsavedChanges) return;
         closeAllBlockEditors();
@@ -1119,7 +1292,8 @@ function collectSettings() {
     return {
         theme: currentTheme,
         autosave: chkAutosave.checked,
-        lineNumbers: lineNumbersOn
+        lineNumbers: lineNumbersOn,
+        sidebarTab: activeSidebarTab
     };
 }
 
@@ -1157,6 +1331,9 @@ async function loadSettings() {
     applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
 
     if (settings.autosave !== undefined) chkAutosave.checked = settings.autosave;
+
+    // Son açık sidebar sekmesi (varsayılan İçindekiler)
+    setSidebarTab(settings.sidebarTab || 'toc', false);
 }
 
 // ============================================================
@@ -1472,16 +1649,7 @@ async function openFileDialog() {
         return;
     }
 
-    // Düzenleme modunda kaydedilmemiş değişiklik varsa sor (dosya listesindeki
-    // davranışın aynısı).
-    if (isEditMode) {
-        closeAllBlockEditors();
-        if (reconstructMarkdownFromBlocks() !== currentContent) {
-            if (!confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosya açmak istiyor musunuz?')) {
-                return;
-            }
-        }
-    }
+    if (!confirmLeaveUnsaved()) return;
 
     try {
         const path = await api.open_file();

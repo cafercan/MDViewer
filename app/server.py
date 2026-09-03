@@ -63,6 +63,25 @@ def remember_last_dir(file_path: str) -> None:
         pass  # ayar yazılamazsa akışı bozmaya değmez
 
 
+def get_vault_path() -> str:
+    """Sabitlenmiş gezgin kökü (vault); yoksa veya klasör silinmişse boş."""
+    d = load_settings_file().get("vaultPath")
+    return d if isinstance(d, str) and os.path.isdir(d) else ""
+
+
+def set_vault_path(directory: str | None) -> None:
+    """Vault'u ayarlara yazar; None veya geçersiz klasör anahtarı siler."""
+    settings = load_settings_file()
+    if directory and os.path.isdir(directory):
+        settings["vaultPath"] = os.path.abspath(directory)
+    else:
+        settings.pop("vaultPath", None)
+    try:
+        save_settings_file(settings)
+    except OSError:
+        pass
+
+
 def save_settings_file(data: dict) -> None:
     p = settings_path()
     os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -81,11 +100,26 @@ pencere onu canlı olarak gösterir, düzenlemenize ve kaydetmenize izin verir.
 """
 
 
+MD_EXTENSIONS = (".md", ".markdown")
+
+
 class Workspace:
-    """Çalışma kökü + kök hapsi mantığı (server.js ile birebir)."""
+    """Kök hapsi + gezgin (explorer) durumu.
+
+    İki kök vardır; ikisi de HTTP uçlarından GENİŞLETİLEMEZ:
+      - root: belge kökü, açılan ilk dosyanın klasörü (ensure_root / rebase).
+      - explorer_root: gezgin kökü. Vault sabitlendiyse vault; değilse belge
+        kökünden başlar ve kullanıcı ↑ ile üst klasöre çıkabilir. Yalnızca
+        pywebview JsApi üzerinden değişir (kullanıcı niyeti).
+    Erişim, bu köklerden herhangi birinin altındaysa serbesttir.
+    """
 
     def __init__(self) -> None:
         self.root: str | None = None
+        self.explorer_root: str | None = None
+        self.vault: str | None = None
+
+    # --- belge kökü ---------------------------------------------------------
 
     def ensure_root(self, file_path: str | None) -> None:
         if self.root or not file_path:
@@ -93,7 +127,7 @@ class Workspace:
         self.root = os.path.dirname(os.path.abspath(file_path))
 
     def rebase(self, file_path: str) -> str:
-        """Çalışma kökünü verilen dosyanın klasörüne TAŞIR.
+        """Belge kökünü verilen dosyanın klasörüne TAŞIR.
 
         Yalnızca kullanıcının native dosya seçme penceresinde açıkça seçtiği
         dosya için çağrılır (bkz. app/main.py JsApi.open_file). HTTP uçlarından
@@ -102,6 +136,11 @@ class Workspace:
         abs_path = os.path.abspath(file_path)
         self.root = os.path.dirname(abs_path)
         return abs_path
+
+    # --- hapis ----------------------------------------------------------------
+
+    def allowed_roots(self) -> list[str]:
+        return [r for r in (self.root, self.explorer_root) if r]
 
     def get_abs(self, file_path: str | None) -> str | None:
         if not file_path:
@@ -112,14 +151,10 @@ class Workspace:
         return os.path.abspath(os.path.join(base, file_path))
 
     def within_root(self, abs_path: str) -> bool:
-        if not self.root:
+        roots = self.allowed_roots()
+        if not roots:
             return True
-        try:
-            rel = os.path.relpath(abs_path, self.root)
-        except ValueError:
-            # Farklı sürücü (Windows) -> kesinlikle kök dışı.
-            return False
-        return rel == os.curdir or (not rel.startswith(os.pardir) and not os.path.isabs(rel))
+        return any(_is_under(abs_path, r) for r in roots)
 
     def resolve_confined(self, file_path: str | None):
         """abs yol döner; kök dışıysa False; yol yoksa None."""
@@ -127,6 +162,83 @@ class Workspace:
         if abs_path is None:
             return None
         return abs_path if self.within_root(abs_path) else False
+
+    # --- gezgin ---------------------------------------------------------------
+
+    def set_explorer_root(self, directory: str) -> str:
+        abs_dir = os.path.abspath(directory)
+        if not os.path.isdir(abs_dir):
+            raise NotADirectoryError(abs_dir)
+        self.explorer_root = abs_dir
+        return abs_dir
+
+    def _effective_explorer_root(self) -> str | None:
+        return self.explorer_root or self.root
+
+    def explorer_state(self) -> dict:
+        root = self._effective_explorer_root()
+        locked = self.vault is not None
+        can_up = bool(root) and not locked and os.path.dirname(root) != root
+        return {"root": root, "vault": self.vault, "locked": locked, "canUp": can_up}
+
+    def explorer_up(self) -> dict:
+        state = self.explorer_state()
+        if state["canUp"]:
+            self.set_explorer_root(os.path.dirname(state["root"]))
+        return self.explorer_state()
+
+    def explorer_enter(self, directory: str) -> dict:
+        """Gezgin kökünü alt klasöre indirir (kilit açıkken, izinli kökler içinde)."""
+        if self.vault is None:
+            abs_dir = os.path.abspath(directory)
+            if os.path.isdir(abs_dir) and self.within_root(abs_dir):
+                self.explorer_root = abs_dir
+        return self.explorer_state()
+
+    def set_vault(self, directory: str | None) -> dict:
+        """Vault sabitler (klasör) veya kaldırır (None). Geçersiz klasör yok sayılır."""
+        if directory is None:
+            self.vault = None
+            if self.root:
+                self.explorer_root = None  # belge köküne dön; belge yoksa yerinde kal
+        elif os.path.isdir(directory):
+            self.vault = self.set_explorer_root(directory)
+        return self.explorer_state()
+
+    def list_dir(self, directory: str) -> dict:
+        """Klasörün gizli olmayan alt klasörleri + md dosyaları (ada göre sıralı).
+
+        Yalnızca izinli köklerin altındaki klasörler listelenir.
+        """
+        abs_dir = os.path.abspath(directory)
+        if not self.within_root(abs_dir):
+            return {"success": False, "error": "Erişim reddedildi: çalışma klasörü dışında."}
+        try:
+            entries = sorted(os.scandir(abs_dir), key=lambda e: e.name.lower())
+        except OSError as e:
+            return {"success": False, "error": str(e)}
+        dirs, files = [], []
+        for e in entries:
+            if e.name.startswith("."):
+                continue
+            item = {"name": e.name, "path": e.path}
+            try:
+                if e.is_dir():
+                    dirs.append(item)
+                elif e.is_file() and e.name.lower().endswith(MD_EXTENSIONS):
+                    files.append(item)
+            except OSError:
+                continue
+        return {"success": True, "path": abs_dir, "dirs": dirs, "files": files}
+
+
+def _is_under(abs_path: str, root: str) -> bool:
+    try:
+        rel = os.path.relpath(abs_path, root)
+    except ValueError:
+        # Farklı sürücü (Windows) -> kesinlikle kök dışı.
+        return False
+    return rel == os.curdir or (not rel.startswith(os.pardir) and not os.path.isabs(rel))
 
 
 def _json(payload: dict, status: int = 200) -> Response:
@@ -176,26 +288,6 @@ def create_app(workspace: Workspace | None = None) -> Flask:
             settings.update(body)
             save_settings_file(settings)
             return _json({"success": True})
-        except OSError as e:
-            return _json({"success": False, "error": str(e)}, 500)
-
-    @app.get("/api/files")
-    def files():
-        active = request.args.get("file")
-        ws.ensure_root(active)
-        target = ws.root or os.getcwd()
-        try:
-            out = []
-            for name in os.listdir(target):
-                if name.endswith((".md", ".markdown")):
-                    fp = os.path.join(target, name)
-                    if os.path.isfile(fp):
-                        out.append({
-                            "name": name,
-                            "path": fp,
-                            "relativePath": os.path.relpath(fp, os.getcwd()) if _same_drive(fp) else fp,
-                        })
-            return _json({"success": True, "files": out})
         except OSError as e:
             return _json({"success": False, "error": str(e)}, 500)
 
@@ -297,11 +389,3 @@ def create_app(workspace: Workspace | None = None) -> Flask:
         return send_from_directory(PUBLIC_DIR, "index.html")
 
     return app
-
-
-def _same_drive(path: str) -> bool:
-    try:
-        os.path.relpath(path, os.getcwd())
-        return True
-    except ValueError:
-        return False

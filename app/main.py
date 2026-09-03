@@ -17,7 +17,8 @@ import urllib.request
 import webview
 from werkzeug.serving import make_server
 
-from server import Workspace, create_app, get_last_dir, remember_last_dir
+from server import (Workspace, create_app, get_last_dir, get_vault_path,
+                    remember_last_dir, set_vault_path)
 
 APP_TITLE = "MD Flow Viewer"
 
@@ -96,6 +97,27 @@ class JsApi:
         remember_last_dir(path)
         return path
 
+    # --- Gezgin sekmesi -------------------------------------------------------
+    # Klasör gezinme ve vault sabitleme HTTP uçlarında DEĞİL burada: sayfa dışı
+    # bir istemci kök hapsini genişletemesin. Dönen sözlükler JSON'a çevrilir.
+
+    def explorer_state(self) -> dict:
+        return self._ws.explorer_state()
+
+    def list_dir(self, path: str) -> dict:
+        return self._ws.list_dir(path)
+
+    def explorer_up(self) -> dict:
+        return self._ws.explorer_up()
+
+    def explorer_enter(self, path: str) -> dict:
+        return self._ws.explorer_enter(path)
+
+    def set_vault(self, path: str | None) -> dict:
+        state = self._ws.set_vault(path)
+        set_vault_path(state["vault"])
+        return state
+
 
 def wait_health(port: int, timeout: float = 8.0) -> bool:
     url = f"http://127.0.0.1:{port}/api/health"
@@ -124,6 +146,17 @@ def main() -> int:
     fp = file_arg()
     if fp:
         url += "?file=" + urllib.parse.quote(fp, safe="")
+        workspace.ensure_root(fp)
+
+    # Gezgin kökü: sabitlenmiş vault varsa o; yoksa belge klasörü (Workspace
+    # kendisi düşer). Dosyasız açılışta son kullanılan klasör ya da ev dizini.
+    vault = get_vault_path()
+    if vault:
+        workspace.set_vault(vault)
+    elif not fp:
+        start_dir = get_last_dir() or os.path.expanduser("~")
+        if os.path.isdir(start_dir):
+            workspace.set_explorer_root(start_dir)
 
     api = JsApi(workspace)
     # text_select=True olmadan pywebview sayfaya

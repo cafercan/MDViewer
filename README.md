@@ -12,7 +12,8 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 
 ## Özellikler
 
-- 📄 Canlı önizleme + sol tarafta otomatik içindekiler (TOC)
+- 📄 Canlı önizleme; sol kenar çubuğu 2 sekme: **İçindekiler** (TOC) ve **Gezgin**
+- 🗂️ **Gezgin**: Obsidian tarzı klasör ağacı (yalnız `.md`), ↑ ile üst klasöre çık, klasöre üç tık ile içine in; kilit ile klasörü **vault** olarak sabitle (kalıcı)
 - ✏️ Blok bazlı satır içi düzenleyici, otomatik kaydetme
 - 🔄 Dosya diskte değişince otomatik yenileme (SSE)
 - 🧜 Mermaid diyagramları, `highlight.js` kod vurgulama
@@ -25,12 +26,12 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
 - 🎨 5 tema (3 açık + 2 koyu) üst barda renk swatch'leriyle; varsayılan açık
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
-- 🔒 Yalnızca `127.0.0.1` dinler; dosya erişimi açılan belgenin klasörüne hapsedilir
+- 🔒 Yalnızca `127.0.0.1` dinler; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
 
 ## Kurulum (kullanıcılar)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.3.1.exe`** kurulumunu indirin.
+   **`MDViewer-v2.4.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -75,7 +76,7 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.3.1.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.4.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 

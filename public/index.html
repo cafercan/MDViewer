@@ -153,10 +153,10 @@
         <main class="main-layout">
             <!-- LEFT SIDEBAR -->
             <aside class="app-sidebar" id="sidebar">
-                <!-- TOC Panel -->
-                <div class="sidebar-section toc-section">
-                    <div class="sidebar-header">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Sekme şeridi: İçindekiler / Gezgin -->
+                <div class="sidebar-tabs" role="tablist" id="sidebar-tabs">
+                    <button class="sidebar-tab active" role="tab" data-tab="toc" title="İçindekiler" aria-selected="true">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="21" y1="10" x2="7" y2="10"></line>
                             <line x1="21" y1="6" x2="3" y2="6"></line>
                             <line x1="21" y1="14" x2="7" y2="14"></line>
@@ -164,24 +164,44 @@
                             <path d="M3 10h.01"></path>
                             <path d="M3 14h.01"></path>
                         </svg>
-                        <h3>İÇİNDEKİLER</h3>
-                    </div>
+                        <span>İçindekiler</span>
+                    </button>
+                    <button class="sidebar-tab" role="tab" data-tab="explorer" title="Dosya gezgini" aria-selected="false">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>Gezgin</span>
+                    </button>
+                </div>
+
+                <!-- İçindekiler -->
+                <div class="sidebar-section toc-section active" data-panel="toc" role="tabpanel">
                     <div class="toc-container" id="toc-list">
-                        <!-- Headings will be injected dynamically -->
                         <span class="empty-state">Başlık bulunamadı</span>
                     </div>
                 </div>
 
-                <!-- Workspace Files Panel -->
-                <div class="sidebar-section files-section">
-                    <div class="sidebar-header">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <h3>BELGELER</h3>
+                <!-- Gezgin: klasör ağacı, kilit (vault) ve üst klasör -->
+                <div class="sidebar-section explorer-section" data-panel="explorer" role="tabpanel" id="explorer-section">
+                    <div class="explorer-toolbar">
+                        <button class="explorer-btn" id="explorer-up" title="Üst klasöre çık" aria-label="Üst klasöre çık">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="18 15 12 9 6 15"></polyline>
+                            </svg>
+                        </button>
+                        <span class="explorer-root" id="explorer-root" title=""></span>
+                        <button class="explorer-btn" id="explorer-lock" title="Bu klasörü sabitle (vault)" aria-label="Klasörü sabitle" aria-pressed="false">
+                            <svg class="icon-unlocked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                            </svg>
+                            <svg class="icon-locked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="files-container" id="files-list">
-                        <!-- Workspace md files will be injected here -->
+                    <div class="explorer-container" id="explorer-tree">
                         <span class="empty-state">Yükleniyor...</span>
                     </div>
                 </div>
