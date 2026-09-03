@@ -10,6 +10,12 @@ mermaid.initialize({
     flowchart: { useMaxWidth: true, htmlLabels: false, curve: 'basis' }
 });
 
+// Obsidian tarzı [[wikilink]] desteği (public/wikilink.js). Hedef tıklamada
+// çözülür: bkz. handleDocumentLinkClick -> openWikilink.
+if (typeof Wikilink !== 'undefined') {
+    marked.use({ extensions: [Wikilink.extension()] });
+}
+
 // APPLICATION STATE
 let currentFilePath = '';
 let currentContent = '';
@@ -40,6 +46,8 @@ const btnEditMode = document.getElementById('btn-edit-mode');
 const btnSave = document.getElementById('btn-save');
 const btnExportPdf = document.getElementById('btn-export-pdf');
 const btnOpenFile = document.getElementById('btn-open-file');
+const btnNavBack = document.getElementById('btn-nav-back');
+const btnNavForward = document.getElementById('btn-nav-forward');
 
 const sidebar = document.getElementById('sidebar');
 const sidebarGrip = document.getElementById('sidebar-grip');
@@ -81,15 +89,19 @@ async function initApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const fileParam = urlParams.get('file');
     
-    // 2. Fetch file content
-    await loadFile(fileParam || '');
-    
+    // 2. Fetch file content (ilk giriş: geçmişe yeni kayıt ekleme, mevcut olanı yaz)
+    await loadFile(fileParam || '', { replaceHistory: true });
+
     // 3. Gezgin (native köprü hazır olunca)
     initExplorer();
 }
 
 // FETCH AND RENDER A MARKDOWN FILE
-async function loadFile(filePath) {
+// options.replaceHistory : geçmişte yeni kayıt yerine mevcut kaydı güncelle (ilk yükleme)
+// options.pushHistory    : false ise geçmişe dokunma (popstate ile geri/ileri)
+// options.anchor         : yüklendikten sonra kaydırılacak başlık (#parça)
+async function loadFile(filePath, options = {}) {
+    const { replaceHistory = false, pushHistory = true, anchor = '' } = options;
     try {
         setSyncStatus('syncing', 'Dosya yükleniyor...');
         
@@ -128,7 +140,11 @@ async function loadFile(filePath) {
             
             // Set URL parameter without reloading page
             const newUrl = `${window.location.origin}${window.location.pathname}?file=${encodeURIComponent(data.path)}`;
-            window.history.pushState({ path: data.path }, '', newUrl);
+            if (replaceHistory) {
+                window.history.replaceState({ path: data.path }, '', newUrl);
+            } else if (pushHistory) {
+                window.history.pushState({ path: data.path }, '', newUrl);
+            }
             
             // Render Content based on active mode
             if (isEditMode) {
@@ -143,17 +159,139 @@ async function loadFile(filePath) {
             
             // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
+
+            // Yeni belge en üstten başlasın (eski belgenin kaydırma konumu kalmasın)
+            paneRead.scrollTop = 0;
+            inlineEditor.scrollTop = 0;
+            if (anchor) scrollToAnchor(anchor);
         } else {
             throw new Error(data.error || 'Bilinmeyen sunucu hatası');
         }
     } catch (error) {
         console.error('Dosya yükleme hatası:', error);
         setSyncStatus('error', 'Yükleme hatası');
+        if (currentFilePath && filePath !== currentFilePath) {
+            // Açık bir belge varken bağlantı/geçmiş üzerinden gelen hata belgeyi
+            // silmesin; kullanıcı olduğu yerde kalsın.
+            alert('Dosya açılamadı: ' + error.message);
+            return;
+        }
         markdownViewer.innerHTML = `<div class="danger-box">
             <h4>Dosya Yüklenirken Hata Oluştu</h4>
             <p>${error.message}</p>
         </div>`;
     }
+}
+
+// Bağlantıdaki #parça için başlığı bul: id'nin slug kısmı ya da metnin
+// slug'ı eşleşsin (GitHub tarzı "#bolum-adi" bağlantıları).
+function findHeadingByAnchor(anchor) {
+    let wanted = anchor;
+    try { wanted = decodeURIComponent(anchor); } catch (e) { /* ham hali */ }
+    wanted = wanted.toLowerCase().trim();
+    if (!wanted) return null;
+    const byId = document.getElementById(wanted);
+    if (byId) return byId;
+    return headingElements.find((h) => {
+        const idSlug = h.id.replace(/^h-\d+-/, '');
+        return idSlug === wanted || idSlug === wanted.replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-');
+    }) || null;
+}
+
+function scrollToAnchor(anchor) {
+    const heading = findHeadingByAnchor(anchor);
+    if (!heading) return;
+    const target = isEditMode ? (heading.closest('.inline-block-wrapper') || heading) : heading;
+    scrollElementIntoView(target);
+}
+
+// ============================================================
+// BELGE İÇİ BAĞLANTILAR
+// Tarayıcı göreli href'leri sayfa adresine göre çözer; sunucuda öyle bir yol
+// olmadığı için "Bulunamadı" gelirdi. Burada bağlantı belgenin klasörüne göre
+// çözülür: .md -> uygulama içinde aç, diğer yerel dosya -> varsayılan
+// uygulama, http(s) -> sistem tarayıcısı, #parça -> başlığa kaydır.
+// ============================================================
+async function handleDocumentLinkClick(e) {
+    const link = e.target.closest('a[href]');
+    if (!link || !markdownViewer.contains(link)) return;
+    if (link.dataset.wiki !== undefined) {
+        e.preventDefault();
+        await openWikilink(link.dataset.wiki, link.dataset.wikiAnchor || '');
+        return;
+    }
+    const href = link.getAttribute('href');
+    if (typeof AssetUrl === 'undefined') return;
+    const info = AssetUrl.classifyLink(href, currentFilePath);
+    e.preventDefault();
+
+    switch (info.kind) {
+        case 'anchor':
+            scrollToAnchor(info.target);
+            return;
+        case 'external': {
+            const api = nativeApi();
+            if (api && typeof api.open_external === 'function') {
+                const ok = await api.open_external(info.target);
+                if (!ok) alert('Bu bağlantı açılamıyor: ' + info.target);
+            } else {
+                window.open(info.target, '_blank', 'noopener');
+            }
+            return;
+        }
+        case 'markdown':
+            if (!confirmLeaveUnsaved()) return;
+            await loadFile(info.target, { anchor: info.anchor || '' });
+            return;
+        case 'file': {
+            const api = nativeApi();
+            if (api && typeof api.open_path === 'function') {
+                const ok = await api.open_path(info.target);
+                if (!ok) alert('Dosya açılamadı (bulunamadı ya da çalışma klasörü dışında):\n' + info.target);
+            } else {
+                window.open(AssetUrl.resolveAssetUrl(info.target, currentFilePath), '_blank', 'noopener');
+            }
+            return;
+        }
+        default:
+            alert('Bağlantı çözülemedi: ' + info.target);
+    }
+}
+
+// [[hedef]]: belgenin klasörü, sonra gezgin kökü/vault içinde dosya adıyla
+// aranır (sunucu tarafı, bkz. Workspace.resolve_wikilink). Native köprü yoksa
+// yalnızca belgenin klasörüne göre "hedef.md" denenir.
+async function openWikilink(target, anchor) {
+    if (!confirmLeaveUnsaved()) return;
+    const api = nativeApi();
+    let resolved = null;
+    if (api && typeof api.resolve_wikilink === 'function') {
+        try {
+            resolved = await api.resolve_wikilink(target, currentFilePath);
+        } catch (error) {
+            console.error('Wikilink çözülemedi:', error);
+        }
+    } else if (typeof AssetUrl !== 'undefined') {
+        const guess = /\.(md|markdown)$/i.test(target) ? target : target + '.md';
+        resolved = AssetUrl.resolveLocalPath(guess, currentFilePath);
+    }
+    if (!resolved) {
+        alert('Not bulunamadı: [[' + target + ']]\nBelgenin klasöründe ve gezgin kökünde arandı.');
+        return;
+    }
+    await loadFile(resolved, { anchor });
+}
+
+// Geri/ileri: loadFile her belgede pushState yapar; popstate ile o kayda dönülür.
+function navigateHistory(delta) {
+    if (!confirmLeaveUnsaved()) return;
+    window.history.go(delta);
+}
+
+function onPopState(e) {
+    const path = (e.state && e.state.path) || new URLSearchParams(window.location.search).get('file') || '';
+    if (path === currentFilePath) return;
+    loadFile(path, { pushHistory: false });
 }
 
 function highlightActiveFile() {
@@ -1157,6 +1295,11 @@ function setupEventListeners() {
         }
         
         // Ctrl + O: dosya aç
+        if (e.altKey && !e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            navigateHistory(e.key === 'ArrowLeft' ? -1 : 1);
+            return;
+        }
         if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
             e.preventDefault();
             openFileDialog();
@@ -1195,6 +1338,16 @@ function setupEventListeners() {
     sidebarGrip.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
     });
+
+    // 10. Belge içi bağlantılar + geri/ileri
+    markdownViewer.addEventListener('click', handleDocumentLinkClick);
+    // Düzenleme modunda tıklama bloğu düzenlemeye açar; bağlantı sayfayı terk etmesin.
+    inlineEditor.addEventListener('click', (e) => {
+        if (e.target.closest('a[href]')) e.preventDefault();
+    });
+    window.addEventListener('popstate', onPopState);
+    if (btnNavBack) btnNavBack.addEventListener('click', () => navigateHistory(-1));
+    if (btnNavForward) btnNavForward.addEventListener('click', () => navigateHistory(1));
 
     // 9. Sidebar sekmeleri ve gezgin
     sidebarTabs.addEventListener('click', (e) => {

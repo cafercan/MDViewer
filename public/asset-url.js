@@ -62,6 +62,18 @@
      * @returns {string|null}     /api/asset URL'i, ya da dokunulmaması gerekiyorsa null
      */
     function resolveAssetUrl(src, currentFilePath) {
+        var absolute = resolveLocalPath(src, currentFilePath);
+        return absolute === null ? null : '/api/asset?file=' + encodeURIComponent(absolute);
+    }
+
+    /**
+     * Markdown'daki bir yolu diskteki mutlak yola çevirir.
+     *
+     * @param {string} src              Ham yol, örn. "sub/README.md" veya "D:\x\y.md"
+     * @param {string} currentFilePath  Açık markdown dosyasının mutlak yolu
+     * @returns {string|null}           Mutlak yol; şema/sayfa içi/çözülemez ise null
+     */
+    function resolveLocalPath(src, currentFilePath) {
         if (typeof src !== 'string') return null;
 
         var value = src.trim();
@@ -78,21 +90,61 @@
             decoded = value;                                // bozuk kodlama: ham hali kullan
         }
 
-        var absolute;
         if (isWindowsAbsolute(decoded) || isPosixAbsolute(decoded)) {
-            absolute = decoded;
-        } else {
-            if (!currentFilePath) return null;              // referans alacak belge yok
-            var baseDir = dirOf(currentFilePath);
-            if (!baseDir) return null;
-            var separator = usesBackslashes(currentFilePath) ? '\\' : '/';
-            absolute = joinPath(baseDir, decoded, separator);
+            return decoded;
         }
-
-        return '/api/asset?file=' + encodeURIComponent(absolute);
+        if (!currentFilePath) return null;                  // referans alacak belge yok
+        var baseDir = dirOf(currentFilePath);
+        if (!baseDir) return null;
+        var separator = usesBackslashes(currentFilePath) ? '\\' : '/';
+        return joinPath(baseDir, decoded, separator);
     }
 
-    var api = { resolveAssetUrl: resolveAssetUrl };
+    function isMarkdownPath(p) {
+        return /\.(md|markdown)$/i.test(p);
+    }
+
+    /**
+     * Belge içindeki bir <a href> için ne yapılacağını söyler.
+     *
+     * @returns {{kind: 'anchor'|'external'|'markdown'|'file'|'unresolved', target: string, anchor?: string}}
+     *   anchor     : sayfa içi başlık (target = id)
+     *   external   : http(s)/mailto vb. (target = url)
+     *   markdown   : yerel .md/.markdown (target = mutlak yol, anchor = varsa #parça)
+     *   file       : başka yerel dosya (target = mutlak yol)
+     *   unresolved : göreli ama referans belge yok (target = ham href)
+     */
+    function classifyLink(href, currentFilePath) {
+        var value = typeof href === 'string' ? href.trim() : '';
+        if (value.charAt(0) === '#') {
+            return { kind: 'anchor', target: value.slice(1) };
+        }
+        if (hasUrlScheme(value)) {
+            return { kind: 'external', target: value };
+        }
+        var anchor = '';
+        var hash = value.indexOf('#');
+        if (hash !== -1) {
+            anchor = value.slice(hash + 1);
+            value = value.slice(0, hash);
+        }
+        var absolute = resolveLocalPath(value, currentFilePath);
+        if (absolute === null) {
+            return { kind: 'unresolved', target: href };
+        }
+        if (isMarkdownPath(absolute)) {
+            var result = { kind: 'markdown', target: absolute };
+            if (anchor) result.anchor = anchor;
+            return result;
+        }
+        return { kind: 'file', target: absolute };
+    }
+
+    var api = {
+        resolveAssetUrl: resolveAssetUrl,
+        resolveLocalPath: resolveLocalPath,
+        classifyLink: classifyLink
+    };
 
     if (typeof module === 'object' && module.exports) {
         module.exports = api;

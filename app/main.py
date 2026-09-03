@@ -7,12 +7,14 @@ tamamen biter; arka planda sunucu kalmaz.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import sys
 import threading
 import time
 import urllib.parse
 import urllib.request
+import webbrowser
 
 import webview
 from werkzeug.serving import make_server
@@ -23,6 +25,14 @@ from server import (Workspace, create_app, get_last_dir, get_vault_path,
 APP_TITLE = "MD Flow Viewer"
 
 MD_FILE_TYPES = ("Markdown (*.md;*.markdown)", "Tum dosyalar (*.*)")
+
+# Sistem tarayıcısına devredilebilecek şemalar; gerisi (file:, javascript: ...) reddedilir.
+EXTERNAL_URL_RE = re.compile(r"^(https?://|mailto:)", re.IGNORECASE)
+
+
+def _startfile(path: str) -> None:
+    """Dosyayı kayıtlı varsayılan uygulamayla açar (testte monkeypatch edilir)."""
+    os.startfile(path)  # noqa: S606 - yalnızca kök içindeki, var olan dosya
 
 
 def free_port() -> int:
@@ -117,6 +127,32 @@ class JsApi:
         state = self._ws.set_vault(path)
         set_vault_path(state["vault"])
         return state
+
+    # --- Belge içi bağlantılar ------------------------------------------------
+
+    def open_external(self, url: str) -> bool:
+        """http(s)/mailto bağlantısını sistem tarayıcısında açar.
+
+        Pencere içinde gezinmek uygulamayı terk ettirirdi; file:/javascript:
+        gibi şemalar ise güvenilmeyen bir belgeden gelebileceği için reddedilir.
+        """
+        if not isinstance(url, str) or not EXTERNAL_URL_RE.match(url.strip()):
+            return False
+        return bool(webbrowser.open(url.strip()))
+
+    def resolve_wikilink(self, target: str, current_file: str | None) -> str | None:
+        return self._ws.resolve_wikilink(target, current_file)
+
+    def open_path(self, path: str) -> bool:
+        """Yerel dosyayı (md dışı) varsayılan uygulamasında açar; kök dışı reddedilir."""
+        abs_path = self._ws.resolve_confined(path) if isinstance(path, str) else None
+        if not abs_path or not os.path.isfile(abs_path):
+            return False
+        try:
+            _startfile(abs_path)
+        except OSError:
+            return False
+        return True
 
 
 def wait_health(port: int, timeout: float = 8.0) -> bool:

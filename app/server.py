@@ -205,6 +205,38 @@ class Workspace:
             self.vault = self.set_explorer_root(directory)
         return self.explorer_state()
 
+    def resolve_wikilink(self, target: str, current_file: str | None) -> str | None:
+        """[[hedef]] için diskteki dosyayı bulur (Obsidian mantığı).
+
+        Sıra: (1) belgenin klasörüne göre yol, (2) izinli köklere göre yol,
+        (3) izinli köklerin altında dosya adıyla arama (büyük/küçük harf
+        duyarsız, gizli klasörler atlanır). Uzantı verilmemişse .md/.markdown
+        denenir. Kök dışı hiçbir şey dönmez.
+        """
+        if not isinstance(target, str) or not target.strip():
+            return None
+        target = target.strip().replace("\\", "/")
+        candidates = [target] if target.lower().endswith(MD_EXTENSIONS) else [target + e for e in MD_EXTENSIONS]
+
+        bases = []
+        if current_file:
+            bases.append(os.path.dirname(os.path.abspath(current_file)))
+        bases.extend(r for r in self.allowed_roots() if r not in bases)
+        for base in bases:
+            for cand in candidates:
+                p = os.path.abspath(os.path.join(base, cand))
+                if os.path.isfile(p) and self.within_root(p):
+                    return p
+
+        wanted = {os.path.basename(c).lower() for c in candidates}
+        for root in self.allowed_roots():
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+                for name in sorted(filenames):
+                    if name.lower() in wanted:
+                        return os.path.join(dirpath, name)
+        return None
+
     def list_dir(self, directory: str) -> dict:
         """Klasörün gizli olmayan alt klasörleri + md dosyaları (ada göre sıralı).
 

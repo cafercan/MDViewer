@@ -210,3 +210,70 @@ def test_explorer_enter_ignores_missing_folder(tree):
     ws.set_explorer_root(str(tree / "vault"))
     state = ws.explorer_enter(str(tree / "vault" / "yok"))
     assert state["root"] == str(tree / "vault")
+
+
+# --- JsApi: dış bağlantı ve yerel dosya açma -----------------------------------
+
+def _jsapi(tree):
+    import main
+    ws = Workspace()
+    ws.ensure_root(str(tree / "vault" / "a.md"))
+    return main.JsApi(ws)
+
+
+def test_open_external_only_allows_web_schemes(tree, monkeypatch):
+    import main
+    opened = []
+    monkeypatch.setattr(main.webbrowser, "open", lambda url: opened.append(url) or True)
+    api = _jsapi(tree)
+    assert api.open_external("https://example.com/x") is True
+    assert api.open_external("mailto:a@b.c") is True
+    assert api.open_external("file:///C:/Windows/system.ini") is False
+    assert api.open_external("javascript:alert(1)") is False
+    assert opened == ["https://example.com/x", "mailto:a@b.c"]
+
+
+def test_open_path_refuses_outside_roots(tree, monkeypatch):
+    import main
+    opened = []
+    monkeypatch.setattr(main, "_startfile", lambda p: opened.append(p))
+    api = _jsapi(tree)
+    assert api.open_path(str(tree / "vault" / "notes.txt")) is True
+    assert api.open_path(str(tree / "outside.md")) is False
+    assert api.open_path(str(tree / "vault" / "yok.txt")) is False
+    assert opened == [str(tree / "vault" / "notes.txt")]
+
+
+# --- wikilink çözümleme ------------------------------------------------------
+
+def test_resolve_wikilink_prefers_current_folder(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    cur = str(tree / "vault" / "sub" / "c.md")
+    _touch(str(tree / "vault" / "sub" / "a.md"))          # aynı adda ikinci a.md
+    assert ws.resolve_wikilink("a", cur) == str(tree / "vault" / "sub" / "a.md")
+
+
+def test_resolve_wikilink_searches_roots_by_basename(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    cur = str(tree / "vault" / "a.md")
+    assert ws.resolve_wikilink("c", cur) == str(tree / "vault" / "sub" / "c.md")
+    assert ws.resolve_wikilink("C.MD", cur) == str(tree / "vault" / "sub" / "c.md")
+    assert ws.resolve_wikilink("b", cur) == str(tree / "vault" / "b.markdown")
+
+
+def test_resolve_wikilink_with_folder_path(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    cur = str(tree / "vault" / "a.md")
+    assert ws.resolve_wikilink("sub/c", cur) == str(tree / "vault" / "sub" / "c.md")
+
+
+def test_resolve_wikilink_missing_or_outside_returns_none(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    cur = str(tree / "vault" / "a.md")
+    assert ws.resolve_wikilink("yok", cur) is None
+    assert ws.resolve_wikilink("outside", cur) is None       # kök dışı, aranmaz
+    assert ws.resolve_wikilink("", cur) is None
