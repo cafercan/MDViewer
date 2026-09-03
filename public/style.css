@@ -487,6 +487,12 @@ body {
 .tree-dir.open .tree-chevron { transform: rotate(90deg); }
 .tree-folder-icon { color: var(--warning); }
 .tree-file .tree-file-icon { color: var(--accent-primary); }
+.tree-dir.revealed {
+    background: var(--bg-control);
+    color: var(--text-primary);
+    font-weight: 600;
+    border-left: 2px solid var(--accent-secondary);
+}
 .tree-file.active {
     background: var(--bg-control);
     color: var(--text-primary);

@@ -277,3 +277,42 @@ def test_resolve_wikilink_missing_or_outside_returns_none(tree):
     assert ws.resolve_wikilink("yok", cur) is None
     assert ws.resolve_wikilink("outside", cur) is None       # kök dışı, aranmaz
     assert ws.resolve_wikilink("", cur) is None
+
+
+# --- inspect_path: klasör bağlantıları --------------------------------------
+
+def test_inspect_path_reports_file_dir_missing_denied(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    assert ws.inspect_path(str(tree / "vault" / "a.md"))["type"] == "file"
+    assert ws.inspect_path(str(tree / "vault" / "empty"))["type"] == "dir"
+    assert ws.inspect_path(str(tree / "vault" / "yok"))["type"] == "missing"
+    assert ws.inspect_path(str(tree))["type"] == "denied"
+    assert ws.inspect_path("")["type"] == "missing"
+
+
+def test_inspect_path_finds_folder_note_in_priority_order(tree):
+    ws = Workspace()
+    ws.set_explorer_root(str(tree / "vault"))
+    sub = tree / "vault" / "sub"
+    assert ws.inspect_path(str(sub))["note"] is None            # yalnız c.md var
+    _touch(str(sub / "sub.md"))                                  # <klasör-adı>.md
+    assert ws.inspect_path(str(sub))["note"] == str(sub / "sub.md")
+    _touch(str(sub / "_index.md"))
+    assert ws.inspect_path(str(sub))["note"] == str(sub / "_index.md")
+    _touch(str(sub / "index.md"))
+    assert ws.inspect_path(str(sub))["note"] == str(sub / "index.md")
+    _touch(str(sub / "Readme.MD"))                               # büyük/küçük harf duyarsız
+    assert ws.inspect_path(str(sub))["note"] == str(sub / "Readme.MD")
+    assert ws.inspect_path(str(sub) + "/")["type"] == "dir"      # sondaki / zararsız
+
+
+def test_open_in_file_manager_allows_dirs_inside_roots(tree, monkeypatch):
+    import main
+    opened = []
+    monkeypatch.setattr(main, "_startfile", lambda p: opened.append(p))
+    api = _jsapi(tree)
+    assert api.open_in_file_manager(str(tree / "vault" / "sub")) is True
+    assert api.open_in_file_manager(str(tree)) is False              # kök dışı
+    assert api.open_in_file_manager(str(tree / "vault" / "yok")) is False
+    assert opened == [str(tree / "vault" / "sub")]

@@ -243,16 +243,9 @@ async function handleDocumentLinkClick(e) {
             if (!confirmLeaveUnsaved()) return;
             await loadFile(info.target, { anchor: info.anchor || '' });
             return;
-        case 'file': {
-            const api = nativeApi();
-            if (api && typeof api.open_path === 'function') {
-                const ok = await api.open_path(info.target);
-                if (!ok) alert('Dosya açılamadı (bulunamadı ya da çalışma klasörü dışında):\n' + info.target);
-            } else {
-                window.open(AssetUrl.resolveAssetUrl(info.target, currentFilePath), '_blank', 'noopener');
-            }
+        case 'file':
+            await openLocalTarget(info.target, e.ctrlKey);
             return;
-        }
         default:
             alert('Bağlantı çözülemedi: ' + info.target);
     }
@@ -439,6 +432,7 @@ function buildDirNode(dir, depth) {
     row.className = 'tree-row tree-dir';
     row.style.setProperty('--depth', depth);
     row.title = dir.path + '\nÜç kez tıkla: bu klasöre in (kilit açıkken)';
+    row.setAttribute('data-path', dir.path);
     row.innerHTML = SVG_CHEVRON + SVG_FOLDER;
     const label = document.createElement('span');
     label.textContent = dir.name;
@@ -447,7 +441,17 @@ function buildDirNode(dir, depth) {
     const children = document.createElement('div');
     children.className = 'tree-children';
     children.hidden = true;
-    let loaded = false;
+    let loading = null;
+
+    // Klasörü açar; alt öğeler yüklenince çözülen promise döner (revealInExplorer
+    // bunu bekleyip bir alt seviyeye iner).
+    const expand = () => {
+        row.classList.add('open');
+        children.hidden = false;
+        if (!loading) loading = renderDirChildren(children, dir.path, depth + 1);
+        return loading;
+    };
+    node.expandDir = expand;
 
     row.addEventListener('click', (e) => {
         // Üçlü tık (kilit açıkken): bu klasöre in, kök burası olsun.
@@ -456,17 +460,101 @@ function buildDirNode(dir, depth) {
             explorerEnter(dir.path);
             return;
         }
-        const open = row.classList.toggle('open');
-        children.hidden = !open;
-        if (open && !loaded) {
-            loaded = true;
-            renderDirChildren(children, dir.path, depth + 1);
+        if (row.classList.contains('open')) {
+            row.classList.remove('open');
+            children.hidden = true;
+        } else {
+            expand();
         }
     });
 
     node.appendChild(row);
     node.appendChild(children);
     return node;
+}
+
+// Yolları karşılaştırmak için: ayraçları birleştir, sondaki ayracı at,
+// Windows'ta harf duyarsız.
+function normPath(p) {
+    return String(p).replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+}
+
+// Klasörü Gezgin sekmesinde göster: ağaçta kök -> hedef yolundaki her klasörü
+// sırayla aç, hedef satırı vurgula ve görünür alana kaydır.
+async function revealInExplorer(dirPath) {
+    if (!explorerState || !explorerState.root) return false;
+    const rootN = normPath(explorerState.root);
+    const targetN = normPath(dirPath);
+    if (targetN !== rootN && !targetN.startsWith(rootN + '/')) {
+        // Kök dışında: kilit açıksa köke doğrudan o klasörü al, kilitliyse vault dışı.
+        if (explorerState.locked) return false;
+        const api = nativeApi();
+        if (!api) return false;
+        applyExplorerState(await api.explorer_enter(dirPath));
+        setSidebarTab('explorer');
+        sidebar.classList.remove('collapsed');
+        return normPath(explorerState.root) === targetN;
+    }
+
+    setSidebarTab('explorer');
+    sidebar.classList.remove('collapsed');
+    explorerTree.querySelectorAll('.tree-dir.revealed').forEach((r) => r.classList.remove('revealed'));
+    if (targetN === rootN) return true;
+
+    const rest = targetN.slice(rootN.length + 1).split('/');
+    let container = explorerTree;
+    let prefix = rootN;
+    let row = null;
+    for (const seg of rest) {
+        prefix += '/' + seg;
+        row = Array.from(container.querySelectorAll(':scope > .tree-node > .tree-dir'))
+            .find((r) => normPath(r.getAttribute('data-path')) === prefix);
+        if (!row) return false;
+        const node = row.parentElement;
+        await node.expandDir();
+        container = node.querySelector(':scope > .tree-children');
+    }
+    if (row) {
+        row.classList.add('revealed');
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    return true;
+}
+
+// Yerel dosya/klasör bağlantısı. Klasör: klasör notu varsa (README.md, index.md,
+// _index.md, <ad>.md) onu aç; yoksa Gezgin'de göster. Ctrl+tık: Windows
+// Gezgini'nde aç. Dosya: varsayılan uygulamada aç.
+async function openLocalTarget(absPath, ctrlKey) {
+    const api = nativeApi();
+    if (!api || typeof api.inspect_path !== 'function') {
+        window.open(AssetUrl.resolveAssetUrl(absPath, currentFilePath), '_blank', 'noopener');
+        return;
+    }
+    const info = await api.inspect_path(absPath);
+    switch (info.type) {
+        case 'dir':
+            if (ctrlKey) {
+                if (!(await api.open_in_file_manager(info.path))) alert('Klasör açılamadı: ' + info.path);
+                return;
+            }
+            if (info.note) {
+                if (!confirmLeaveUnsaved()) return;
+                await loadFile(info.note);
+                return;
+            }
+            if (!(await revealInExplorer(info.path))) {
+                alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile Windows Gezgini\'nde açın.');
+            }
+            return;
+        case 'file':
+            if (!(await api.open_path(info.path))) alert('Dosya açılamadı: ' + info.path);
+            return;
+        case 'denied':
+            alert('Erişim reddedildi: çalışma klasörü dışında.\n' + info.path);
+            return;
+        default:
+            alert('Bulunamadı: ' + (info.path || absPath));
+    }
 }
 
 function buildFileRow(file, depth) {

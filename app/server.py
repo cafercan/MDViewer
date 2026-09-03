@@ -205,6 +205,37 @@ class Workspace:
             self.vault = self.set_explorer_root(directory)
         return self.explorer_state()
 
+    def inspect_path(self, path: str) -> dict:
+        """Bağlantı hedefinin türü: file / dir / missing / denied.
+
+        Klasörse "note" alanı klasör notunu verir (README.md, index.md,
+        _index.md, <klasör-adı>.md; .markdown da kabul, harf duyarsız).
+        """
+        if not isinstance(path, str) or not path.strip():
+            return {"type": "missing", "path": ""}
+        abs_path = os.path.abspath(path.strip().rstrip("\\/") or path.strip())
+        if not self.within_root(abs_path):
+            return {"type": "denied", "path": abs_path}
+        if os.path.isfile(abs_path):
+            return {"type": "file", "path": abs_path}
+        if os.path.isdir(abs_path):
+            return {"type": "dir", "path": abs_path, "note": self._folder_note(abs_path)}
+        return {"type": "missing", "path": abs_path}
+
+    def _folder_note(self, directory: str) -> str | None:
+        stems = ["readme", "index", "_index", os.path.basename(directory).lower()]
+        try:
+            names = os.listdir(directory)
+        except OSError:
+            return None
+        by_lower = {n.lower(): n for n in names if os.path.isfile(os.path.join(directory, n))}
+        for stem in stems:
+            for ext in MD_EXTENSIONS:
+                hit = by_lower.get(stem + ext)
+                if hit:
+                    return os.path.join(directory, hit)
+        return None
+
     def resolve_wikilink(self, target: str, current_file: str | None) -> str | None:
         """[[hedef]] için diskteki dosyayı bulur (Obsidian mantığı).
 

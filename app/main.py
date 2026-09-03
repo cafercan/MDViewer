@@ -143,10 +143,20 @@ class JsApi:
     def resolve_wikilink(self, target: str, current_file: str | None) -> str | None:
         return self._ws.resolve_wikilink(target, current_file)
 
+    def inspect_path(self, path: str) -> dict:
+        return self._ws.inspect_path(path)
+
     def open_path(self, path: str) -> bool:
         """Yerel dosyayı (md dışı) varsayılan uygulamasında açar; kök dışı reddedilir."""
+        return self._open_confined(path, os.path.isfile)
+
+    def open_in_file_manager(self, path: str) -> bool:
+        """Klasörü Windows Gezgini'nde açar (Ctrl+tık); kök dışı reddedilir."""
+        return self._open_confined(path, os.path.isdir)
+
+    def _open_confined(self, path: str, predicate) -> bool:
         abs_path = self._ws.resolve_confined(path) if isinstance(path, str) else None
-        if not abs_path or not os.path.isfile(abs_path):
+        if not abs_path or not predicate(abs_path):
             return False
         try:
             _startfile(abs_path)
