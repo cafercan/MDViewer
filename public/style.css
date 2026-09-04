@@ -1269,11 +1269,13 @@ img.asset-missing {
         background: #fff !important;
     }
 
-    /* Ekran kromu: yazdırmada tamamen dışarıda */
+    /* Ekran kromu: yazdırmada tamamen dışarıda. .edit-pane iki sınıfla yazılır;
+       aşağıdaki .viewport-pane { display:block !important } kuralı aynı
+       özgüllükte ve daha sonra geldiği için aksi halde bunu ezerdi. */
     .app-header,
     .app-sidebar,
     .sidebar-toggle-grip,
-    .edit-pane {
+    .viewport-pane.edit-pane {
         display: none !important;
     }
 
@@ -1305,6 +1307,17 @@ img.asset-missing {
     .markdown-body a {
         color: #111 !important;
         text-decoration: underline;
+    }
+
+    /* h1 ekranda gradyan zemin + metne kırpma + saydam dolgu ile boyanır.
+       Yazdırmada arka plan grafikleri varsayılan kapalı: gradyan gider,
+       saydam metin görünmez kalır. Düz renge dön. */
+    .markdown-body h1 {
+        background: none !important;
+        -webkit-background-clip: border-box !important;
+        -webkit-text-fill-color: #111 !important;
+        color: #111 !important;
+        display: block !important;
     }
 
     /* Kod blokları: koyu tema yazdırmada okunmaz; nötr açık zemine çevir */
