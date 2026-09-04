@@ -8,7 +8,9 @@ izin verir.
 `.md` / `.markdown` dosyalarına çift tıklayınca **kendi penceresinde** açılır —
 kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 
-![İkon](public/favicon-192.png)
+<p align="center">
+  <img src="docs/screenshot.png" alt="MD Flow Viewer — Gezgin sekmesi ve canlı önizleme" width="900">
+</p>
 
 ## Özellikler
 
