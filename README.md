@@ -23,6 +23,9 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🖼️ Belgeye göreli yerel görselleri servis eder
 - 🪟 **Kendi penceresi** (pywebview / WebView2) — kendi ikonu, kapanınca temiz çıkış
 - 📂 Üst bardan **dosya aç** (Ctrl+O) — native seçici son açılan klasörde başlar
+- 🗃️ Üst bardan **klasör (çalışma alanı) aç** (Ctrl+Shift+O) — seçilen klasör hem belge kökü hem gezgin kökü olur; vault kilidi açıksa kilit de o klasöre taşınır
+- 🕘 Aç düğmelerinin yanındaki oklardan **son açılan 10 dosya / 10 klasör** listesi (ayar dosyasında kalıcı, silinmiş yollar elenir, "Listeyi temizle")
+- 📋 Gezginde dosyaya **sağ tık → Tam yolu kopyala**
 - 🔗 Belge içi bağlantılar: göreli `.md` bağlantıları uygulama içinde açılır, `#başlık` kaydırır, http(s) sistem tarayıcısına, diğer yerel dosyalar varsayılan uygulamaya gider; klasör bağlantısı (`[planning/](planning/)`) klasör notunu (README/index/_index/<ad>.md) açar, yoksa Gezgin'de gösterir, Ctrl+tık Windows Gezgini; üst barda Geri/İleri (Alt+←/→)
 - 🧭 Obsidian tarzı `[[wikilink]]`: `[[not]]`, `[[not|takma ad]]`, `[[not#başlık]]`, `[[klasör/not]]`, `![[görsel.png]]`; hedef belgenin klasöründe, sonra gezgin kökünde (vault) dosya adıyla aranır
 - 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
@@ -35,7 +38,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum (kullanıcılar)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.6.1.exe`** kurulumunu indirin.
+   **`MDViewer-v2.7.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -80,7 +83,7 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.6.1.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.7.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 

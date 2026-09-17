@@ -46,6 +46,9 @@ const btnEditMode = document.getElementById('btn-edit-mode');
 const btnSave = document.getElementById('btn-save');
 const btnExportPdf = document.getElementById('btn-export-pdf');
 const btnOpenFile = document.getElementById('btn-open-file');
+const btnOpenFolder = document.getElementById('btn-open-folder');
+const btnRecentFiles = document.getElementById('btn-recent-files');
+const btnRecentFolders = document.getElementById('btn-recent-folders');
 const btnNavBack = document.getElementById('btn-nav-back');
 const btnNavForward = document.getElementById('btn-nav-forward');
 
@@ -557,6 +560,120 @@ async function openLocalTarget(absPath, ctrlKey) {
     }
 }
 
+// ============================================================
+// BAĞLAM MENÜSÜ (sağ tık) + PANOYA KOPYALA
+// ============================================================
+let contextMenuEl = null;
+// Aynı düğmeye ikinci tıkta menü kapanıp hemen yeniden açılmasın: dışarı tık
+// menüyü zaten kapatıyor, bu kayıt "kim kapattı" bilgisini tutar.
+let lastMenuClose = { owner: null, at: 0 };
+
+function hideContextMenu() {
+    if (contextMenuEl) {
+        lastMenuClose = { owner: contextMenuEl.dataset.owner || null, at: Date.now() };
+        contextMenuEl.remove();
+    }
+    contextMenuEl = null;
+}
+
+function menuJustClosedFor(owner) {
+    return lastMenuClose.owner === owner && Date.now() - lastMenuClose.at < 250;
+}
+
+// items: [{ label, hint?, title?, action?, disabled?, separator? }]. Menü
+// imlecin yanında açılır; pencere kenarını taşarsa içeri çekilir.
+function showContextMenu(x, y, items, owner) {
+    hideContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    if (owner) menu.dataset.owner = owner;
+    items.forEach((item) => {
+        if (item.separator) {
+            menu.appendChild(document.createElement('hr')).className = 'context-menu-sep';
+            return;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'context-menu-item';
+        if (item.title) btn.title = item.title;
+        const label = document.createElement('span');
+        label.className = 'context-menu-label';
+        label.textContent = item.label;
+        btn.appendChild(label);
+        if (item.hint) {
+            const hint = document.createElement('span');
+            hint.className = 'context-menu-hint';
+            hint.textContent = item.hint;
+            btn.appendChild(hint);
+        }
+        if (item.disabled || !item.action) {
+            btn.disabled = true;
+        } else {
+            btn.addEventListener('click', () => {
+                hideContextMenu();
+                item.action();
+            });
+        }
+        menu.appendChild(btn);
+    });
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = Math.max(4, Math.min(x, window.innerWidth - rect.width - 4)) + 'px';
+    menu.style.top = Math.max(4, Math.min(y, window.innerHeight - rect.height - 4)) + 'px';
+    contextMenuEl = menu;
+}
+
+// Menüyü bir düğmenin altına yasla (üst bardaki "son açılanlar" okları).
+function showMenuUnder(anchorEl, items) {
+    const rect = anchorEl.getBoundingClientRect();
+    showContextMenu(rect.left, rect.bottom + 4, items, anchorEl.id || null);
+}
+
+// Panoya yaz. WebView2'de clipboard API izin/etkinleştirme nedeniyle
+// düşebiliyor; o durumda gizli textarea + execCommand yedeği devreye girer.
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (error) {
+        console.warn('clipboard API başarısız, yedeğe düşülüyor:', error);
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+        ok = document.execCommand('copy');
+    } catch (error) {
+        ok = false;
+    }
+    ta.remove();
+    return ok;
+}
+
+let toastTimer = null;
+
+function showToast(message) {
+    let toast = document.getElementById('app-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        toast.className = 'app-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('visible'), 1800);
+}
+
 function buildFileRow(file, depth) {
     const row = document.createElement('div');
     row.className = 'tree-row tree-file';
@@ -571,6 +688,17 @@ function buildFileRow(file, depth) {
     row.addEventListener('click', () => {
         if (!confirmLeaveUnsaved()) return;
         loadFile(file.path);
+    });
+    // Sağ tık: dosyanın tam yolunu (dosya adı dahil) panoya kopyala.
+    row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, [{
+            label: 'Tam yolu kopyala',
+            action: async () => {
+                const ok = await copyToClipboard(file.path);
+                showToast(ok ? 'Yol kopyalandı: ' + file.name : 'Panoya kopyalanamadı');
+            },
+        }]);
     });
     return row;
 }
@@ -1346,8 +1474,11 @@ function setupEventListeners() {
         saveFile();
     });
 
-    // 3. Dosya aç (native seçici)
+    // 3. Dosya / klasör aç (native seçici) + son açılanlar listeleri
     if (btnOpenFile) btnOpenFile.addEventListener('click', openFileDialog);
+    if (btnOpenFolder) btnOpenFolder.addEventListener('click', openFolderDialog);
+    if (btnRecentFiles) btnRecentFiles.addEventListener('click', () => showRecentMenu('file', btnRecentFiles));
+    if (btnRecentFolders) btnRecentFolders.addEventListener('click', () => showRecentMenu('folder', btnRecentFolders));
 
     // 3b. PDF olarak dışa aktar
     if (btnExportPdf) btnExportPdf.addEventListener('click', exportToPdf);
@@ -1386,6 +1517,13 @@ function setupEventListeners() {
         if (e.altKey && !e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
             e.preventDefault();
             navigateHistory(e.key === 'ArrowLeft' ? -1 : 1);
+            return;
+        }
+        // Ctrl+Shift+O: klasör (çalışma alanı) aç. Ctrl+O'dan önce bakılır;
+        // Shift basılıyken e.key 'O' gelir ve iki koşul da eşleşirdi.
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+            e.preventDefault();
+            openFolderDialog();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
@@ -1444,6 +1582,17 @@ function setupEventListeners() {
     });
     btnExplorerUp.addEventListener('click', explorerGoUp);
     btnExplorerLock.addEventListener('click', explorerToggleLock);
+
+    // Bağlam menüsü: dışarı tık, Escape, kaydırma ya da odak kaybında kapan.
+    document.addEventListener('mousedown', (e) => {
+        if (contextMenuEl && !contextMenuEl.contains(e.target)) hideContextMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hideContextMenu();
+    });
+    document.addEventListener('scroll', hideContextMenu, true);
+    window.addEventListener('blur', hideContextMenu);
+    window.addEventListener('resize', hideContextMenu);
 
     window.addEventListener('beforeunload', (event) => {
         if (!hasUnsavedChanges) return;
@@ -1881,6 +2030,107 @@ function exportToPdf() {
 // ============================================================
 function nativeApi() {
     return (window.pywebview && window.pywebview.api) || null;
+}
+
+// Çalışma alanı (klasör) açma + son açılanlar listeleri. Klasör seçilince
+// gezgin kökü ve belge kökü o klasör olur; vault kilidi açıksa kilit de o
+// klasöra taşınır (bkz. app/server.py Workspace.open_workspace).
+async function openFolderDialog() {
+    const api = nativeApi();
+    if (!api || typeof api.open_folder !== 'function') {
+        alert('Klasör seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        return;
+    }
+    if (!confirmLeaveUnsaved()) return;
+    try {
+        const result = await api.open_folder();
+        if (result) adoptWorkspace(result);
+    } catch (error) {
+        console.error('Klasör seçme hatası:', error);
+        alert('Klasör seçme penceresi açılamadı: ' + error);
+    }
+}
+
+async function openWorkspacePath(path) {
+    const api = nativeApi();
+    if (!api || typeof api.open_folder_path !== 'function') return;
+    if (!confirmLeaveUnsaved()) return;
+    try {
+        const result = await api.open_folder_path(path);
+        if (result) adoptWorkspace(result);
+        else showToast('Klasör bulunamadı: ' + path);
+    } catch (error) {
+        console.error('Çalışma alanı açılamadı:', error);
+        showToast('Klasör açılamadı');
+    }
+}
+
+function adoptWorkspace(result) {
+    applyExplorerState(result.state);
+    setSidebarTab('explorer');
+    sidebar.classList.remove('collapsed');
+    showToast('Çalışma alanı: ' + (basename(result.path) || result.path));
+}
+
+async function openRecentFile(path) {
+    const api = nativeApi();
+    if (!api || typeof api.open_file_path !== 'function') return;
+    if (!confirmLeaveUnsaved()) return;
+    try {
+        const opened = await api.open_file_path(path);
+        if (opened) await loadFile(opened);
+        else showToast('Dosya bulunamadı: ' + path);
+    } catch (error) {
+        console.error('Son açılan dosya açılamadı:', error);
+        showToast('Dosya açılamadı');
+    }
+}
+
+// kind: 'file' | 'folder'. Liste ayar dosyasından gelir (en fazla 10 kayıt,
+// silinmiş yollar elenmiş).
+async function showRecentMenu(kind, anchorEl) {
+    if (menuJustClosedFor(anchorEl.id)) return;
+    const api = nativeApi();
+    if (!api || typeof api.recent_list !== 'function') {
+        alert('Son açılanlar yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        return;
+    }
+    let data;
+    try {
+        data = await api.recent_list();
+    } catch (error) {
+        console.error('Son açılanlar okunamadı:', error);
+        return;
+    }
+    const paths = (kind === 'file' ? data.files : data.folders) || [];
+    const items = paths.map((p) => ({
+        label: basename(p) || p,
+        hint: kind === 'file' ? dirname(p) : p,
+        title: p,
+        action: () => (kind === 'file' ? openRecentFile(p) : openWorkspacePath(p)),
+    }));
+    if (!items.length) {
+        items.push({ label: kind === 'file' ? 'Son açılan dosya yok' : 'Son açılan klasör yok', disabled: true });
+    } else {
+        items.push({ separator: true });
+        items.push({
+            label: 'Listeyi temizle',
+            action: async () => {
+                try {
+                    await api.clear_recent_list(kind);
+                } catch (error) {
+                    console.error('Liste temizlenemedi:', error);
+                }
+            },
+        });
+    }
+    showMenuUnder(anchorEl, items);
+}
+
+function dirname(p) {
+    const clean = String(p).replace(/[\\/]+$/, '');
+    const i = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
+    return i > 0 ? clean.slice(0, i) : clean;
 }
 
 async function openFileDialog() {

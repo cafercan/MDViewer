@@ -658,6 +658,19 @@ body {
     -webkit-text-fill-color: transparent;
     display: inline-block;
 }
+/* h1 metni gradyanla boyanıyor: -webkit-text-fill-color: transparent.
+   Bu özellik MİRAS ALINIR; başlık içindeki `kod`, bağlantı, mark gibi kendi
+   zemini/rengi olan öğeler de saydam kalır ve okunmaz olur. Onlarda dolguyu
+   kendi rengine döndür. */
+.markdown-body h1 code,
+.markdown-body h1 a,
+.markdown-body h1 mark,
+.markdown-body h1 kbd {
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    -webkit-text-fill-color: currentColor;
+}
+
 .markdown-body h2 {
     font-size: 1.6rem;
     border-bottom: 1px solid var(--border-color);
@@ -1357,4 +1370,106 @@ img.asset-missing {
     .md-linenums .markdown-body {
         padding-left: 0 !important;
     }
+}
+
+/* ============================================================
+   BAĞLAM MENÜSÜ (gezginde sağ tık) + TOAST
+   ============================================================ */
+.context-menu {
+    position: fixed;
+    z-index: 3000;
+    min-width: 180px;
+    max-width: 420px;
+    padding: 0.25rem;
+    background: var(--bg-control);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--glass-shadow);
+    user-select: none;
+    -webkit-user-select: none;
+}
+.context-menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    font-family: var(--font-ui);
+    font-size: 0.83rem;
+    text-align: left;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.context-menu-item:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+.context-menu-item:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+.context-menu-label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Tam yol ikinci satırda; sığmazsa kırpılır, tamamı title ipucunda durur */
+.context-menu-hint {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.context-menu-sep {
+    height: 1px;
+    margin: 0.25rem 0.3rem;
+    border: none;
+    background: var(--border-color);
+}
+
+.app-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 2rem;
+    z-index: 3100;
+    max-width: 70vw;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    background: var(--bg-control);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    box-shadow: var(--glass-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transform: translate(-50%, 8px);
+    pointer-events: none;
+    transition: opacity 0.18s, transform 0.18s;
+}
+.app-toast.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+/* Aç düğmeleri: ana düğme + "son açılanlar" oku bitişik bir grup */
+.open-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.open-group .icon-btn:first-child {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+.open-group .caret-btn {
+    width: 20px;
+    height: 38px;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
 }

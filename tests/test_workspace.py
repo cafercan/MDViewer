@@ -316,3 +316,112 @@ def test_open_in_file_manager_allows_dirs_inside_roots(tree, monkeypatch):
     assert api.open_in_file_manager(str(tree)) is False              # kök dışı
     assert api.open_in_file_manager(str(tree / "vault" / "yok")) is False
     assert opened == [str(tree / "vault" / "sub")]
+
+
+# --- son açılanlar listeleri --------------------------------------------------
+
+def test_recent_list_keeps_newest_first_and_caps_at_ten(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    paths = [_touch(str(tmp_path / f"f{i}.md")) for i in range(12)]
+    for p in paths:
+        server.remember_recent("file", p)
+    recent = server.get_recent("file")
+    assert len(recent) == server.RECENT_LIMIT
+    assert recent[0] == paths[-1]                 # en son açılan başta
+    assert paths[0] not in recent                 # taşanlar düşer
+
+
+def test_recent_list_moves_repeat_to_front_without_duplicate(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    a = _touch(str(tmp_path / "a.md"))
+    b = _touch(str(tmp_path / "b.md"))
+    server.remember_recent("file", a)
+    server.remember_recent("file", b)
+    server.remember_recent("file", a)
+    assert server.get_recent("file") == [a, b]
+
+
+def test_recent_list_drops_deleted_paths(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    gone = _touch(str(tmp_path / "gone.md"))
+    stays = _touch(str(tmp_path / "stays.md"))
+    server.remember_recent("file", gone)
+    server.remember_recent("file", stays)
+    os.remove(gone)
+    assert server.get_recent("file") == [stays]
+
+
+def test_recent_folders_are_separate_from_files(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    f = _touch(str(tmp_path / "a.md"))
+    d = str(tmp_path)
+    server.remember_recent("file", f)
+    server.remember_recent("folder", d)
+    assert server.get_recent("file") == [f]
+    assert server.get_recent("folder") == [d]
+    server.clear_recent("folder")
+    assert server.get_recent("folder") == []
+    assert server.get_recent("file") == [f]       # dosya listesi etkilenmez
+
+
+def test_recent_rejects_unknown_kind(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    with pytest.raises(ValueError):
+        server.get_recent("sey")
+
+
+# --- çalışma alanı (klasör) açma ---------------------------------------------
+
+def test_open_workspace_moves_both_roots(tree):
+    ws = Workspace()
+    ws.ensure_root(str(tree / "vault" / "a.md"))
+    state = ws.open_workspace(str(tree / "vault" / "sub"))
+    assert state["root"] == str(tree / "vault" / "sub")
+    assert state["locked"] is False
+    assert ws.within_root(str(tree / "vault" / "sub" / "c.md"))
+    assert not ws.within_root(str(tree / "vault" / "a.md"))   # artık kök dışı
+
+
+def test_open_workspace_moves_the_lock_when_vault_is_set(tree):
+    ws = Workspace()
+    ws.set_vault(str(tree / "vault"))
+    state = ws.open_workspace(str(tree / "vault" / "sub"))
+    assert state["locked"] is True
+    assert state["vault"] == str(tree / "vault" / "sub")
+
+
+def test_open_workspace_rejects_missing_dir(tree):
+    ws = Workspace()
+    with pytest.raises(NotADirectoryError):
+        ws.open_workspace(str(tree / "yok"))
+
+
+def test_jsapi_open_folder_path_records_recent(tree, tmp_path, monkeypatch):
+    import main
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    api = _jsapi(tree)
+    result = api.open_folder_path(str(tree / "vault" / "sub"))
+    assert result["path"] == str(tree / "vault" / "sub")
+    assert result["state"]["root"] == str(tree / "vault" / "sub")
+    assert server.get_recent("folder") == [str(tree / "vault" / "sub")]
+    assert api.open_folder_path(str(tree / "yok")) is None
+    assert api.open_folder_path(str(tree / "vault" / "a.md")) is None   # klasör değil
+
+
+def test_jsapi_open_file_path_rebases_and_records_recent(tree, tmp_path, monkeypatch):
+    import main
+    import server
+    monkeypatch.setattr(server, "settings_path", lambda: str(tmp_path / "settings.json"))
+    api = _jsapi(tree)
+    target = str(tree / "vault" / "sub" / "c.md")
+    assert api.open_file_path(target) == target
+    assert server.get_recent("file") == [target]
+    assert api.recent_list()["files"] == [target]
+    assert api.open_file_path(str(tree / "vault" / "yok.md")) is None
+    assert api.clear_recent_list("file")["files"] == []

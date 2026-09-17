@@ -63,6 +63,62 @@ def remember_last_dir(file_path: str) -> None:
         pass  # ayar yazılamazsa akışı bozmaya değmez
 
 
+RECENT_LIMIT = 10
+
+# Son açılanlar: dosyalar ve klasörler ayrı listelerde, en yenisi başta.
+_RECENT_KEYS = {"file": "recentFiles", "folder": "recentFolders"}
+
+
+def _recent_key(kind: str) -> str:
+    try:
+        return _RECENT_KEYS[kind]
+    except KeyError:
+        raise ValueError(f"bilinmeyen tür: {kind}") from None
+
+
+def get_recent(kind: str) -> list[str]:
+    """Son açılan dosya/klasör listesi. Diskte artık olmayan yollar elenir."""
+    key = _recent_key(kind)
+    exists = os.path.isfile if kind == "file" else os.path.isdir
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in load_settings_file().get(key, []) or []:
+        if not isinstance(item, str) or not exists(item):
+            continue
+        low = os.path.normcase(item)
+        if low in seen:
+            continue
+        seen.add(low)
+        out.append(item)
+        if len(out) >= RECENT_LIMIT:
+            break
+    return out
+
+
+def remember_recent(kind: str, path: str) -> None:
+    """Yolu listenin başına taşır; liste RECENT_LIMIT ile sınırlıdır."""
+    key = _recent_key(kind)
+    abs_path = os.path.abspath(path)
+    settings = load_settings_file()
+    current = [p for p in (settings.get(key) or []) if isinstance(p, str)]
+    low = os.path.normcase(abs_path)
+    updated = [abs_path] + [p for p in current if os.path.normcase(p) != low]
+    settings[key] = updated[:RECENT_LIMIT]
+    try:
+        save_settings_file(settings)
+    except OSError:
+        pass  # ayar yazılamazsa akışı bozmaya değmez
+
+
+def clear_recent(kind: str) -> None:
+    settings = load_settings_file()
+    settings.pop(_recent_key(kind), None)
+    try:
+        save_settings_file(settings)
+    except OSError:
+        pass
+
+
 def get_vault_path() -> str:
     """Sabitlenmiş gezgin kökü (vault); yoksa veya klasör silinmişse boş."""
     d = load_settings_file().get("vaultPath")
@@ -171,6 +227,23 @@ class Workspace:
             raise NotADirectoryError(abs_dir)
         self.explorer_root = abs_dir
         return abs_dir
+
+    def open_workspace(self, directory: str) -> dict:
+        """Klasörü çalışma alanı yapar: hem belge kökü hem gezgin kökü olur.
+
+        Yalnızca kullanıcının native klasör seçme penceresinde ya da son
+        açılanlar listesinde seçtiği klasör için çağrılır (bkz. app/main.py
+        JsApi.open_folder); HTTP uçlarından tetiklenemez. Vault kilidi açıksa
+        kilit bu yeni klasöre taşınır, kapalıysa kilit kurulmaz.
+        """
+        abs_dir = os.path.abspath(directory)
+        if not os.path.isdir(abs_dir):
+            raise NotADirectoryError(abs_dir)
+        self.root = abs_dir
+        self.explorer_root = abs_dir
+        if self.vault is not None:
+            self.vault = abs_dir
+        return self.explorer_state()
 
     def _effective_explorer_root(self) -> str | None:
         return self.explorer_root or self.root

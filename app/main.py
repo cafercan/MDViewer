@@ -19,8 +19,9 @@ import webbrowser
 import webview
 from werkzeug.serving import make_server
 
-from server import (Workspace, create_app, get_last_dir, get_vault_path,
-                    remember_last_dir, set_vault_path)
+from server import (Workspace, clear_recent, create_app, get_last_dir,
+                    get_recent, get_vault_path, remember_last_dir,
+                    remember_recent, set_vault_path)
 
 APP_TITLE = "MD Flow Viewer"
 
@@ -103,9 +104,63 @@ class JsApi:
             return None
 
         path = os.path.abspath(result[0])
+        return self._adopt_file(path)
+
+    def open_file_path(self, path: str) -> str | None:
+        """Son açılanlar listesinden seçilen dosyayı açar.
+
+        Diyalogla açmakla aynı sonuç: çalışma kökü dosyanın klasörüne taşınır.
+        Dosya silinmişse None döner ve liste bir sonraki okumada onu eler.
+        """
+        if not isinstance(path, str) or not os.path.isfile(path):
+            return None
+        return self._adopt_file(os.path.abspath(path))
+
+    def _adopt_file(self, path: str) -> str:
         self._ws.rebase(path)
         remember_last_dir(path)
+        remember_recent("file", path)
         return path
+
+    # --- Çalışma alanı (klasör) ----------------------------------------------
+
+    def open_folder(self) -> dict | None:
+        """Klasör seçme penceresini açar; seçilen klasör çalışma alanı olur."""
+        if self._window is None:
+            return None
+
+        recent = get_recent("folder")
+        result = self._window.create_file_dialog(
+            webview.FileDialog.FOLDER,
+            directory=recent[0] if recent else get_last_dir(),
+        )
+        if not result:
+            return None
+        # pywebview sürümüne göre tek yol ya da tek elemanlı dizi döner.
+        selected = result[0] if isinstance(result, (list, tuple)) else result
+        return self.open_folder_path(selected)
+
+    def open_folder_path(self, path: str) -> dict | None:
+        """Verilen klasörü çalışma alanı yapar (son açılanlar listesi de buradan)."""
+        if not isinstance(path, str) or not os.path.isdir(path):
+            return None
+        abs_dir = os.path.abspath(path)
+        state = self._ws.open_workspace(abs_dir)
+        if state["vault"]:
+            set_vault_path(state["vault"])
+        remember_recent("folder", abs_dir)
+        return {"path": abs_dir, "state": state}
+
+    # --- Son açılanlar --------------------------------------------------------
+
+    def recent_list(self) -> dict:
+        """Son açılan 10 dosya ve 10 klasör; silinmiş yollar elenmiş halde."""
+        return {"files": get_recent("file"), "folders": get_recent("folder")}
+
+    def clear_recent_list(self, kind: str) -> dict:
+        if kind in ("file", "folder"):
+            clear_recent(kind)
+        return self.recent_list()
 
     # --- Gezgin sekmesi -------------------------------------------------------
     # Klasör gezinme ve vault sabitleme HTTP uçlarında DEĞİL burada: sayfa dışı
@@ -193,6 +248,8 @@ def main() -> int:
     if fp:
         url += "?file=" + urllib.parse.quote(fp, safe="")
         workspace.ensure_root(fp)
+        if os.path.isfile(fp):
+            remember_recent("file", fp)
 
     # Gezgin kökü: sabitlenmiş vault varsa o; yoksa belge klasörü (Workspace
     # kendisi düşer). Dosyasız açılışta son kullanılan klasör ya da ev dizini.
