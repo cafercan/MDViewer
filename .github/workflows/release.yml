@@ -1,0 +1,64 @@
+# Release yayınlanınca Windows kurulumunu derleyip release'e ekler.
+# Linux .deb yerelde (packaging/linux/build-deb.sh) derlenip release'e
+# yüklenir; iş sonunda SHA256SUMS.txt release'teki tüm kurulumlar için
+# yeniden üretilir. Elle yeniden çalıştırmak için: Actions -> Release -> Run.
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release etiketi (ör. v2.8.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows-setup:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bağımlılıklar (.venv)
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --upgrade pip
+          .venv\Scripts\pip install -r requirements.txt
+
+      - name: PyInstaller bundle
+        run: .\build.ps1
+
+      - name: Inno Setup kurulumu
+        run: |
+          choco install innosetup -y --no-progress
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC basarisiz" }
+
+      - name: Release'e yükle + SHA256SUMS
+        shell: pwsh
+        run: |
+          $ver = $env:TAG.TrimStart('v')
+          $exe = "dist\MDViewer-v$ver.exe"
+          if (-not (Test-Path $exe)) { throw "Kurulum bulunamadi: $exe" }
+          gh release upload $env:TAG $exe --clobber
+
+          # Release'teki tüm kurulumların (exe + deb) özetini yeniden üret
+          New-Item -ItemType Directory -Force sums | Out-Null
+          gh release download $env:TAG -D sums -p "*.exe" -p "*.deb" --clobber
+          Get-ChildItem sums -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content -Encoding utf8 SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          gh release upload $env:TAG SHA256SUMS.txt --clobber
