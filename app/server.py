@@ -28,7 +28,11 @@ PUBLIC_DIR = resource_dir("public")
 def settings_path() -> str:
     """Ayar dosyası yolu. Port her açılışta değiştiği için localStorage kalıcı
     değil; ayarlar bu dosyada tutulur (kullanıcı bazlı, tüm örnekler paylaşır)."""
-    base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    else:
+        # Linux/macOS: XDG temel dizini (~/.config/MDFlowViewer/settings.json)
+        base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     d = os.path.join(base, "MDFlowViewer")
     return os.path.join(d, "settings.json")
 

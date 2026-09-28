@@ -1,6 +1,6 @@
 """MD Flow Viewer - masaüstü giriş noktası.
 
-Kendi penceresini açar (pywebview / WebView2). Flask backend'i 127.0.0.1'de
+Kendi penceresini açar (pywebview: Windows'ta WebView2, Linux'ta WebKitGTK). Flask backend'i 127.0.0.1'de
 rastgele boş portta daemon thread olarak çalışır. Pencere kapanınca süreç
 tamamen biter; arka planda sunucu kalmaz.
 """
@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -32,8 +33,15 @@ EXTERNAL_URL_RE = re.compile(r"^(https?://|mailto:)", re.IGNORECASE)
 
 
 def _startfile(path: str) -> None:
-    """Dosyayı kayıtlı varsayılan uygulamayla açar (testte monkeypatch edilir)."""
-    os.startfile(path)  # noqa: S606 - yalnızca kök içindeki, var olan dosya
+    """Dosyayı/klasörü kayıtlı varsayılan uygulamayla açar (testte monkeypatch edilir)."""
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606 - yalnızca kök içindeki, var olan dosya
+        return
+    # Linux: xdg-open (masaüstü ortamının varsayılanı), macOS: open.
+    # Liste argümanı -> kabuk yok; yol tek argüman olarak geçer.
+    opener = "open" if sys.platform == "darwin" else "xdg-open"
+    subprocess.Popen([opener, path], stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 def free_port() -> int:
@@ -183,6 +191,33 @@ class JsApi:
         set_vault_path(state["vault"])
         return state
 
+    # --- Yazdırma / PDF --------------------------------------------------------
+
+    def print_page(self) -> bool:
+        """Linux (GTK): WebKit'in yazdırma diyaloğunu açar; PDF'e kaydet oradan.
+
+        WebKitGTK'da window.print() sessizce yok sayılır (hata da vermez), bu
+        yüzden diyalog WebKit2.PrintOperation ile Python tarafından açılır.
+        Diğer platformlarda False döner ve arayüz window.print()'e düşer.
+        """
+        if self._window is None or not sys.platform.startswith("linux"):
+            return False
+        try:
+            from gi.repository import GLib, WebKit2
+            from webview.platforms.gtk import BrowserView
+            view = BrowserView.instances[self._window.uid]
+        except Exception:
+            return False
+
+        def run() -> bool:
+            WebKit2.PrintOperation.new(view.webview).run_dialog(view.window)
+            return False  # idle_add: tek sefer
+
+        # GTK nesnelerine yalnızca ana döngüden dokunulur; köprü çağrısı ise
+        # ayrı thread'de gelir.
+        GLib.idle_add(run)
+        return True
+
     # --- Belge içi bağlantılar ------------------------------------------------
 
     def open_external(self, url: str) -> bool:
@@ -206,7 +241,7 @@ class JsApi:
         return self._open_confined(path, os.path.isfile)
 
     def open_in_file_manager(self, path: str) -> bool:
-        """Klasörü Windows Gezgini'nde açar (Ctrl+tık); kök dışı reddedilir."""
+        """Klasörü sistemin dosya yöneticisinde açar (Ctrl+tık); kök dışı reddedilir."""
         return self._open_confined(path, os.path.isdir)
 
     def _open_confined(self, path: str, predicate) -> bool:
@@ -233,7 +268,25 @@ def wait_health(port: int, timeout: float = 8.0) -> bool:
     return False
 
 
+def set_linux_app_id() -> None:
+    """GNOME/KDE pencereyi .desktop girişiyle eşleştirsin (dock ikonu, gruplama).
+
+    GTK, Wayland app_id / X11 WM_CLASS değerini program adından alır; kaynaktan
+    çalışınca bu "main.py" olur. mdflowviewer.desktop'taki StartupWMClass ile
+    aynı ada çekiyoruz. GTK yoksa (ör. Qt arka ucu) sessizce geçilir.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        from gi.repository import GLib
+    except Exception:
+        return
+    GLib.set_prgname("mdflowviewer")
+    GLib.set_application_name(APP_TITLE)
+
+
 def main() -> int:
+    set_linux_app_id()
     port = free_port()
     workspace = Workspace()
     server = ServerThread(port, workspace)

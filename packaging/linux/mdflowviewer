@@ -1,0 +1,4 @@
+#!/bin/sh
+# MD Flow Viewer başlatıcı (Linux). Sistem python3'ü + dağıtımın
+# python3-flask / python3-webview / WebKitGTK paketlerini kullanır.
+exec /usr/bin/python3 /usr/lib/mdflowviewer/app/main.py "$@"

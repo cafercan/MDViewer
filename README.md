@@ -1,6 +1,6 @@
 # MD Flow Viewer
 
-Windows için hızlı, yerel bir **Markdown görüntüleyici ve düzenleyici**.
+Windows ve Linux için hızlı, yerel bir **Markdown görüntüleyici ve düzenleyici**.
 Dosyayı diskte değiştirdiğinizde otomatik yenilenir (canlı takip), Mermaid
 diyagramlarını ve kod vurgulamasını yerleşik olarak çizer, blok blok düzenlemeye
 izin verir.
@@ -21,12 +21,12 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🧜 Mermaid diyagramları, `highlight.js` kod vurgulama
 - 🎨 `:::info` `:::warning` `:::danger` kutuları
 - 🖼️ Belgeye göreli yerel görselleri servis eder
-- 🪟 **Kendi penceresi** (pywebview / WebView2) — kendi ikonu, kapanınca temiz çıkış
+- 🪟 **Kendi penceresi** (pywebview; Windows'ta WebView2, Linux'ta WebKitGTK) — kendi ikonu, kapanınca temiz çıkış
 - 📂 Üst bardan **dosya aç** (Ctrl+O) — native seçici son açılan klasörde başlar
 - 🗃️ Üst bardan **klasör (çalışma alanı) aç** (Ctrl+Shift+O) — seçilen klasör hem belge kökü hem gezgin kökü olur; vault kilidi açıksa kilit de o klasöre taşınır
 - 🕘 Aç düğmelerinin yanındaki oklardan **son açılan 10 dosya / 10 klasör** listesi (ayar dosyasında kalıcı, silinmiş yollar elenir, "Listeyi temizle")
 - 📋 Gezginde dosyaya **sağ tık → Tam yolu kopyala**
-- 🔗 Belge içi bağlantılar: göreli `.md` bağlantıları uygulama içinde açılır, `#başlık` kaydırır, http(s) sistem tarayıcısına, diğer yerel dosyalar varsayılan uygulamaya gider; klasör bağlantısı (`[planning/](planning/)`) klasör notunu (README/index/_index/<ad>.md) açar, yoksa Gezgin'de gösterir, Ctrl+tık Windows Gezgini; üst barda Geri/İleri (Alt+←/→)
+- 🔗 Belge içi bağlantılar: göreli `.md` bağlantıları uygulama içinde açılır, `#başlık` kaydırır, http(s) sistem tarayıcısına, diğer yerel dosyalar varsayılan uygulamaya gider; klasör bağlantısı (`[planning/](planning/)`) klasör notunu (README/index/_index/<ad>.md) açar, yoksa Gezgin'de gösterir, Ctrl+tık sistemin dosya yöneticisi (Windows Gezgini / Nautilus vb.); üst barda Geri/İleri (Alt+←/→)
 - 🧭 Obsidian tarzı `[[wikilink]]`: `[[not]]`, `[[not|takma ad]]`, `[[not#başlık]]`, `[[klasör/not]]`, `![[görsel.png]]`; hedef belgenin klasöründe, sonra gezgin kökünde (vault) dosya adıyla aranır
 - 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
 - 🖨️ PDF olarak dışa aktarma (Ctrl+P) — çıktıda üst bar/kenar çubuğu yok
@@ -35,10 +35,10 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
 - 🔒 Yalnızca `127.0.0.1` dinler; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
 
-## Kurulum (kullanıcılar)
+## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.7.0.exe`** kurulumunu indirin.
+   **`MDViewer-v2.8.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -52,6 +52,28 @@ temiz kaldırılır (dosya ilişkilendirmeleri dahil).
 - **Microsoft Edge WebView2 Runtime** — Windows 11'de yerleşik gelir. Yoksa
   kurulum uyarır: <https://developer.microsoft.com/microsoft-edge/webview2/>
 - Python veya Node.js **gerekmez** — uygulama tek exe olarak paketlidir.
+
+## Kurulum — Linux (Debian / Ubuntu)
+
+1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
+   **`mdflowviewer_2.8.0_all.deb`** paketini indirin.
+2. Kurun (bağımlılıklar apt ile otomatik gelir):
+
+   ```bash
+   sudo apt install ./mdflowviewer_2.8.0_all.deb
+   ```
+
+3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
+   **Birlikte Aç → MD Flow Viewer**; varsayılan yapmak için dosya özelliklerinden
+   ya da `xdg-mime default mdflowviewer.desktop text/markdown`.
+   Terminalden: `mdflowviewer dosya.md`.
+
+Kaldırma: `sudo apt remove mdflowviewer`. Ayarlar `~/.config/MDFlowViewer/`
+altında tutulur.
+
+Paket saf Python'dur (`Architecture: all`); `python3-flask`, `python3-webview`
+ve WebKitGTK (`gir1.2-webkit2-4.1`) dağıtım paketlerinden gelir. Ubuntu 26.04 üzerinde
+test edildi (`python3-webview` universe deposundadır).
 
 ## Mimari
 
@@ -83,9 +105,19 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.7.0.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.8.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
+
+### Linux (.deb)
+
+```bash
+bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.8.0_all.deb
+```
+
+Sürüm `installer/MDFlowViewer.iss` içindeki `AppVersion`'dan okunur.
+Kaynaktan çalıştırmak için: `sudo apt install python3-flask python3-webview
+gir1.2-webkit2-4.1` ve `python3 app/main.py dosya.md`.
 
 ## Güvenlik modeli
 

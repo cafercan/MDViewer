@@ -16,6 +16,26 @@ if (typeof Wikilink !== 'undefined') {
     marked.use({ extensions: [Wikilink.extension()] });
 }
 
+// Oturum içi depolama. Linux'ta pywebview (GTK) private mode'da WebKit'in
+// localStorage'ını tamamen kapatır: değişken hiç tanımlı olmaz ve dokunmak
+// ReferenceError fırlatır. O durumda bellek içi Map'e düşülür; taslaklar yine
+// aynı oturum boyunca korunur (Windows/WebView2'deki davranışla aynı).
+const storage = (() => {
+    try {
+        const s = window.localStorage;
+        s.setItem('__md_flow_probe', '1');
+        s.removeItem('__md_flow_probe');
+        return s;
+    } catch (_) {
+        const m = new Map();
+        return {
+            getItem: (k) => (m.has(k) ? m.get(k) : null),
+            setItem: (k, v) => { m.set(k, String(v)); },
+            removeItem: (k) => { m.delete(k); }
+        };
+    }
+})();
+
 // APPLICATION STATE
 let currentFilePath = '';
 let currentContent = '';
@@ -525,8 +545,8 @@ async function revealInExplorer(dirPath) {
 }
 
 // Yerel dosya/klasör bağlantısı. Klasör: klasör notu varsa (README.md, index.md,
-// _index.md, <ad>.md) onu aç; yoksa Gezgin'de göster. Ctrl+tık: Windows
-// Gezgini'nde aç. Dosya: varsayılan uygulamada aç.
+// _index.md, <ad>.md) onu aç; yoksa Gezgin'de göster. Ctrl+tık: sistemin
+// dosya yöneticisinde aç. Dosya: varsayılan uygulamada aç.
 async function openLocalTarget(absPath, ctrlKey) {
     const api = nativeApi();
     if (!api || typeof api.inspect_path !== 'function') {
@@ -546,7 +566,7 @@ async function openLocalTarget(absPath, ctrlKey) {
                 return;
             }
             if (!(await revealInExplorer(info.path))) {
-                alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile Windows Gezgini\'nde açın.');
+                alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile dosya yöneticisinde açın.');
             }
             return;
         case 'file':
@@ -1609,7 +1629,7 @@ function getDraftKey(filePath = currentFilePath) {
 
 function getDraft(filePath) {
     try {
-        const stored = localStorage.getItem(getDraftKey(filePath));
+        const stored = storage.getItem(getDraftKey(filePath));
         return stored ? JSON.parse(stored) : null;
     } catch {
         return null;
@@ -1618,7 +1638,7 @@ function getDraft(filePath) {
 
 function writeDraft(content = currentContent) {
     if (!currentFilePath) return;
-    localStorage.setItem(getDraftKey(), JSON.stringify({
+    storage.setItem(getDraftKey(), JSON.stringify({
         content,
         savedAt: Date.now()
     }));
@@ -1627,7 +1647,7 @@ function writeDraft(content = currentContent) {
 
 function clearDraft(filePath = currentFilePath) {
     if (!filePath) return;
-    localStorage.removeItem(getDraftKey(filePath));
+    storage.removeItem(getDraftKey(filePath));
     if (filePath === currentFilePath) {
         hasUnsavedChanges = false;
     }
@@ -1700,7 +1720,7 @@ async function saveSettings() {
     } catch (e) {
         console.error('Ayarlar sunucuya kaydedilemedi:', e);
     }
-    try { localStorage.setItem('md_viewer_settings', JSON.stringify(settings)); } catch (e) { /* yut */ }
+    try { storage.setItem('md_viewer_settings', JSON.stringify(settings)); } catch (e) { /* yut */ }
 }
 
 async function loadSettings() {
@@ -1711,7 +1731,7 @@ async function loadSettings() {
         if (d && d.success && d.settings) settings = d.settings;
     } catch (e) {
         // Sunucuya ulaşılamazsa localStorage yedeği (aynı oturum).
-        try { settings = JSON.parse(localStorage.getItem('md_viewer_settings') || '{}'); } catch (_) { settings = {}; }
+        try { settings = JSON.parse(storage.getItem('md_viewer_settings') || '{}'); } catch (_) { settings = {}; }
     }
 
     // Tema — varsayılan AÇIK (minimal-light)
@@ -2016,8 +2036,20 @@ function exportToPdf() {
         // geçip (açık düzenleyiciler kapanır, içerik yeniden render edilir)
         // yerleşim oturduktan sonra yazdır.
         btnReadMode.click();
-        setTimeout(() => window.print(), 400);
+        setTimeout(printPage, 400);
         return;
+    }
+    printPage();
+}
+
+// Linux/WebKitGTK'da window.print() sessizce yok sayılır; diyaloğu native
+// köprü açar (app/main.py JsApi.print_page). Windows'ta köprü False döner.
+async function printPage() {
+    const api = nativeApi();
+    if (api && typeof api.print_page === 'function') {
+        try {
+            if (await api.print_page()) return;
+        } catch (e) { /* window.print()'e düş */ }
     }
     window.print();
 }
@@ -2029,7 +2061,11 @@ function exportToPdf() {
 // dosyanın klasörü aynı zamanda yeni çalışma kökü olur.
 // ============================================================
 function nativeApi() {
-    return (window.pywebview && window.pywebview.api) || null;
+    // Linux/GTK'da pywebview, api'yi önce boş nesne ({}) olarak koyar,
+    // fonksiyonları 'pywebviewready' ile birlikte doldurur. Boş nesneyi
+    // "hazır" saymamak için bilinen bir metodun varlığına bakılır.
+    const api = window.pywebview && window.pywebview.api;
+    return api && typeof api.explorer_state === 'function' ? api : null;
 }
 
 // Çalışma alanı (klasör) açma + son açılanlar listeleri. Klasör seçilince

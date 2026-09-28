@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=MD Flow Viewer
+GenericName=Markdown Viewer
+GenericName[tr]=Markdown Görüntüleyici
+Comment=View and edit Markdown files with live preview
+Comment[tr]=Markdown dosyalarını canlı önizlemeyle görüntüle ve düzenle
+Exec=mdflowviewer %f
+Icon=mdflowviewer
+Terminal=false
+Categories=Office;TextEditor;Viewer;Utility;
+MimeType=text/markdown;text/x-markdown;
+Keywords=markdown;md;viewer;editor;mermaid;
+StartupNotify=true
+StartupWMClass=mdflowviewer
