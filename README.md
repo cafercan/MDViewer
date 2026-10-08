@@ -28,6 +28,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 📋 Gezginde dosyaya **sağ tık → Tam yolu kopyala**
 - 🔗 Belge içi bağlantılar: göreli `.md` bağlantıları uygulama içinde açılır, `#başlık` kaydırır, http(s) sistem tarayıcısına, diğer yerel dosyalar varsayılan uygulamaya gider; klasör bağlantısı (`[planning/](planning/)`) klasör notunu (README/index/_index/<ad>.md) açar, yoksa Gezgin'de gösterir, Ctrl+tık sistemin dosya yöneticisi (Windows Gezgini / Nautilus vb.); üst barda Geri/İleri (Alt+←/→)
 - 🧭 Obsidian tarzı `[[wikilink]]`: `[[not]]`, `[[not|takma ad]]`, `[[not#başlık]]`, `[[klasör/not]]`, `![[görsel.png]]`; hedef belgenin klasöründe, sonra gezgin kökünde (vault) dosya adıyla aranır
+- 🏷️ Belge başındaki YAML frontmatter (`---` … `---`) anahtar/değer tablosu olarak gösterilir
 - 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
 - 🖨️ PDF olarak dışa aktarma (Ctrl+P) — çıktıda üst bar/kenar çubuğu yok
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
@@ -38,7 +39,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.8.0.exe`** kurulumunu indirin.
+   **`MDViewer-v2.9.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -56,11 +57,11 @@ temiz kaldırılır (dosya ilişkilendirmeleri dahil).
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_2.8.0_all.deb`** paketini indirin.
+   **`mdflowviewer_2.9.0_all.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_2.8.0_all.deb
+   sudo apt install ./mdflowviewer_2.9.0_all.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -105,14 +106,14 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.8.0.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.9.0.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 
 ### Linux (.deb)
 
 ```bash
-bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.8.0_all.deb
+bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.9.0_all.deb
 ```
 
 Sürüm `installer/MDFlowViewer.iss` içindeki `AppVersion`'dan okunur.

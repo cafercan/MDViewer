@@ -16,6 +16,11 @@ if (typeof Wikilink !== 'undefined') {
     marked.use({ extensions: [Wikilink.extension()] });
 }
 
+// Belge başındaki YAML frontmatter'ı tablo olarak göster (public/frontmatter.js).
+if (typeof Frontmatter !== 'undefined') {
+    marked.use({ extensions: [Frontmatter.extension()] });
+}
+
 // Oturum içi depolama. Linux'ta pywebview (GTK) private mode'da WebKit'in
 // localStorage'ını tamamen kapatır: değişken hiç tanımlı olmaz ve dokunmak
 // ReferenceError fırlatır. O durumda bellek içi Map'e düşülür; taslaklar yine

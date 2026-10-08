@@ -764,6 +764,24 @@ body {
     background: rgba(255, 255, 255, 0.015);
 }
 
+/* YAML frontmatter (public/frontmatter.js): kompakt anahtar/değer tablosu */
+.markdown-body table.frontmatter {
+    width: auto;
+    margin: 0 0 1.5rem;
+    font-size: 0.85rem;
+}
+.markdown-body table.frontmatter th,
+.markdown-body table.frontmatter td {
+    padding: 0.3rem 0.75rem;
+    vertical-align: top;
+}
+.markdown-body table.frontmatter th {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 /* CUSTOM CSS CONTAINERS (e.g. :::info) */
 .markdown-body .info-box,
 .markdown-body .warning-box,
