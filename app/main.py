@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+import secrets
 import socket
 import subprocess
 import sys
@@ -60,9 +61,9 @@ def file_arg() -> str | None:
 
 
 class ServerThread(threading.Thread):
-    def __init__(self, port: int, workspace: Workspace) -> None:
+    def __init__(self, port: int, workspace: Workspace, token: str) -> None:
         super().__init__(daemon=True)
-        self._srv = make_server("127.0.0.1", port, create_app(workspace), threaded=True)
+        self._srv = make_server("127.0.0.1", port, create_app(workspace, token), threaded=True)
 
     def run(self) -> None:
         self._srv.serve_forever()
@@ -289,17 +290,19 @@ def main() -> int:
     set_linux_app_id()
     port = free_port()
     workspace = Workspace()
-    server = ServerThread(port, workspace)
+    # Her açılışta yeni oturum anahtarı: yalnızca bu pencere sunucuyu kullanabilir
+    token = secrets.token_urlsafe(32)
+    server = ServerThread(port, workspace, token)
     server.start()
 
     if not wait_health(port):
         sys.stderr.write("Sunucu başlatılamadı.\n")
         return 1
 
-    url = f"http://127.0.0.1:{port}/"
+    url = f"http://127.0.0.1:{port}/?t={token}"
     fp = file_arg()
     if fp:
-        url += "?file=" + urllib.parse.quote(fp, safe="")
+        url += "&file=" + urllib.parse.quote(fp, safe="")
         workspace.ensure_root(fp)
         if os.path.isfile(fp):
             remember_recent("file", fp)

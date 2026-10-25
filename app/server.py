@@ -2,16 +2,25 @@
 
 Yalnızca 127.0.0.1 dinler. Tüm dosya erişimi, açılan ilk belgenin klasörüne
 (çalışma kökü) hapsedilir; dışarısı 403 döner. Uçlar server.js ile aynı sözleşme.
+
+Erişim denetimi: tarayıcıda açık başka siteler bu sunucuya istek gönderebilir.
+Bu yüzden /api/* uçları, pencerenin açılışta aldığı oturum anahtarından üretilen
+SameSite=Strict çerezini ister (başka sitelerin isteklerinde gönderilmez) ve
+Host başlığı 127.0.0.1/localhost olmayan istekler reddedilir (DNS rebinding).
 """
 from __future__ import annotations
 
+import hmac
 import json
 import mimetypes
 import os
 import sys
 import time
 
-from flask import Flask, Response, request, send_file, send_from_directory
+from flask import Flask, Response, g, request, send_file, send_from_directory
+
+SESSION_COOKIE = "mdflow_session"
+LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
 
 def resource_dir(name: str) -> str:
@@ -213,7 +222,8 @@ class Workspace:
     def within_root(self, abs_path: str) -> bool:
         roots = self.allowed_roots()
         if not roots:
-            return True
+            # Henüz kullanıcı hiçbir belge ya da klasör açmadı: hiçbir yere izin yok
+            return False
         return any(_is_under(abs_path, r) for r in roots)
 
     def resolve_confined(self, file_path: str | None):
@@ -390,15 +400,35 @@ def _forbidden() -> Response:
     return _json({"success": False, "error": "Erişim reddedildi: çalışma klasörü dışında."}, 403)
 
 
-def create_app(workspace: Workspace | None = None) -> Flask:
+def create_app(workspace: Workspace | None = None, token: str | None = None) -> Flask:
+    """`token` verilirse /api/* uçları oturum çerezi ister (bkz. modül açıklaması).
+    Kabuk (app/main.py) her açılışta rastgele bir anahtar üretir ve pencereyi
+    `/?t=<anahtar>` ile açar; testler anahtarsız da çalıştırabilir."""
     app = Flask(__name__)
     # Kabuk (app/main.py) aynı Workspace'i paylaşır: native dosya seçiciyle
     # başka klasördeki bir belge açıldığında kökü o klasöre taşıyabilsin.
     ws = workspace if workspace is not None else Workspace()
 
+    @app.before_request
+    def _guard():
+        # DNS rebinding: saldırgan alan adı 127.0.0.1'e çözülse de Host başlığı onun adıdır
+        if request.host.rsplit(":", 1)[0].strip("[]").lower() not in LOCAL_HOSTS:
+            return Response("Yetkisiz", status=403, mimetype="text/plain")
+        if token is None:
+            return None
+        if request.path == "/" and hmac.compare_digest(request.args.get("t", ""), token):
+            g.set_session = True
+            return None
+        if request.path.startswith("/api/") and request.path != "/api/health":
+            if not hmac.compare_digest(request.cookies.get(SESSION_COOKIE, ""), token):
+                return _json({"success": False, "error": "Yetkisiz istek."}, 403)
+        return None
+
     @app.after_request
     def _no_store(resp: Response) -> Response:
         resp.headers["Cache-Control"] = "no-store"
+        if token is not None and g.get("set_session"):
+            resp.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="Strict", path="/")
         return resp
 
     @app.get("/api/health")
@@ -434,7 +464,8 @@ def create_app(workspace: Workspace | None = None) -> Flask:
     @app.get("/api/content")
     def content():
         file_path = request.args.get("file")
-        ws.ensure_root(file_path)
+        # Kök yalnızca kullanıcının açtığı belgeyle kurulur (main.py ve dosya seçici);
+        # bir HTTP isteği çalışma kökünü belirleyemez.
         if not file_path:
             # Dosya verilmediyse gömülü karşılama içeriğini göster (diske yazma yok).
             return _json({"success": True, "name": "Hoş geldiniz.md", "path": "", "content": WELCOME_MD})
