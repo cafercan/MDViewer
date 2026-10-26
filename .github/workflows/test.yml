@@ -37,5 +37,5 @@ jobs:
       - name: Paketlenmiş uygulamayı dene
         timeout-minutes: 3
         run: '"dist/MD Flow Viewer.app/Contents/MacOS/MD Flow Viewer" --selftest'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: macos-dmg, path: dist/*.dmg, retention-days: 7 }
