@@ -1,6 +1,6 @@
 # MD Flow Viewer
 
-Windows ve Linux için hızlı, yerel bir **Markdown görüntüleyici ve düzenleyici**.
+Windows, macOS ve Linux için hızlı, yerel bir **Markdown görüntüleyici ve düzenleyici**.
 Dosyayı diskte değiştirdiğinizde otomatik yenilenir (canlı takip), Mermaid
 diyagramlarını ve kod vurgulamasını yerleşik olarak çizer, blok blok düzenlemeye
 izin verir.
@@ -53,6 +53,29 @@ temiz kaldırılır (dosya ilişkilendirmeleri dahil).
 - **Microsoft Edge WebView2 Runtime** — Windows 11'de yerleşik gelir. Yoksa
   kurulum uyarır: <https://developer.microsoft.com/microsoft-edge/webview2/>
 - Python veya Node.js **gerekmez** — uygulama tek exe olarak paketlidir.
+
+## Kurulum — macOS (Apple Silicon)
+
+En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı indirip
+`Uygulamalar` klasörüne kurar, güncellemeleri de yapar; aşağıdaki güvenlik uyarısı çıkmaz.
+
+Elle kurulum:
+
+1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
+   **`MDViewer-v2.9.2-macos-arm64.dmg`** dosyasını indirin.
+2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
+3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
+   engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
+   düğmesine basın ya da Terminal'de bir kez şunu çalıştırın:
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/MD Flow Viewer.app"
+   ```
+
+4. Bir `.md` dosyasına sağ tık → **Birlikte Aç → MD Flow Viewer**.
+
+Gereksinim: Apple Silicon (M1 ve sonrası), macOS 11 veya üzeri. Intel Mac için paket
+yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 
 ## Kurulum — Linux (Debian / Ubuntu)
 
