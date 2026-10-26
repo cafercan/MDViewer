@@ -1,6 +1,6 @@
 # Runtime
 flask>=3.0
-pywebview>=6.0
+pywebview>=6.2.1
 # Build-time only
 pyinstaller>=6.0
 # Test (geliştirme): python -m pytest tests
