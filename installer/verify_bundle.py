@@ -17,7 +17,7 @@ import tempfile
 
 from PyInstaller.archive.readers import CArchiveReader, ZlibArchiveReader
 
-REQUIRED = ("uuid", "flask.app", "werkzeug", "webview", "server")
+REQUIRED = ("uuid", "flask.app", "werkzeug", "webview", "server", "winforms_fix")
 
 
 def pyz_modules(exe: str) -> set[str]:

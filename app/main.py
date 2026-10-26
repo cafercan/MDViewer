@@ -21,6 +21,8 @@ import webbrowser
 import webview
 from werkzeug.serving import make_server
 
+import winforms_fix
+
 from server import (Workspace, clear_recent, create_app, get_last_dir,
                     get_recent, get_vault_path, remember_last_dir,
                     remember_recent, set_vault_path)
@@ -318,6 +320,7 @@ def main() -> int:
             workspace.set_explorer_root(start_dir)
 
     api = JsApi(workspace)
+    winforms_fix.apply()
     # text_select=True olmadan pywebview sayfaya
     # "body { user-select: none; cursor: default }" enjekte eder; belge metni
     # seçilemez ve Ctrl+C çalışmaz. Kabuk öğelerinin seçilmezliği CSS'te
