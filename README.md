@@ -39,7 +39,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.9.2.exe`** kurulumunu indirin.
+   **`MDViewer-v2.9.3.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -62,7 +62,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.9.2-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v2.9.3-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -80,11 +80,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_2.9.2_all.deb`** paketini indirin.
+   **`mdflowviewer_2.9.3_all.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_2.9.2_all.deb
+   sudo apt install ./mdflowviewer_2.9.3_all.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -129,14 +129,14 @@ python -m venv .venv
 # 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
 .\build.ps1
 
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.9.2.exe
+# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.9.3.exe
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
 ```
 
 ### Linux (.deb)
 
 ```bash
-bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.9.2_all.deb
+bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.9.3_all.deb
 ```
 
 Sürüm `installer/MDFlowViewer.iss` içindeki `AppVersion`'dan okunur.
