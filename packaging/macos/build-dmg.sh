@@ -35,10 +35,10 @@ iconutil -c icns "$ICONSET" -o "$BUILD/mdflow.icns"
   --name "$APP_NAME" \
   --osx-bundle-identifier com.cafercan.mdflowviewer \
   --icon "$BUILD/mdflow.icns" \
-  --add-data "public:public" \
+  --add-data "$ROOT/public:public" \
   --collect-all webview \
-  --distpath dist --workpath "$BUILD/work" --specpath "$BUILD" \
-  app/main.py
+  --distpath "$ROOT/dist" --workpath "$BUILD/work" --specpath "$BUILD" \
+  "$ROOT/app/main.py"
 
 PLIST="$APP/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
