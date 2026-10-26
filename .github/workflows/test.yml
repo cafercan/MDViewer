@@ -23,3 +23,19 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: node --test tests/*.test.js
+
+  # macOS paketi her gönderimde derlenip denenir: release'te ilk kez kırılmasın
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: .app ve .dmg
+        run: bash packaging/macos/build-dmg.sh
+      - name: Paketlenmiş uygulamayı dene
+        timeout-minutes: 3
+        run: '"dist/MD Flow Viewer.app/Contents/MacOS/MD Flow Viewer" --selftest'
+      - uses: actions/upload-artifact@v4
+        with: { name: macos-dmg, path: dist/*.dmg, retention-days: 7 }

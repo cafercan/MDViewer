@@ -1,5 +1,5 @@
-# Release yayınlanınca Windows kurulumunu (.exe) ve Linux paketini (.deb)
-# derleyip release'e ekler; ikisi de bitince SHA256SUMS.txt release'teki tüm
+# Release yayınlanınca Windows kurulumunu (.exe), Linux paketini (.deb) ve macOS paketini (.dmg)
+# derleyip release'e ekler; hepsi bitince SHA256SUMS.txt release'teki tüm
 # kurulumlar için yeniden üretilir. Elle yeniden çalıştırmak için:
 # Actions -> Release -> Run.
 name: Release
@@ -73,8 +73,37 @@ jobs:
           test -f "$deb" || { echo "Paket bulunamadi: $deb" >&2; exit 1; }
           gh release upload "$TAG" "$deb" --clobber
 
+  macos-dmg:
+    runs-on: macos-14
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: .app ve .dmg
+        run: bash packaging/macos/build-dmg.sh
+
+      - name: Paketlenmiş uygulamayı dene
+        timeout-minutes: 3
+        run: '"dist/MD Flow Viewer.app/Contents/MacOS/MD Flow Viewer" --selftest'
+
+      - name: Release'e yükle
+        run: |
+          dmg="dist/MDViewer-${TAG}-macos-arm64.dmg"
+          test -f "$dmg" || { echo "Paket bulunamadi: $dmg" >&2; exit 1; }
+          gh release upload "$TAG" "$dmg" --clobber
+
   checksums:
-    needs: [windows-setup, linux-deb]
+    needs: [windows-setup, linux-deb, macos-dmg]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -82,9 +111,9 @@ jobs:
     steps:
       - name: SHA256SUMS
         run: |
-          # Release'teki tüm kurulumların (exe + deb) özetini yeniden üret
+          # Release'teki tüm kurulumların (exe + deb + dmg) özetini yeniden üret
           mkdir sums
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.dmg"
           (cd sums && sha256sum * | sort -k2) > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber

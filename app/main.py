@@ -6,6 +6,7 @@ tamamen biter; arka planda sunucu kalmaz.
 """
 from __future__ import annotations
 
+import importlib
 import os
 import re
 import secrets
@@ -23,9 +24,9 @@ from werkzeug.serving import make_server
 
 import winforms_fix
 
-from server import (Workspace, clear_recent, create_app, get_last_dir,
-                    get_recent, get_vault_path, remember_last_dir,
-                    remember_recent, set_vault_path)
+from server import (PUBLIC_DIR, Workspace, clear_recent, create_app,
+                    get_last_dir, get_recent, get_vault_path,
+                    remember_last_dir, remember_recent, set_vault_path)
 
 APP_TITLE = "MD Flow Viewer"
 
@@ -271,6 +272,28 @@ def wait_health(port: int, timeout: float = 8.0) -> bool:
     return False
 
 
+# pywebview'in her sistemde kullandığı pencere arka ucu
+GUI_BACKENDS = {"darwin": "cocoa", "win32": "winforms", "linux": "gtk"}
+
+
+def selftest() -> int:
+    """Paketlenmiş uygulamanın CI denemesi (--selftest): pencere açmadan arayüz
+    dosyaları ve pencere arka ucu pakette mi, yerel sunucu ayağa kalkıyor mu."""
+    if not os.path.isfile(os.path.join(PUBLIC_DIR, "index.html")):
+        sys.stderr.write(f"Arayüz dosyaları yok: {PUBLIC_DIR}\n")
+        return 1
+    backend = GUI_BACKENDS.get("linux" if sys.platform.startswith("linux") else sys.platform)
+    if backend:
+        importlib.import_module(f"webview.platforms.{backend}")
+    port = free_port()
+    server = ServerThread(port, Workspace(), secrets.token_urlsafe(32))
+    server.start()
+    ok = wait_health(port)
+    server.shutdown()
+    print(f"selftest: arka uç={backend}, sunucu={'tamam' if ok else 'YANIT YOK'}")
+    return 0 if ok else 1
+
+
 def set_linux_app_id() -> None:
     """GNOME/KDE pencereyi .desktop girişiyle eşleştirsin (dock ikonu, gruplama).
 
@@ -289,6 +312,8 @@ def set_linux_app_id() -> None:
 
 
 def main() -> int:
+    if "--selftest" in sys.argv[1:]:
+        return selftest()
     set_linux_app_id()
     port = free_port()
     workspace = Workspace()
