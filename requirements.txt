@@ -4,4 +4,4 @@ pywebview>=6.0
 # Build-time only
 pyinstaller>=6.0
 # Test (geliştirme): python -m pytest tests
-pytest>=8.0
+pytest>=9.1.1
