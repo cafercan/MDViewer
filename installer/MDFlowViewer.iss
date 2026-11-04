@@ -55,6 +55,13 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [InstallDelete]
 ; 2.x (PyInstaller) kalıntısı: 3.0 tek exe; yükseltmede eski _internal\ klasörü silinir.
 Type: filesandordirs; Name: "{app}\_internal"
+; 1.x (Node.js) kalıntıları: 2.x bunları silmiyordu (node.exe tek başına ~87 MB).
+Type: files; Name: "{app}\node.exe"
+Type: files; Name: "{app}\server.js"
+Type: files; Name: "{app}\package.json"
+Type: files; Name: "{app}\sample.md"
+Type: filesandordirs; Name: "{app}\node_modules"
+Type: filesandordirs; Name: "{app}\public"
 
 [Files]
 ; Tek exe (arayüz dosyaları içine gömülü). Kayıt defteri ve kısayollar 2.x'teki

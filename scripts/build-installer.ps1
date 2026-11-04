@@ -27,8 +27,10 @@ if ($LASTEXITCODE -ne 0 -or -not $target) { throw "cargo metadata başarısız" 
 $exe = Join-Path $target 'release\mdflowviewer.exe'
 if (-not (Test-Path $exe)) { throw "Exe bulunamadı: $exe" }
 
-# Paketlenmiş exe'nin arayüzü içinde mi (pencere açmadan dener)
-& $exe --selftest
+# Paketlenmiş exe'nin arayüzü içinde mi (pencere açmadan dener). Exe GUI
+# alt sistemli: PowerShell onu beklemez ve $LASTEXITCODE eski kalır; boru
+# (| Out-Host) bitmesini ve çıkış kodunu bekletir.
+& $exe --selftest | Out-Host
 if ($LASTEXITCODE -ne 0) { throw "selftest başarısız" }
 
 & $iscc "/DAppVersion=$version" "/DTargetDir=$target" installer\MDFlowViewer.iss
