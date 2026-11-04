@@ -82,7 +82,8 @@ impl Settings {
     pub fn load(&self) -> Map<String, Value> {
         std::fs::read_to_string(&self.path)
             .ok()
-            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+            // Notepad gibi editörler BOM ekler; JSON ayrıştırıcı onu kabul etmez.
+            .and_then(|t| serde_json::from_str::<Value>(t.trim_start_matches('\u{feff}')).ok())
             .and_then(|v| match v {
                 Value::Object(m) => Some(m),
                 _ => None,
@@ -291,6 +292,13 @@ mod tests {
         let data = s.load();
         assert_eq!(data["theme"], "y");
         assert_eq!(data["lastDir"], Value::from(dir));
+    }
+
+    #[test]
+    fn load_accepts_utf8_bom() {
+        let (_tmp, s) = setup();
+        std::fs::write(s.path(), b"\xEF\xBB\xBF{\"theme\": \"slate-dark\"}").unwrap();
+        assert_eq!(s.load()["theme"], "slate-dark");
     }
 
     #[test]

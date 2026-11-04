@@ -1714,6 +1714,12 @@ function applyLineNumbers(on) {
 function setTheme(theme) {
     currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
+    // Kod vurgusu renk paleti: koyu temada koyu, açık temada açık palet
+    const dark = theme.endsWith('-dark');
+    const hljsLight = document.getElementById('hljs-light');
+    const hljsDark = document.getElementById('hljs-dark');
+    if (hljsLight) hljsLight.disabled = dark;
+    if (hljsDark) hljsDark.disabled = !dark;
     if (themeSwitch) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((b) =>
             b.classList.toggle('active', b.dataset.themeValue === theme));
