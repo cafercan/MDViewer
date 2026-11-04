@@ -42,3 +42,6 @@ __pycache__/
 
 # superpowers execution scratch
 .superpowers/
+
+# Tauri
+src-tauri/gen/

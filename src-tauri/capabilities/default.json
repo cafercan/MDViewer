@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Ana pencere: yalnız uygulamanın kendi komutları ve gereken çekirdek izinler",
+  "windows": ["main"],
+  "permissions": []
+}
