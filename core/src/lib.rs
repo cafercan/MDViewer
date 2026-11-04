@@ -2,3 +2,4 @@
 //! (ayar dosyası, kök hapsi, gezgin, belge okuma/yazma).
 pub mod paths;
 pub mod settings;
+pub mod textfile;
