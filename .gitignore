@@ -34,11 +34,6 @@ Thumbs.db
 *.bak
 *.swp
 
-# Python
-.venv/
-__pycache__/
-*.py[cod]
-*.spec
 
 # superpowers execution scratch
 .superpowers/
