@@ -1,6 +1,7 @@
 //! IPC komutlarının gövdeleri. Tauri'ye bağlı değildir; `commands.rs` yalnız
 //! bunları çağırır. Dönüş JSON şekilleri 2.x HTTP uçları ve JsApi ile aynıdır.
 use mdflow_core::links::DENIED;
+use mdflow_core::paths::same_path;
 use mdflow_core::settings::{RecentKind, Settings};
 use mdflow_core::textfile::{self, ReadError};
 use mdflow_core::workspace::{Confined, ExplorerState, Workspace};
@@ -91,6 +92,30 @@ pub fn save(st: &AppState, path: &str, content: &str) -> Value {
         }
         Err(e) => json!({"success": false, "error": e.to_string()}),
     }
+}
+
+/// İzlenecek dosyayı doğrular (2.x `/api/watch`): belge kökü yoksa bu dosyayla
+/// kurulur (komut satırından açılan ilk belge), kök dışı ve olmayan dosya reddedilir.
+pub fn watch_target(st: &AppState, file: &str) -> Result<PathBuf, Value> {
+    if file.is_empty() {
+        return Err(json!({"error": "İzlenecek dosya belirtilmedi."}));
+    }
+    let mut ws = st.ws();
+    ws.ensure_root(Some(file));
+    let Confined::Ok(abs) = ws.resolve_confined(file) else {
+        return Err(denied());
+    };
+    if !abs.exists() {
+        return Err(json!({"error": "İzlenecek dosya bulunamadı."}));
+    }
+    Ok(abs)
+}
+
+/// İzleyicinin "bu değişiklik bizim kaydımız mı" sorusu.
+pub fn is_own_write(st: &AppState, path: &Path, hash: u64) -> bool {
+    let last = st.last_write.lock().unwrap_or_else(|e| e.into_inner());
+    last.as_ref()
+        .is_some_and(|(p, h)| *h == hash && same_path(&p.to_string_lossy(), &path.to_string_lossy()))
 }
 
 pub fn get_settings(st: &AppState) -> Value {
@@ -338,6 +363,32 @@ mod tests {
     fn save_empty_path_is_rejected() {
         let f = fx();
         assert_eq!(save(&f.st, "", "x")["error"], "Eksik dosya yolu veya içerik.");
+    }
+
+    #[test]
+    fn watch_target_sets_root_when_none() {
+        let f = fx();
+        *f.st.ws() = Workspace::default();
+        assert_eq!(watch_target(&f.st, &f.ps("vault/sub/c.md")), Ok(f.p("vault/sub/c.md")));
+        assert_eq!(f.st.ws().root, Some(f.p("vault/sub")));
+    }
+
+    #[test]
+    fn watch_target_rejects_outside_missing_and_empty() {
+        let f = fx();
+        assert_eq!(watch_target(&f.st, &f.ps("outside.md")).unwrap_err()["error"], DENIED);
+        assert_eq!(watch_target(&f.st, &f.ps("vault/yok.md")).unwrap_err()["error"], "İzlenecek dosya bulunamadı.");
+        assert_eq!(watch_target(&f.st, "").unwrap_err()["error"], "İzlenecek dosya belirtilmedi.");
+    }
+
+    #[test]
+    fn is_own_write_matches_last_save_only() {
+        let f = fx();
+        save(&f.st, &f.ps("vault/a.md"), "yeni\n");
+        let h = hash_bytes(&std::fs::read(f.p("vault/a.md")).unwrap());
+        assert!(is_own_write(&f.st, &f.p("vault/a.md"), h));
+        assert!(!is_own_write(&f.st, &f.p("vault/a.md"), h ^ 1));
+        assert!(!is_own_write(&f.st, &f.p("vault/sub/c.md"), h));
     }
 
     #[test]

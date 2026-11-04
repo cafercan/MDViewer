@@ -23,6 +23,8 @@ const COMMANDS: &[&str] = &[
     "open_external",
     "open_path",
     "open_in_file_manager",
+    "watch_file",
+    "unwatch_file",
 ];
 
 fn main() {

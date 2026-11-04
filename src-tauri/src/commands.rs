@@ -4,7 +4,8 @@ use crate::api::{self, AppState};
 use mdflow_core::workspace::ExplorerState;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use crate::watch::{FileWatcher, WatchState};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 // --- belge ------------------------------------------------------------------
@@ -171,4 +172,41 @@ pub fn open_path(state: State<'_, AppState>, path: String) -> bool {
 #[tauri::command]
 pub fn open_in_file_manager(state: State<'_, AppState>, path: String) -> bool {
     api::open_confined(&state, &path, true, &system_open)
+}
+
+// --- canlı yenileme ------------------------------------------------------------------
+
+/// Belgeyi izlemeye başlar; değişimde `file-changed` olayı (`{"file": yol}`).
+/// Önceki izleyicinin yerini alır.
+#[tauri::command]
+pub fn watch_file(app: AppHandle, state: State<'_, AppState>, watch: State<'_, WatchState>, path: String) -> Value {
+    let abs = match api::watch_target(&state, &path) {
+        Ok(p) => p,
+        Err(e) => return e,
+    };
+    let own = app.clone();
+    let emit = app.clone();
+    let started = FileWatcher::start(
+        abs,
+        move |p, h| api::is_own_write(&own.state::<AppState>(), p, h),
+        move |p| {
+            let _ = emit.emit("file-changed", serde_json::json!({"file": p.to_string_lossy()}));
+        },
+    );
+    let mut slot = watch.0.lock().unwrap_or_else(|e| e.into_inner());
+    match started {
+        Ok(w) => {
+            *slot = Some(w);
+            serde_json::json!({"success": true})
+        }
+        Err(e) => {
+            *slot = None;
+            serde_json::json!({"success": false, "error": e.to_string()})
+        }
+    }
+}
+
+#[tauri::command]
+pub fn unwatch_file(watch: State<'_, WatchState>) {
+    *watch.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }

@@ -3,6 +3,7 @@
 mod api;
 mod asset;
 mod commands;
+mod watch;
 
 /// Paketlenmiş uygulamanın CI denemesi (`--selftest`): pencere açmadan
 /// arayüz dosyaları ikiliye gömülmüş mü bakar.
@@ -26,6 +27,7 @@ fn main() {
             let ws = state.ws();
             asset::handle(&ws, &request)
         })
+        .manage(watch::WatchState::default())
         .manage(api::AppState::new(mdflow_core::settings::Settings::default_location()))
         .invoke_handler(tauri::generate_handler![
             commands::content,
@@ -49,6 +51,8 @@ fn main() {
             commands::open_external,
             commands::open_path,
             commands::open_in_file_manager,
+            commands::watch_file,
+            commands::unwatch_file,
         ])
         .run(context)
         .expect("MD Flow Viewer başlatılamadı");

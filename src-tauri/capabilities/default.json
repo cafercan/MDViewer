@@ -6,6 +6,8 @@
     "main"
   ],
   "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
     "allow-content",
     "allow-save",
     "allow-get-settings",
@@ -26,6 +28,8 @@
     "allow-print-page",
     "allow-open-external",
     "allow-open-path",
-    "allow-open-in-file-manager"
+    "allow-open-in-file-manager",
+    "allow-watch-file",
+    "allow-unwatch-file"
   ]
 }
