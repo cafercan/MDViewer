@@ -25,6 +25,7 @@ const COMMANDS: &[&str] = &[
     "open_in_file_manager",
     "watch_file",
     "unwatch_file",
+    "initial_file",
 ];
 
 fn main() {

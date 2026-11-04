@@ -30,6 +30,7 @@
     "allow-open-path",
     "allow-open-in-file-manager",
     "allow-watch-file",
-    "allow-unwatch-file"
+    "allow-unwatch-file",
+    "allow-initial-file"
   ]
 }

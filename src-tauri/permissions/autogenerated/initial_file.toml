@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-initial-file"
+description = "Enables the initial_file command without any pre-configured scope."
+commands.allow = ["initial_file"]
+
+[[permission]]
+identifier = "deny-initial-file"
+description = "Denies the initial_file command without any pre-configured scope."
+commands.deny = ["initial_file"]

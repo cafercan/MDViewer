@@ -4,6 +4,7 @@ use crate::api::{self, AppState};
 use mdflow_core::workspace::ExplorerState;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use crate::startup::InitialFile;
 use crate::watch::{FileWatcher, WatchState};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
@@ -209,4 +210,25 @@ pub fn watch_file(app: AppHandle, state: State<'_, AppState>, watch: State<'_, W
 #[tauri::command]
 pub fn unwatch_file(watch: State<'_, WatchState>) {
     *watch.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+// --- açılış belgesi --------------------------------------------------------------------
+
+/// Arayüzün açılışta bir kez sorduğu belge (komut satırı ya da macOS olayı).
+#[tauri::command]
+pub fn initial_file(initial: State<'_, InitialFile>) -> Option<String> {
+    initial.take()
+}
+
+/// macOS "Birlikte Aç": arayüz henüz sormadıysa açılış belgesi olur (kök onun
+/// klasörü), sorduysa `open-file` olayıyla arayüze iletilir.
+#[allow(dead_code)] // yalnız macOS'ta çağrılır
+pub fn deliver_opened_file(app: &AppHandle, path: PathBuf) {
+    let shown = path.to_string_lossy().into_owned();
+    match app.state::<InitialFile>().offer(shown.clone()) {
+        None => crate::startup::prepare(&app.state::<AppState>(), Some(&path), &path),
+        Some(p) => {
+            let _ = app.emit("open-file", serde_json::json!({"path": p}));
+        }
+    }
 }

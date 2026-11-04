@@ -1829,6 +1829,7 @@ dependencies = [
 name = "mdflowviewer"
 version = "3.0.0"
 dependencies = [
+ "gtk",
  "mdflow-core",
  "notify",
  "opener",

@@ -149,11 +149,25 @@ async function initApp() {
 
     // 3. Gezgin (native köprü hazır olunca)
     initExplorer();
+
+    // 4. Uygulama açıkken gelen belgeler (macOS "Birlikte Aç")
+    const native = nativeApi();
+    if (native) native.onOpenFile((path) => openRecentFile(path));
 }
 
-// Açılış belgesinin tek okuma noktası: adres çubuğundaki ?file= parametresi.
+// Açılış belgesinin tek okuma noktası. Adres çubuğunda ?file= varsa (sayfa
+// yenilendi) o; yoksa uygulamanın verdiği belge (komut satırı / Birlikte Aç).
 async function getInitialFile() {
-    return new URLSearchParams(window.location.search).get('file') || '';
+    const fromUrl = new URLSearchParams(window.location.search).get('file');
+    if (fromUrl) return fromUrl;
+    const native = nativeApi();
+    if (!native) return '';
+    try {
+        return (await native.initial_file()) || '';
+    } catch (e) {
+        console.error('Açılış belgesi alınamadı:', e);
+        return '';
+    }
 }
 
 // FETCH AND RENDER A MARKDOWN FILE

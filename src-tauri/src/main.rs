@@ -4,24 +4,46 @@ mod api;
 mod asset;
 mod commands;
 mod nav;
+mod startup;
 mod watch;
+
+use std::path::PathBuf;
+use tauri::Manager;
 
 /// Paketlenmiş uygulamanın CI denemesi (`--selftest`): pencere açmadan
 /// arayüz dosyaları ikiliye gömülmüş mü bakar.
 fn selftest(context: &tauri::Context<tauri::Wry>) -> i32 {
     let ok = context.assets().get(&"index.html".into()).is_some();
     println!("selftest: arayüz={}", if ok { "tamam" } else { "YOK" });
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
-use tauri::Manager;
+fn home_dir() -> PathBuf {
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .map(PathBuf::from)
+        .unwrap_or_default()
+}
 
 fn main() {
     let context = tauri::generate_context!();
     if std::env::args().skip(1).any(|a| a == "--selftest") {
         std::process::exit(selftest(&context));
     }
-    tauri::Builder::default()
+
+    // GNOME/KDE pencereyi .desktop girişiyle eşleştirsin (StartupWMClass).
+    #[cfg(target_os = "linux")]
+    gtk::glib::set_prgname(Some("mdflowviewer"));
+
+    let file = startup::file_arg(std::env::args());
+    let state = api::AppState::new(mdflow_core::settings::Settings::default_location());
+    startup::prepare(&state, file.as_deref(), &home_dir());
+    let initial = startup::InitialFile::new(file.map(|p| p.to_string_lossy().into_owned()));
+
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(nav::plugin())
         .register_uri_scheme_protocol("mdasset", |ctx, request| {
@@ -30,7 +52,8 @@ fn main() {
             asset::handle(&ws, &request)
         })
         .manage(watch::WatchState::default())
-        .manage(api::AppState::new(mdflow_core::settings::Settings::default_location()))
+        .manage(state)
+        .manage(initial)
         .invoke_handler(tauri::generate_handler![
             commands::content,
             commands::save,
@@ -55,7 +78,18 @@ fn main() {
             commands::open_in_file_manager,
             commands::watch_file,
             commands::unwatch_file,
+            commands::initial_file,
         ])
-        .run(context)
+        .build(context)
         .expect("MD Flow Viewer başlatılamadı");
+
+    app.run(|_app, _event| {
+        // macOS Finder "Birlikte Aç" dosyayı argüman değil olay olarak verir.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = &_event {
+            if let Some(path) = urls.iter().find_map(|u| u.to_file_path().ok()) {
+                commands::deliver_opened_file(_app, path);
+            }
+        }
+    });
 }

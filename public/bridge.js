@@ -52,6 +52,14 @@
         /** Yerel görselin mdasset protokolü adresi. */
         assetUrl: function (absPath) { return tauri.core.convertFileSrc(absPath, 'mdasset'); },
 
+        /** Açılış belgesi (komut satırı / macOS Birlikte Aç); yalnız ilk soruşta dolu. */
+        initial_file: function () { return call('initial_file'); },
+
+        /** Uygulama açıkken macOS'ta "Birlikte Aç" ile gelen belge: cb(yol). */
+        onOpenFile: function (cb) {
+            return tauri.event.listen('open-file', function (e) { cb(e.payload.path); });
+        },
+
         // --- 2.x JsApi ile aynı adlar ------------------------------------------
         open_file: function () { return call('open_file'); },
         open_file_path: function (path) { return call('open_file_path', { path: path }); },
