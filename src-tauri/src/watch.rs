@@ -25,10 +25,10 @@ impl FileWatcher {
     ) -> notify::Result<FileWatcher> {
         let dir = path.parent().map(Path::to_path_buf).unwrap_or_else(|| path.clone());
         let (tx, rx) = mpsc::channel::<()>();
-        let target = path.to_string_lossy().into_owned();
+        let target = path.clone();
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             if let Ok(ev) = res {
-                if ev.paths.iter().any(|p| same_path(&p.to_string_lossy(), &target)) {
+                if ev.paths.iter().any(|p| is_target_event(p, &target)) {
                     let _ = tx.send(());
                 }
             }
@@ -59,6 +59,16 @@ impl FileWatcher {
             }
         });
         Ok(FileWatcher { _watcher: watcher })
+    }
+}
+
+/// Olay izlenen belgeye mi ait? Yalnız belgenin klasörü (özyinelemesiz)
+/// izlendiği için dosya adı yeter; tam yol karşılaştırması macOS'ta kurallı
+/// (symlink çözülmüş) yollar yüzünden tutmaz.
+fn is_target_event(event_path: &Path, target: &Path) -> bool {
+    match (event_path.file_name(), target.file_name()) {
+        (Some(e), Some(t)) => same_path(&e.to_string_lossy(), &t.to_string_lossy()),
+        _ => false,
     }
 }
 
@@ -99,6 +109,16 @@ mod tests {
     /// mtime çözünürlüğü kaba olan dosya sistemlerinde yazmalar ayırt edilsin.
     fn pause() {
         std::thread::sleep(Duration::from_millis(50));
+    }
+
+    #[test]
+    fn event_for_matches_by_file_name_in_watched_dir() {
+        // macOS FSEvents kurallı yol verir (/var → /private/var); klasör zaten
+        // izlenen klasör olduğu için dosya adı karşılaştırması yeterli.
+        let target = Path::new("/var/folders/x/a.md");
+        assert!(is_target_event(Path::new("/private/var/folders/x/a.md"), target));
+        assert!(!is_target_event(Path::new("/private/var/folders/x/b.md"), target));
+        assert!(!is_target_event(Path::new("/var/folders/x/a.md.tmp"), target));
     }
 
     #[test]

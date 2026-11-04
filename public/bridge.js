@@ -22,6 +22,13 @@
     }
 
     var unlistenChange = null;
+    var watchGen = 0;
+
+    // Uygulamanın verdiği yol ile arayüzdekini karşılaştır (ayırıcı ve harf duyarsız).
+    function samePath(a, b) {
+        var norm = function (p) { return String(p || '').replace(/\\/g, '/').toLowerCase(); };
+        return norm(a) === norm(b);
+    }
 
     root.MDFlowNative = {
         // --- belge ----------------------------------------------------------
@@ -36,15 +43,28 @@
          * @returns {Promise<function(): void>} izlemeyi durduran fonksiyon
          */
         watch: async function (file, onChange, onError) {
+            // Her izleme bir kuşak numarası alır; yalnız en son kuşak geçerlidir.
+            // Çağrılar beklenmeden üst üste gelebilir: eski dinleyici sızarsa
+            // başka belgenin içeriği bu belgenin görünümüne yüklenirdi.
+            var gen = ++watchGen;
             if (unlistenChange) { unlistenChange(); unlistenChange = null; }
-            var unlisten = await tauri.event.listen('file-changed', function (e) { onChange(e.payload); });
+            var unlisten = await tauri.event.listen('file-changed', function (e) {
+                if (gen === watchGen && e.payload && samePath(e.payload.file, file)) onChange(e.payload);
+            });
+            if (gen !== watchGen) {             // beklerken daha yeni bir izleme başladı
+                unlisten();
+                return function () {};
+            }
             unlistenChange = unlisten;
             var result = await call('watch_file', { path: file });
-            if (!result || result.success !== true) {
+            if (gen === watchGen && (!result || result.success !== true)) {
                 if (onError) onError((result && result.error) || 'İzleme başlatılamadı.');
             }
             return function stop() {
-                if (unlistenChange === unlisten) { unlisten(); unlistenChange = null; }
+                if (gen !== watchGen) return;       // yerini yenisi aldı; ona dokunma
+                watchGen++;
+                unlisten();
+                unlistenChange = null;
                 call('unwatch_file');
             };
         },
