@@ -21,8 +21,7 @@
     <!-- Marked.js for Markdown Parsing -->
     <script src="/vendor/marked/marked.umd.js"></script>
     
-    <!-- Mermaid.js for Diagram Rendering -->
-    <script src="/vendor/mermaid/mermaid.min.js"></script>
+    <!-- Mermaid.js: app.js gerektiğinde yükler (lazy-script.js) -->
 
     <!-- DOMPurify: sanitize rendered markdown HTML before it hits the DOM -->
     <script src="/vendor/dompurify/purify.min.js"></script>
@@ -290,6 +289,7 @@
     <script src="asset-url.js"></script>
     <script src="wikilink.js"></script>
     <script src="frontmatter.js"></script>
+    <script src="lazy-script.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -1,14 +1,44 @@
 // INITIAL CONFIGURATION FOR EXTERNAL LIBRARIES
-mermaid.initialize({
-    startOnLoad: false,
-    // Varsayılan tema açık olduğu için mermaid 'default' (açık) ile uyumlu.
-    theme: 'default',
-    // 'strict': mermaid, etiket içeriğindeki HTML'i temizler ve tıklama/JS
-    // yönlendirmelerini kapatır. Güvenilmeyen bir .md dosyasındaki diyagram
-    // kodunun script çalıştırmasını engeller.
-    securityLevel: 'strict',
-    flowchart: { useMaxWidth: true, htmlLabels: false, curve: 'basis' }
-});
+// Mermaid (~3 MB) açılışta yüklenmez: ilk diyagramda ya da ilk çizimden sonra
+// pencere boştayken bir kez yüklenir (sayfa hiç yeniden yüklenmediği için
+// gezgin geçişlerinde tekrar yüklenmez).
+const MERMAID_SRC = '/vendor/mermaid/mermaid.min.js';
+let mermaidReady = null;
+
+function ensureMermaid() {
+    if (!mermaidReady) {
+        mermaidReady = LazyScript.once(MERMAID_SRC).then(initMermaid).catch((err) => {
+            mermaidReady = null;
+            throw err;
+        });
+    }
+    return mermaidReady;
+}
+
+let mermaidPreloadScheduled = false;
+function scheduleMermaidPreload() {
+    if (mermaidPreloadScheduled) return;
+    mermaidPreloadScheduled = true;
+    const run = () => ensureMermaid().catch(() => { /* asıl ihtiyaçta yeniden denenir */ });
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 5000 });
+    } else {
+        setTimeout(run, 1500);
+    }
+}
+
+function initMermaid() {
+    mermaid.initialize({
+        startOnLoad: false,
+        // Varsayılan tema açık olduğu için mermaid 'default' (açık) ile uyumlu.
+        theme: 'default',
+        // 'strict': mermaid, etiket içeriğindeki HTML'i temizler ve tıklama/JS
+        // yönlendirmelerini kapatır. Güvenilmeyen bir .md dosyasındaki diyagram
+        // kodunun script çalıştırmasını engeller.
+        securityLevel: 'strict',
+        flowchart: { useMaxWidth: true, htmlLabels: false, curve: 'basis' }
+    });
+}
 
 // Obsidian tarzı [[wikilink]] desteği (public/wikilink.js). Hedef tıklamada
 // çözülür: bkz. handleDocumentLinkClick -> openWikilink.
@@ -872,13 +902,13 @@ function renderMarkdown(markdownText) {
     // Render Mermaid diagrams
     const mermaidElements = markdownViewer.querySelectorAll('.mermaid');
     if (mermaidElements.length > 0) {
-        try {
-            mermaid.run({ nodes: mermaidElements }).catch(err => {
+        ensureMermaid()
+            .then(() => mermaid.run({ nodes: mermaidElements }))
+            .catch(err => {
                 console.error('Mermaid render hatası:', err);
             });
-        } catch (e) {
-            console.error('Mermaid.run çağrı hatası:', e);
-        }
+    } else {
+        scheduleMermaidPreload();
     }
 
     // Generate Table of Contents (TOC) & register Scroll Spy
@@ -1051,13 +1081,11 @@ function renderInlineEditor(markdownText) {
     // Run Mermaid Diagrams inside inline editor
     const mermaidElements = inlineEditor.querySelectorAll('.mermaid');
     if (mermaidElements.length > 0) {
-        try {
-            mermaid.run({ nodes: mermaidElements }).catch(err => {
+        ensureMermaid()
+            .then(() => mermaid.run({ nodes: mermaidElements }))
+            .catch(err => {
                 console.error(err);
             });
-        } catch (e) {
-            console.error(e);
-        }
     }
 
     // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
