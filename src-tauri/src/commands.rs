@@ -1,34 +1,48 @@
 //! `#[tauri::command]` sarmalayıcıları: yalnız `api` gövdelerini çağırır.
 //! Adlar 2.x JsApi metotlarıyla aynı; JS'ten parametreler camelCase gelir.
+//!
+//! Senkron komutlar arayüz (ana) iş parçacığında koşar; diske dokunan her
+//! komut bu yüzden async'tir ve gövdesini `off_main` ile ayrı iş parçacığında
+//! çalıştırır (büyük belge, yavaş disk ya da kökün tamamında wikilink araması
+//! pencereyi dondurmasın).
 use crate::api::{self, AppState};
-use mdflow_core::workspace::ExplorerState;
-use serde_json::Value;
-use std::path::{Path, PathBuf};
 use crate::startup::InitialFile;
 use crate::watch::{FileWatcher, WatchState};
+use mdflow_core::workspace::ExplorerState;
+use serde_json::Value;
+use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
-use tauri_plugin_dialog::DialogExt;
+
+/// Komut gövdesini engelleyici iş parçacığında çalıştırır.
+async fn off_main<T: Send + 'static>(app: AppHandle, f: impl FnOnce(&AppState) -> T + Send + 'static) -> T {
+    match tauri::async_runtime::spawn_blocking(move || f(&app.state::<AppState>())).await {
+        Ok(v) => v,
+        Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
+    }
+}
 
 // --- belge ------------------------------------------------------------------
 
 #[tauri::command]
-pub fn content(state: State<'_, AppState>, file: Option<String>) -> Value {
-    api::content(&state, file.as_deref())
+pub async fn content(app: AppHandle, file: Option<String>) -> Value {
+    off_main(app, move |st| api::content(st, file.as_deref())).await
 }
 
 #[tauri::command]
-pub fn save(state: State<'_, AppState>, path: String, content: String) -> Value {
-    api::save(&state, &path, &content)
+pub async fn save(app: AppHandle, path: String, content: String) -> Value {
+    off_main(app, move |st| api::save(st, &path, &content)).await
 }
 
 #[tauri::command]
-pub fn get_settings(state: State<'_, AppState>) -> Value {
-    api::get_settings(&state)
+pub async fn get_settings(app: AppHandle) -> Value {
+    off_main(app, api::get_settings).await
 }
 
 #[tauri::command]
-pub fn set_settings(state: State<'_, AppState>, patch: Value) -> Value {
-    api::set_settings(&state, patch)
+pub async fn set_settings(app: AppHandle, patch: Value) -> Value {
+    off_main(app, move |st| api::set_settings(st, patch)).await
 }
 
 // --- dosya / klasör açma ---------------------------------------------------------
@@ -37,67 +51,78 @@ fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
 }
 
+type Picked = Pin<Box<dyn Future<Output = Option<rfd::FileHandle>> + Send>>;
+
+/// Native dosya/klasör seçici (rfd). Diyalog ana iş parçacığında kurulur
+/// (macOS bunu şart koşar), sonucu burada beklenir. tauri-plugin-dialog
+/// kullanılmaz: o eklenti window.confirm/alert'i async bir sürümle değiştirir
+/// ve arayüzün "kaydedilmemiş değişiklik" soruları sessizce geçilir.
+async fn pick(app: &AppHandle, folder: bool, start: Option<PathBuf>) -> Option<PathBuf> {
+    let (tx, rx) = std::sync::mpsc::channel::<Picked>();
+    let window = main_window(app);
+    app.run_on_main_thread(move || {
+        let mut d = rfd::AsyncFileDialog::new();
+        if !folder {
+            d = d.add_filter("Markdown", &["md", "markdown"]).add_filter("Tüm dosyalar", &["*"]);
+        }
+        if let Some(dir) = start {
+            d = d.set_directory(dir);
+        }
+        if let Some(w) = &window {
+            d = d.set_parent(w);
+        }
+        let fut: Picked = if folder { Box::pin(d.pick_folder()) } else { Box::pin(d.pick_file()) };
+        let _ = tx.send(fut);
+    })
+    .ok()?;
+    let fut = tauri::async_runtime::spawn_blocking(move || rx.recv().ok()).await.ok()??;
+    fut.await.map(|h| h.path().to_path_buf())
+}
+
 /// Dosya seçme penceresi son kullanılan klasörde açılır; seçilen dosyanın
-/// klasörü yeni belge kökü olur. İptal → None. Diyalog ana iş parçacığını
-/// kilitlemesin diye komut async.
+/// klasörü yeni belge kökü olur. İptal → None.
 #[tauri::command]
 pub async fn open_file(app: AppHandle) -> Option<String> {
-    let state = app.state::<AppState>();
-    let mut dialog = app
-        .dialog()
-        .file()
-        .add_filter("Markdown", &["md", "markdown"])
-        .add_filter("Tüm dosyalar", &["*"]);
-    if let Some(dir) = state.settings.last_dir() {
-        dialog = dialog.set_directory(dir);
-    }
-    if let Some(w) = main_window(&app) {
-        dialog = dialog.set_parent(&w);
-    }
-    let picked: PathBuf = dialog.blocking_pick_file()?.into_path().ok()?;
-    api::open_file_path(&state, &picked.to_string_lossy())
+    let start = app.state::<AppState>().settings.last_dir();
+    let picked = pick(&app, false, start).await?;
+    off_main(app, move |st| api::open_file_path(st, &picked.to_string_lossy())).await
 }
 
 #[tauri::command]
-pub fn open_file_path(state: State<'_, AppState>, path: String) -> Option<String> {
-    api::open_file_path(&state, &path)
+pub async fn open_file_path(app: AppHandle, path: String) -> Option<String> {
+    off_main(app, move |st| api::open_file_path(st, &path)).await
 }
 
 /// Klasör seçme penceresi; seçilen klasör çalışma alanı olur.
 #[tauri::command]
 pub async fn open_folder(app: AppHandle) -> Option<Value> {
-    let state = app.state::<AppState>();
-    let start = state
-        .settings
-        .get_recent(mdflow_core::settings::RecentKind::Folder)
-        .into_iter()
-        .next()
-        .map(PathBuf::from)
-        .or_else(|| state.settings.last_dir());
-    let mut dialog = app.dialog().file();
-    if let Some(dir) = start {
-        dialog = dialog.set_directory(dir);
-    }
-    if let Some(w) = main_window(&app) {
-        dialog = dialog.set_parent(&w);
-    }
-    let picked: PathBuf = dialog.blocking_pick_folder()?.into_path().ok()?;
-    api::open_folder_path(&state, &picked.to_string_lossy())
+    let start = {
+        let state = app.state::<AppState>();
+        state
+            .settings
+            .get_recent(mdflow_core::settings::RecentKind::Folder)
+            .into_iter()
+            .next()
+            .map(PathBuf::from)
+            .or_else(|| state.settings.last_dir())
+    };
+    let picked = pick(&app, true, start).await?;
+    off_main(app, move |st| api::open_folder_path(st, &picked.to_string_lossy())).await
 }
 
 #[tauri::command]
-pub fn open_folder_path(state: State<'_, AppState>, path: String) -> Option<Value> {
-    api::open_folder_path(&state, &path)
+pub async fn open_folder_path(app: AppHandle, path: String) -> Option<Value> {
+    off_main(app, move |st| api::open_folder_path(st, &path)).await
 }
 
 #[tauri::command]
-pub fn recent_list(state: State<'_, AppState>) -> Value {
-    api::recent_list(&state)
+pub async fn recent_list(app: AppHandle) -> Value {
+    off_main(app, api::recent_list).await
 }
 
 #[tauri::command]
-pub fn clear_recent_list(state: State<'_, AppState>, kind: String) -> Value {
-    api::clear_recent_list(&state, &kind)
+pub async fn clear_recent_list(app: AppHandle, kind: String) -> Value {
+    off_main(app, move |st| api::clear_recent_list(st, &kind)).await
 }
 
 // --- gezgin --------------------------------------------------------------------
@@ -108,8 +133,8 @@ pub fn explorer_state(state: State<'_, AppState>) -> ExplorerState {
 }
 
 #[tauri::command]
-pub fn list_dir(state: State<'_, AppState>, path: String) -> Value {
-    api::list_dir(&state, &path)
+pub async fn list_dir(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::list_dir(st, &path)).await
 }
 
 #[tauri::command]
@@ -128,13 +153,13 @@ pub fn set_vault(state: State<'_, AppState>, path: Option<String>) -> ExplorerSt
 }
 
 #[tauri::command]
-pub fn resolve_wikilink(state: State<'_, AppState>, target: String, current_file: Option<String>) -> Option<String> {
-    api::resolve_wikilink(&state, &target, current_file.as_deref())
+pub async fn resolve_wikilink(app: AppHandle, target: String, current_file: Option<String>) -> Option<String> {
+    off_main(app, move |st| api::resolve_wikilink(st, &target, current_file.as_deref())).await
 }
 
 #[tauri::command]
-pub fn inspect_path(state: State<'_, AppState>, path: String) -> Value {
-    api::inspect_path(&state, &path)
+pub async fn inspect_path(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::inspect_path(st, &path)).await
 }
 
 // --- yazdırma / dışarıda açma -------------------------------------------------------
@@ -165,14 +190,14 @@ fn system_open(p: &Path) -> std::io::Result<()> {
 
 /// Yerel dosyayı (md dışı) varsayılan uygulamasında açar; kök dışı reddedilir.
 #[tauri::command]
-pub fn open_path(state: State<'_, AppState>, path: String) -> bool {
-    api::open_confined(&state, &path, false, &system_open)
+pub async fn open_path(app: AppHandle, path: String) -> bool {
+    off_main(app, move |st| api::open_confined(st, &path, false, &system_open)).await
 }
 
 /// Klasörü sistemin dosya yöneticisinde açar (Ctrl+tık); kök dışı reddedilir.
 #[tauri::command]
-pub fn open_in_file_manager(state: State<'_, AppState>, path: String) -> bool {
-    api::open_confined(&state, &path, true, &system_open)
+pub async fn open_in_file_manager(app: AppHandle, path: String) -> bool {
+    off_main(app, move |st| api::open_confined(st, &path, true, &system_open)).await
 }
 
 // --- canlı yenileme ------------------------------------------------------------------
@@ -230,5 +255,18 @@ pub fn deliver_opened_file(app: &AppHandle, path: PathBuf) {
         Some(p) => {
             let _ = app.emit("open-file", serde_json::json!({"path": p}));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// tauri-plugin-dialog her pencereye window.confirm/alert'i async invoke
+    /// ile değiştiren bir betik enjekte eder: confirm() Promise döner (hep
+    /// "doğru"), kaydedilmemiş değişiklik soruları sessizce geçilir. Dosya
+    /// diyalogları bu yüzden doğrudan rfd ile açılır.
+    #[test]
+    fn no_plugin_replaces_window_confirm() {
+        let manifest = include_str!("../Cargo.toml");
+        assert!(!manifest.contains("tauri-plugin-dialog"), "tauri-plugin-dialog window.confirm'u bozar");
     }
 }

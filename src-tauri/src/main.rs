@@ -45,8 +45,7 @@ fn main() {
     let initial = startup::InitialFile::new(file.map(|p| p.to_string_lossy().into_owned()));
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(nav::plugin())
+.plugin(nav::plugin())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .on_window_event(drop::on_window_event)
         .register_uri_scheme_protocol("mdasset", |ctx, request| {

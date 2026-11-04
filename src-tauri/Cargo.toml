@@ -14,7 +14,7 @@ mdflow-core = { path = "../core" }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-dialog = "2"
+rfd = { version = "0.17", default-features = false, features = ["gtk3"] }
 opener = "0.8"
 percent-encoding = "2"
 notify = "6"
