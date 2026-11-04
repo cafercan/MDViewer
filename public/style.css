@@ -810,7 +810,8 @@ body {
 
 /* Mermaid Rendering Area */
 .mermaid {
-    background: #0f172a;
+    /* Zemin temaya uyar; diyagram renkleri app.js mermaidThemeFor ile seçilir */
+    background: var(--bg-base);
     padding: 1.5rem;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);

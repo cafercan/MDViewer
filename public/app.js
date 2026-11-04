@@ -15,6 +15,33 @@ function ensureMermaid() {
     return mermaidReady;
 }
 
+// Diyagramları çizer. Kaynak metin data-src'de saklanır: tema değişince
+// (rerenderMermaid) SVG atılıp aynı kaynaktan yeni renklerle yeniden çizilir.
+function runMermaid(nodes) {
+    nodes.forEach((node) => {
+        if (node.dataset.src === undefined) node.dataset.src = node.textContent;
+    });
+    return ensureMermaid()
+        .then(() => mermaid.run({ nodes }))
+        .catch(err => {
+            console.error('Mermaid render hatası:', err);
+        });
+}
+
+function rerenderMermaid() {
+    if (!mermaidReady) return; // henüz yüklenmedi: ilk çizimde doğru temayla başlar
+    const nodes = document.querySelectorAll('.mermaid[data-src]');
+    mermaidReady.then(() => {
+        initMermaid();
+        if (!nodes.length) return;
+        nodes.forEach((node) => {
+            node.removeAttribute('data-processed');
+            node.textContent = node.dataset.src;
+        });
+        return mermaid.run({ nodes });
+    }).catch(err => console.error('Mermaid yeniden çizim hatası:', err));
+}
+
 let mermaidPreloadScheduled = false;
 function scheduleMermaidPreload() {
     if (mermaidPreloadScheduled) return;
@@ -27,11 +54,15 @@ function scheduleMermaidPreload() {
     }
 }
 
+// Uygulama teması koyuysa Mermaid'in koyu teması, değilse varsayılan (açık).
+function mermaidThemeFor(appTheme) {
+    return String(appTheme || '').endsWith('-dark') ? 'dark' : 'default';
+}
+
 function initMermaid() {
     mermaid.initialize({
         startOnLoad: false,
-        // Varsayılan tema açık olduğu için mermaid 'default' (açık) ile uyumlu.
-        theme: 'default',
+        theme: mermaidThemeFor(currentTheme),
         // 'strict': mermaid, etiket içeriğindeki HTML'i temizler ve tıklama/JS
         // yönlendirmelerini kapatır. Güvenilmeyen bir .md dosyasındaki diyagram
         // kodunun script çalıştırmasını engeller.
@@ -941,11 +972,7 @@ function renderMarkdown(markdownText) {
     // Render Mermaid diagrams
     const mermaidElements = markdownViewer.querySelectorAll('.mermaid');
     if (mermaidElements.length > 0) {
-        ensureMermaid()
-            .then(() => mermaid.run({ nodes: mermaidElements }))
-            .catch(err => {
-                console.error('Mermaid render hatası:', err);
-            });
+        runMermaid(mermaidElements);
     } else {
         scheduleMermaidPreload();
     }
@@ -1120,11 +1147,7 @@ function renderInlineEditor(markdownText) {
     // Run Mermaid Diagrams inside inline editor
     const mermaidElements = inlineEditor.querySelectorAll('.mermaid');
     if (mermaidElements.length > 0) {
-        ensureMermaid()
-            .then(() => mermaid.run({ nodes: mermaidElements }))
-            .catch(err => {
-                console.error(err);
-            });
+        runMermaid(mermaidElements);
     }
 
     // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
@@ -1730,6 +1753,7 @@ function setTheme(theme) {
     const hljsDark = document.getElementById('hljs-dark');
     if (hljsLight) hljsLight.disabled = dark;
     if (hljsDark) hljsDark.disabled = !dark;
+    rerenderMermaid();
     if (themeSwitch) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((b) =>
             b.classList.toggle('active', b.dataset.themeValue === theme));
