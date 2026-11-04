@@ -90,10 +90,10 @@ pub fn save(st: &AppState, path: &str, content: &str) -> Value {
         return denied();
     };
     match textfile::write_doc(&abs, content) {
-        Ok(()) => {
-            if let Ok(bytes) = std::fs::read(&abs) {
-                *st.last_write.lock().unwrap_or_else(|e| e.into_inner()) = Some((abs, hash_bytes(&bytes)));
-            }
+        Ok(written) => {
+            // Diskten yeniden okumak yerine yazılan baytlar: arada gelen bir dış
+            // değişiklik "kendi kaydımız" sanılıp bastırılmasın.
+            *st.last_write.lock().unwrap_or_else(|e| e.into_inner()) = Some((abs, hash_bytes(&written)));
             json!({"success": true, "message": "Dosya başarıyla kaydedildi."})
         }
         Err(e) => json!({"success": false, "error": e.to_string()}),
