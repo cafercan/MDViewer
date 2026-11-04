@@ -3,6 +3,7 @@
 mod api;
 mod asset;
 mod commands;
+mod nav;
 mod watch;
 
 /// Paketlenmiş uygulamanın CI denemesi (`--selftest`): pencere açmadan
@@ -22,6 +23,7 @@ fn main() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(nav::plugin())
         .register_uri_scheme_protocol("mdasset", |ctx, request| {
             let state = ctx.app_handle().state::<api::AppState>();
             let ws = state.ws();

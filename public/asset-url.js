@@ -56,14 +56,27 @@
         return segments.join(separator);
     }
 
+    function defaultBuilder(absolute) {
+        return '/api/asset?file=' + encodeURIComponent(absolute);
+    }
+
+    // Uygulamada Tauri'nin mdasset protokolü kurucusu enjekte edilir
+    // (bridge.js: MDFlowNative.assetUrl); Node testleri varsayılanı kullanır.
+    var buildUrl = defaultBuilder;
+
+    /** @param {function(string): string | null} fn  null → varsayılan kurucu */
+    function setBuilder(fn) {
+        buildUrl = typeof fn === 'function' ? fn : defaultBuilder;
+    }
+
     /**
      * @param {string} src        Markdown'daki ham yol, örn. "img/grafik.svg"
      * @param {string} currentFilePath  Açık markdown dosyasının mutlak yolu
-     * @returns {string|null}     /api/asset URL'i, ya da dokunulmaması gerekiyorsa null
+     * @returns {string|null}     Görsel URL'i, ya da dokunulmaması gerekiyorsa null
      */
     function resolveAssetUrl(src, currentFilePath) {
         var absolute = resolveLocalPath(src, currentFilePath);
-        return absolute === null ? null : '/api/asset?file=' + encodeURIComponent(absolute);
+        return absolute === null ? null : buildUrl(absolute);
     }
 
     /**
@@ -80,7 +93,7 @@
         if (!value) return null;
         if (value.charAt(0) === '#') return null;          // sayfa içi bağlantı
         if (value.indexOf('/api/') === 0) return null;      // zaten çözülmüş
-        if (hasUrlScheme(value)) return null;               // http(s):, data:, file: ...
+        if (hasUrlScheme(value)) return null;               // http(s):, data:, file:, mdasset: ...
 
         // Markdown yazarken boşluklar %20 olarak kodlanmış olabilir.
         var decoded = value;
@@ -142,6 +155,7 @@
 
     var api = {
         resolveAssetUrl: resolveAssetUrl,
+        setBuilder: setBuilder,
         resolveLocalPath: resolveLocalPath,
         classifyLink: classifyLink
     };

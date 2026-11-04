@@ -42,3 +42,18 @@ test('resolveAssetUrl mevcut davranışı korur', () => {
     assert.equal(AssetUrl.resolveAssetUrl('img/a.svg', DOC), '/api/asset?file=' + encodeURIComponent('D:\\docs\\img\\a.svg'));
     assert.equal(AssetUrl.resolveAssetUrl('https://x/y.png', DOC), null);
 });
+
+test('resolveAssetUrl: enjekte edilen kurucu kullanılır', () => {
+    AssetUrl.setBuilder((p) => 'X:' + p);
+    try {
+        assert.equal(AssetUrl.resolveAssetUrl('img/a.svg', DOC), 'X:' + 'D:\\docs\\img\\a.svg');
+    } finally {
+        AssetUrl.setBuilder(null);
+    }
+    assert.equal(AssetUrl.resolveAssetUrl('img/a.svg', DOC), '/api/asset?file=' + encodeURIComponent('D:\\docs\\img\\a.svg'));
+});
+
+test('resolveAssetUrl: mdasset adreslerine dokunulmaz', () => {
+    assert.equal(AssetUrl.resolveAssetUrl('http://mdasset.localhost/C%3A%2Fa.png', DOC), null);
+    assert.equal(AssetUrl.resolveAssetUrl('mdasset://localhost/%2Fhome%2Fa.png', DOC), null);
+});

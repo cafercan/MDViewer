@@ -21,8 +21,8 @@ if (typeof Frontmatter !== 'undefined') {
     marked.use({ extensions: [Frontmatter.extension()] });
 }
 
-// Oturum içi depolama. Linux'ta pywebview (GTK) private mode'da WebKit'in
-// localStorage'ını tamamen kapatır: değişken hiç tanımlı olmaz ve dokunmak
+// Oturum içi depolama. Private mode'daki WebKit (2.x'te pywebview/GTK)
+// localStorage'ı tamamen kapatır: değişken hiç tanımlı olmaz ve dokunmak
 // ReferenceError fırlatır. O durumda bellek içi Map'e düşülür; taslaklar yine
 // aynı oturum boyunca korunur (Windows/WebView2'deki davranışla aynı).
 const storage = (() => {
@@ -45,7 +45,7 @@ const storage = (() => {
 let currentFilePath = '';
 let currentContent = '';
 let isEditMode = false;
-let eventSource = null;
+let stopWatch = null;
 let autosaveTimer = null;
 let headingElements = [];
 let currentTokens = [];
@@ -53,12 +53,10 @@ let hasUnsavedChanges = false;
 let currentTheme = 'minimal-light';
 let lineNumbersOn = true;
 
-// Pencere kapanınca sunucuyu arkada bırakma: pagehide anında sendBeacon ile
-// kapanış sinyali gönder. sendBeacon tam da bu iş için (sayfa yıkılırken bile
-// iletilir). Sunucu yalnızca launcher tarafından açıldıysa (AUTO_EXIT) kapanır.
-window.addEventListener('pagehide', () => {
-    try { navigator.sendBeacon('/api/shutdown'); } catch (e) { /* yok say */ }
-});
+// Yerel görseller uygulamanın mdasset protokolünden gelir (bridge.js).
+if (window.MDFlowNative && typeof AssetUrl !== 'undefined') {
+    AssetUrl.setBuilder(window.MDFlowNative.assetUrl);
+}
 
 // DOM ELEMENTS
 const statusDot = document.getElementById('status-dot');
@@ -113,15 +111,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // MAIN CONTROLLER INITIALIZATION
 async function initApp() {
-    // 1. Get file path from URL query param
-    const urlParams = new URLSearchParams(window.location.search);
-    const fileParam = urlParams.get('file');
-    
+    // 1. Açılış belgesi
+    const fileParam = await getInitialFile();
+
     // 2. Fetch file content (ilk giriş: geçmişe yeni kayıt ekleme, mevcut olanı yaz)
     await loadFile(fileParam || '', { replaceHistory: true });
 
     // 3. Gezgin (native köprü hazır olunca)
     initExplorer();
+}
+
+// Açılış belgesinin tek okuma noktası: adres çubuğundaki ?file= parametresi.
+async function getInitialFile() {
+    return new URLSearchParams(window.location.search).get('file') || '';
 }
 
 // FETCH AND RENDER A MARKDOWN FILE
@@ -133,15 +135,10 @@ async function loadFile(filePath, options = {}) {
     try {
         setSyncStatus('syncing', 'Dosya yükleniyor...');
         
-        const url = `/api/content${filePath ? '?file=' + encodeURIComponent(filePath) : ''}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
+        const native = nativeApi();
+        if (!native) throw new Error('Belgeler yalnızca MD Flow Viewer uygulama penceresinde açılır.');
+        const data = await native.content(filePath || null);
+
         if (data.success) {
             currentFilePath = data.path;
             const draft = getDraft(data.path);
@@ -182,8 +179,8 @@ async function loadFile(filePath, options = {}) {
             }
             
             // Establish Live Connection
-            setupSSEWatcher(data.path);
-            setSyncStatus('connected', 'Bağlandı');
+            setupFileWatcher(data.path);
+setSyncStatus('connected', 'Bağlandı');
             
             // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
@@ -355,20 +352,14 @@ function setSidebarTab(name, persist = true) {
 
 // ============================================================
 // GEZGİN (dosya ağacı, vault kilidi, üst klasör)
-// Klasör listeleme ve kök değişimi HTTP değil pywebview köprüsü (JsApi)
-// üzerinden yapılır: kök hapsi yalnızca uygulama penceresinden genişler.
+// Klasör listeleme ve kök değişimi uygulama köprüsü (bridge.js) üzerinden
+// yapılır: kök hapsi yalnızca uygulama penceresinden genişler.
 // ============================================================
 let explorerState = null; // { root, vault, locked, canUp }
 
-function whenNativeReady(timeoutMs = 4000) {
-    return new Promise((resolve) => {
-        if (nativeApi()) return resolve(nativeApi());
-        const timer = setTimeout(() => resolve(nativeApi()), timeoutMs);
-        window.addEventListener('pywebviewready', () => {
-            clearTimeout(timer);
-            resolve(nativeApi());
-        }, { once: true });
-    });
+// Tauri köprüsü sayfa betikleriyle birlikte hazırdır; bekleme gerekmez.
+function whenNativeReady() {
+    return Promise.resolve(nativeApi());
 }
 
 async function initExplorer() {
@@ -759,18 +750,19 @@ async function explorerToggleLock() {
     }
 }
 
-// SETUP LIVE RELOAD (Server-Sent Events)
-function setupSSEWatcher(filePath) {
-    if (eventSource) {
-        eventSource.close();
+// CANLI YENİLEME: uygulama dosyayı izler, değişince 'file-changed' olayı gelir
+// (bridge.js MDFlowNative.watch). Uygulamanın kendi kaydı olay üretmez.
+async function setupFileWatcher(filePath) {
+    if (stopWatch) {
+        stopWatch();
+        stopWatch = null;
     }
-    
-    eventSource = new EventSource(`/api/watch?file=${encodeURIComponent(filePath)}`);
-    
-    eventSource.addEventListener('change', async (event) => {
-        const data = JSON.parse(event.data);
+    const native = nativeApi();
+    if (!native || !filePath) return;
+
+    const onChange = async (data) => {
         console.log('Dosya değişti bildirimi alındı:', data.file);
-        
+
         if (isEditMode) {
             // Warn edit mode users to prevent overwriting
             saveStatus.innerHTML = `<span style="color: var(--warning); font-weight: 700;">Uyarı: Dosya diskte değiştirildi! <a href="#" id="link-reload-disk" style="color: var(--accent-secondary); text-decoration: underline;">Güncelle</a></span>`;
@@ -783,20 +775,24 @@ function setupSSEWatcher(filePath) {
         } else {
             // Automatically reload in read mode
             setSyncStatus('syncing', 'Diskteki değişiklikler güncelleniyor...');
-            const response = await fetch(`/api/content?file=${encodeURIComponent(filePath)}`);
-            const fileData = await response.json();
+            const fileData = await native.content(filePath);
             if (fileData.success) {
                 currentContent = fileData.content;
                 renderMarkdown(currentContent);
                 setSyncStatus('connected', 'Güncellendi');
             }
         }
-    });
-    
-    eventSource.onerror = (err) => {
-        console.error('SSE Bağlantı hatası:', err);
+    };
+    const onError = (err) => {
+        console.error('İzleme hatası:', err);
         setSyncStatus('error', 'İzleme hatası');
     };
+
+    try {
+        stopWatch = await native.watch(filePath, onChange, onError);
+    } catch (err) {
+        onError(err);
+    }
 }
 
 // Helper to pre-process custom styling elements & Mermaid inside compiled html
@@ -839,8 +835,8 @@ function sanitizeHtml(html) {
     return div.innerHTML;
 }
 
-// Markdown'daki göreli görsel yollarını (img/grafik.svg) sunucudan servis
-// edilebilir /api/asset adreslerine çevirir. Yollar belgenin bulunduğu klasöre
+// Markdown'daki göreli görsel yollarını (img/grafik.svg) uygulamanın sunabileceği
+// mdasset adreslerine çevirir (bridge.js assetUrl). Yollar belgenin bulunduğu klasöre
 // göre çözülür; http(s), data: ve mutlak URL'lere dokunulmaz.
 function resolveLocalAssets(container) {
     if (!container || typeof AssetUrl === 'undefined') return;
@@ -1392,18 +1388,7 @@ async function saveFile(contentToSave = null) {
             contentToSave = isEditMode ? reconstructMarkdownFromBlocks() : currentContent;
         }
         
-        const response = await fetch('/api/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                path: currentFilePath,
-                content: contentToSave
-            })
-        });
-
-        const data = await response.json();
+        const data = await nativeApi().save(currentFilePath, contentToSave);
         if (data.success) {
             currentContent = contentToSave;
             clearDraft();
@@ -1712,18 +1697,14 @@ function collectSettings() {
     };
 }
 
-// Ayarlar sunucuda (%APPDATA%\MDFlowViewer\settings.json) saklanır. Port her
-// açılışta değiştiği için localStorage kalıcı değil; bu yüzden sunucuya yazıyoruz.
+// Ayarlar uygulamanın ayar dosyasında (%APPDATA%\MDFlowViewer\settings.json)
+// saklanır; localStorage yalnız aynı oturum için yedektir.
 async function saveSettings() {
     const settings = collectSettings();
     try {
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
+        await nativeApi().setSettings(settings);
     } catch (e) {
-        console.error('Ayarlar sunucuya kaydedilemedi:', e);
+        console.error('Ayarlar kaydedilemedi:', e);
     }
     try { storage.setItem('md_viewer_settings', JSON.stringify(settings)); } catch (e) { /* yut */ }
 }
@@ -1731,11 +1712,10 @@ async function saveSettings() {
 async function loadSettings() {
     let settings = {};
     try {
-        const r = await fetch('/api/settings');
-        const d = await r.json();
+        const d = await nativeApi().getSettings();
         if (d && d.success && d.settings) settings = d.settings;
     } catch (e) {
-        // Sunucuya ulaşılamazsa localStorage yedeği (aynı oturum).
+        // Köprü yoksa (tarayıcıda açılmış sayfa) localStorage yedeği (aynı oturum).
         try { settings = JSON.parse(storage.getItem('md_viewer_settings') || '{}'); } catch (_) { settings = {}; }
     }
 
@@ -2047,8 +2027,8 @@ function exportToPdf() {
     printPage();
 }
 
-// Linux/WebKitGTK'da window.print() sessizce yok sayılır; diyaloğu native
-// köprü açar (app/main.py JsApi.print_page). Windows'ta köprü False döner.
+// Linux/WebKitGTK'da window.print() sessizce yok sayılır; diyaloğu uygulama
+// açar (print_page komutu). Diğer sistemlerde komut false döner.
 async function printPage() {
     const api = nativeApi();
     if (api && typeof api.print_page === 'function') {
@@ -2061,21 +2041,18 @@ async function printPage() {
 
 // ============================================================
 // DOSYA AÇ (native seçici)
-// Tarayıcıdan native diyalog açılamadığı için pywebview köprüsünü kullanır
-// (app/main.py JsApi.open_file). Seçici son açılan klasörde başlar; seçilen
+// Tarayıcıdan native diyalog açılamadığı için uygulama köprüsünü kullanır
+// (open_file komutu).Seçici son açılan klasörde başlar; seçilen
 // dosyanın klasörü aynı zamanda yeni çalışma kökü olur.
 // ============================================================
+// Uygulama köprüsü (bridge.js); tarayıcıda açılmış sayfada yoktur.
 function nativeApi() {
-    // Linux/GTK'da pywebview, api'yi önce boş nesne ({}) olarak koyar,
-    // fonksiyonları 'pywebviewready' ile birlikte doldurur. Boş nesneyi
-    // "hazır" saymamak için bilinen bir metodun varlığına bakılır.
-    const api = window.pywebview && window.pywebview.api;
-    return api && typeof api.explorer_state === 'function' ? api : null;
+    return window.MDFlowNative || null;
 }
 
 // Çalışma alanı (klasör) açma + son açılanlar listeleri. Klasör seçilince
 // gezgin kökü ve belge kökü o klasör olur; vault kilidi açıksa kilit de o
-// klasöra taşınır (bkz. app/server.py Workspace.open_workspace).
+// klasöra taşınır (bkz. core/src/workspace.rs Workspace::open_workspace).
 async function openFolderDialog() {
     const api = nativeApi();
     if (!api || typeof api.open_folder !== 'function') {
