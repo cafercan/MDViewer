@@ -15,7 +15,7 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rfd = { version = "0.17", default-features = false, features = ["gtk3"] }
-opener = "0.8"
+opener = "0.9"
 percent-encoding = "2"
 notify = "6"
 tauri-plugin-window-state = "2"
