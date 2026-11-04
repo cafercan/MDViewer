@@ -39,3 +39,6 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *.spec
+
+# superpowers execution scratch
+.superpowers/
