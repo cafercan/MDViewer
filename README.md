@@ -21,7 +21,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🧜 Mermaid diyagramları, `highlight.js` kod vurgulama
 - 🎨 `:::info` `:::warning` `:::danger` kutuları
 - 🖼️ Belgeye göreli yerel görselleri servis eder
-- 🪟 **Kendi penceresi** (pywebview; Windows'ta WebView2, Linux'ta WebKitGTK) — kendi ikonu, kapanınca temiz çıkış
+- 🪟 **Kendi penceresi** (Tauri; Windows'ta WebView2, macOS'ta WebKit, Linux'ta WebKitGTK) — kendi ikonu, konumu ve boyutu hatırlanır
 - 📂 Üst bardan **dosya aç** (Ctrl+O) — native seçici son açılan klasörde başlar
 - 🗃️ Üst bardan **klasör (çalışma alanı) aç** (Ctrl+Shift+O) — seçilen klasör hem belge kökü hem gezgin kökü olur; vault kilidi açıksa kilit de o klasöre taşınır
 - 🕘 Aç düğmelerinin yanındaki oklardan **son açılan 10 dosya / 10 klasör** listesi (ayar dosyasında kalıcı, silinmiş yollar elenir, "Listeyi temizle")
@@ -34,12 +34,14 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
 - 🎨 5 tema (3 açık + 2 koyu) üst barda renk swatch'leriyle; varsayılan açık
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
-- 🔒 Yalnızca `127.0.0.1` dinler; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
+- 📥 Pencereye `.md` dosyası sürükleyince açılır, klasör sürükleyince çalışma alanı olur
+- 💾 Kaydederken dosyanın satır sonu (CRLF/LF) ve BOM'u korunur; kayıt atomiktir (yarım dosya kalmaz)
+- 🔒 Ağ portu açmaz; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
 
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.9.3.exe`** kurulumunu indirin.
+   **`MDViewer-v3.0.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -52,7 +54,9 @@ temiz kaldırılır (dosya ilişkilendirmeleri dahil).
 - **Windows x64**
 - **Microsoft Edge WebView2 Runtime** — Windows 11'de yerleşik gelir. Yoksa
   kurulum uyarır: <https://developer.microsoft.com/microsoft-edge/webview2/>
-- Python veya Node.js **gerekmez** — uygulama tek exe olarak paketlidir.
+- Python veya Node.js **gerekmez** — uygulama tek exe olarak paketlidir (~4 MB kurulum).
+- 2.x kuruluysa 3.0 kurulumu onun üstüne yükseltme olarak kurulur; ayarlar,
+  son açılanlar ve vault korunur.
 
 ## Kurulum — macOS (Apple Silicon)
 
@@ -62,7 +66,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v2.9.3-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v3.0.0-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -80,11 +84,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_2.9.3_all.deb`** paketini indirin.
+   **`mdflowviewer_3.0.0_amd64.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_2.9.3_all.deb
+   sudo apt install ./mdflowviewer_3.0.0_amd64.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -95,59 +99,63 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 Kaldırma: `sudo apt remove mdflowviewer`. Ayarlar `~/.config/MDFlowViewer/`
 altında tutulur.
 
-Paket saf Python'dur (`Architecture: all`); `python3-flask`, `python3-webview`
-ve WebKitGTK (`gir1.2-webkit2-4.1`) dağıtım paketlerinden gelir. Ubuntu 26.04 üzerinde
-test edildi (`python3-webview` universe deposundadır).
+Paket tek ikilidir (`/usr/bin/mdflowviewer`, `amd64`); WebKitGTK
+(`libwebkit2gtk-4.1-0`) ve GTK dağıtım paketlerinden gelir. 2.x'in Python
+paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
 
 ## Mimari
 
-Üç katman; arayüz saf web (HTML/CSS/JS), kabuk native:
+Arayüz saf web (HTML/CSS/JS), kabuk Rust (Tauri 2):
 
 - **Frontend** — `public/` (marked, mermaid, highlight.js, DOMPurify). Çizilen
-  HTML DOMPurify ile sanitize edilir, Mermaid `strict` modda.
-- **Backend** — `app/server.py`: `127.0.0.1`'de küçük Flask sunucusu; `/api/*`
-  uçları (content, save, files, asset, settings, watch/SSE). Tüm dosya erişimi açılan
-  belgenin klasörüne **hapsedilir** (path traversal `403`).
-- **Kabuk** — `app/main.py`: pywebview ile kendi WebView2 penceresi. Native
-  dosya seçici `JsApi` köprüsüyle açılır; seçilen belgenin klasörü yeni çalışma
-  kökü olur. Pencere kapanınca süreç tamamen biter; arka planda sunucu kalmaz.
+  HTML DOMPurify ile sanitize edilir, Mermaid `strict` modda ve yalnız diyagramlı
+  belgede (ya da pencere boştayken) yüklenir. `public/bridge.js` uygulama
+  komutlarına (`invoke`) köprüdür.
+- **Çekirdek** — `core/` (`mdflow-core`): Tauri'den bağımsız, birim testli
+  mantık — ayar dosyası, kök hapsi ve gezgin, wikilink çözümü, satır sonu/BOM
+  koruyan atomik belge okuma/yazma.
+- **Kabuk** — `src-tauri/`: pencere, IPC komutları, belgeye göreli görseller
+  için `mdasset://` protokolü, dosya izleyici (atomik kaydeden editörlere
+  dayanıklı), gezinme koruması. Ağ portu açılmaz; komutlar yalnız ana pencereye
+  izinlidir (`src-tauri/capabilities/default.json`).
 
 ## Geliştirme
 
+Gerekenler: Rust (stable), Node.js 22; Linux'ta `libwebkit2gtk-4.1-dev`,
+`libgtk-3-dev`, `librsvg2-dev`.
+
 ```bash
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python app\main.py path\to\dosya.md
+npm install
+npx tauri dev                    # pencereyi kaynaktan aç
+cargo test --workspace           # Rust testleri
+node --test tests/*.test.js      # arayüz yardımcılarının testleri
 ```
 
-## Kaynaktan derleme (installer)
+Komut satırından belgeyle açmak için derlenmiş ikiliye yolu verin:
+`mdflowviewer dosya.md`.
+
+## Kaynaktan derleme (kurulum)
+
+Sürüm tek yerden gelir: `src-tauri/tauri.conf.json` içindeki `version`.
+Betikler exe'yi cargo'nun hedef klasöründen alır (`cargo metadata`), bu klasör
+bir cargo ayarıyla repo dışına taşınmış olabilir.
 
 ```powershell
-# 1) Bağımlılıklar
-.venv\Scripts\pip install -r requirements.txt
-
-# 2) Tek exe (PyInstaller one-dir) -> dist\MDFlowViewer\
-.\build.ps1
-
-# 3) Inno Setup ile kurulum -> dist\MDViewer-v2.9.3.exe
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MDFlowViewer.iss
+# Windows (Inno Setup 6 gerekir) -> dist\MDViewer-v<sürüm>.exe
+.\scripts\build-installer.ps1
 ```
-
-### Linux (.deb)
 
 ```bash
-bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_2.9.3_all.deb
+bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_<sürüm>_amd64.deb
+bash packaging/macos/build-dmg.sh     # -> dist/MDViewer-v<sürüm>-macos-arm64.dmg
 ```
-
-Sürüm `installer/MDFlowViewer.iss` içindeki `AppVersion`'dan okunur.
-Kaynaktan çalıştırmak için: `sudo apt install python3-flask python3-webview
-gir1.2-webkit2-4.1` ve `python3 app/main.py dosya.md`.
 
 ## Güvenlik modeli
 
 Yerel bir araç olsa da güvenilmeyen `.md` dosyalarına karşı sertleştirildi:
-DOMPurify sanitizasyonu + Mermaid strict, yalnızca loopback dinleme, ve dosya
-API'lerinde **kök hapsi** (belge klasörü dışına okuma/yazma reddedilir).
+DOMPurify sanitizasyonu + Mermaid strict, ağ portu yok, sıkı CSP, pencerenin
+uygulama dışına gezinmesi engelli (dış bağlantılar sistem tarayıcısında açılır)
+ve dosya komutlarında **kök hapsi** (belge klasörü dışına okuma/yazma reddedilir).
 
 ## Lisans
 
