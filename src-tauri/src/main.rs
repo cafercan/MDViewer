@@ -3,6 +3,7 @@
 mod api;
 mod asset;
 mod commands;
+mod drop;
 mod nav;
 mod startup;
 mod watch;
@@ -46,6 +47,8 @@ fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(nav::plugin())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .on_window_event(drop::on_window_event)
         .register_uri_scheme_protocol("mdasset", |ctx, request| {
             let state = ctx.app_handle().state::<api::AppState>();
             let ws = state.ws();

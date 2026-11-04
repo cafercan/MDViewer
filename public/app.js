@@ -152,7 +152,22 @@ async function initApp() {
 
     // 4. Uygulama açıkken gelen belgeler (macOS "Birlikte Aç")
     const native = nativeApi();
-    if (native) native.onOpenFile((path) => openRecentFile(path));
+    if (native) {
+        native.onOpenFile((path) => openRecentFile(path));
+
+        // 5. Sürükle-bırak: .md dosyası açılır, klasör çalışma alanı olur
+        native.onDropped((drop) => {
+            if (drop.kind === 'file') openRecentFile(drop.path);
+            else if (drop.kind === 'folder') openWorkspacePath(drop.path);
+        });
+
+        // 6. Kaydedilmemiş değişiklikle kapanırken sor
+        native.onCloseRequested((event) => {
+            if (hasUnsavedChanges && !confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?')) {
+                event.preventDefault();
+            }
+        });
+    }
 }
 
 // Açılış belgesinin tek okuma noktası. Adres çubuğunda ?file= varsa (sayfa

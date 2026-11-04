@@ -60,6 +60,16 @@
             return tauri.event.listen('open-file', function (e) { cb(e.payload.path); });
         },
 
+        /** Pencereye bırakılan yol: cb({path, kind}) — kind: file | folder | other. */
+        onDropped: function (cb) {
+            return tauri.event.listen('dropped-path', function (e) { cb(e.payload); });
+        },
+
+        /** Pencere kapatılmak istenince handler(event); event.preventDefault() kapanışı iptal eder. */
+        onCloseRequested: function (handler) {
+            return tauri.window.getCurrentWindow().onCloseRequested(handler);
+        },
+
         // --- 2.x JsApi ile aynı adlar ------------------------------------------
         open_file: function () { return call('open_file'); },
         open_file_path: function (path) { return call('open_file_path', { path: path }); },
