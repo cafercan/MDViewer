@@ -126,6 +126,7 @@ body {
 
 /* APP HEADER */
 .app-header {
+    gap: 0.75rem;
     height: var(--header-height);
     background: var(--bg-surface);
     backdrop-filter: var(--glass-blur);
@@ -143,6 +144,7 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    flex-shrink: 0;
 }
 
 .logo {
@@ -203,8 +205,8 @@ body {
 }
 
 .header-center {
-    flex-grow: 1;
-    max-width: 52%;
+    /* Daralan tek bölüm: sol ve sağ gruplar küçülmez, ortadakiler kısalır */
+    flex: 1 1 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -235,6 +237,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 /* BUTTONS */
@@ -1162,7 +1165,7 @@ img.asset-missing {
     padding: 0 0.35rem 0 0.6rem;
     height: 34px;
     flex: 1 1 220px;
-    min-width: 150px;
+    min-width: 110px;
     max-width: 320px;
     transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
 }
@@ -1547,3 +1550,45 @@ img.asset-missing {
 }
 @keyframes ui-dialog-fade { from { opacity: 0; } to { opacity: 1; } }
 @media print { .ui-dialog-backdrop { display: none !important; } }
+
+/* DAR PENCERE: ÜST BAR
+   Geniş pencerede her şey görünür. Daraldıkça önce logo yazısı ve boşluklar,
+   sonra düğme yazıları gider; tema renkleri palet düğmesinin menüsüne geçer.
+   En dar pencerede (820 px) de hiçbir öğe üst üste binmez ya da taşmaz. */
+.theme-group { position: relative; display: flex; align-items: center; }
+.theme-menu-btn { display: none; }
+
+@media (max-width: 1360px) {
+    .app-header { padding: 0 1rem; }
+    .header-left { gap: 0.75rem; }
+    .header-right { gap: 0.5rem; }
+    .logo > span { display: none; }
+}
+
+@media (max-width: 1150px) {
+    .toggle-btn > span,
+    #btn-save > span { display: none; }
+    .toggle-btn { padding-left: 0.6rem; padding-right: 0.6rem; }
+    #btn-save { padding-left: 0.75rem; padding-right: 0.75rem; }
+
+    .theme-menu-btn { display: flex; }
+    .theme-switch { display: none; }
+    .theme-switch.open {
+        display: flex;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 200;
+        padding: 0.5rem;
+        gap: 8px;
+        background: var(--bg-base);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        box-shadow: var(--glass-shadow);
+    }
+}
+
+@media (max-width: 960px) {
+    .header-left { gap: 0.4rem; }
+    .header-center { gap: 0.4rem; }
+}

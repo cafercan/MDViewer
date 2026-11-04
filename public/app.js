@@ -1592,7 +1592,23 @@ function setupEventListeners() {
             btn.addEventListener('click', () => {
                 setTheme(btn.dataset.themeValue);
                 saveSettings();
+                setThemeMenuOpen(false);
             });
+        });
+    }
+
+    // 5a. Dar pencerede renkler palet düğmesinin menüsünde (CSS gösterir/gizler)
+    const btnThemeMenu = document.getElementById('btn-theme-menu');
+    if (btnThemeMenu && themeSwitch) {
+        btnThemeMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setThemeMenuOpen(!themeSwitch.classList.contains('open'));
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#theme-group')) setThemeMenuOpen(false);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setThemeMenuOpen(false);
         });
     }
 
@@ -1744,6 +1760,13 @@ function applyLineNumbers(on) {
 }
 
 // Temayı uygular + üst bardaki aktif swatch'i işaretler.
+function setThemeMenuOpen(open) {
+    if (!themeSwitch) return;
+    themeSwitch.classList.toggle('open', open);
+    const btn = document.getElementById('btn-theme-menu');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function setTheme(theme) {
     currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);

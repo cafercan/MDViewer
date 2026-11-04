@@ -127,14 +127,14 @@
             <div class="header-right">
                 <!-- View Mode Toggle Switch -->
                 <div class="toggle-container">
-                    <button class="toggle-btn active" id="btn-read-mode">
+                    <button class="toggle-btn active" id="btn-read-mode" title="Oku (Ctrl+E)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                         <span>Oku</span>
                     </button>
-                    <button class="toggle-btn" id="btn-edit-mode">
+                    <button class="toggle-btn" id="btn-edit-mode" title="Düzenle (Ctrl+E)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 20h9"></path>
                             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
@@ -155,13 +155,24 @@
                     </svg>
                 </button>
 
-                <!-- Tema seçimi: üst barda küçük renk swatch'leri -->
+                <!-- Tema seçimi: geniş pencerede renk swatch'leri, darda palet düğmesinin menüsü -->
+                <div class="theme-group" id="theme-group">
+                <button class="icon-btn theme-menu-btn" id="btn-theme-menu" title="Tema" aria-label="Tema" aria-haspopup="true" aria-expanded="false">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="13.5" cy="6.5" r="1.5"></circle>
+                        <circle cx="17.5" cy="10.5" r="1.5"></circle>
+                        <circle cx="8.5" cy="7.5" r="1.5"></circle>
+                        <circle cx="6.5" cy="12.5" r="1.5"></circle>
+                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.7 1.7-1.7H16c3.1 0 5.6-2.5 5.6-5.6C21.9 6 17.5 2 12 2z"></path>
+                    </svg>
+                </button>
                 <div class="theme-switch" id="theme-switch">
                     <button class="theme-swatch" data-theme-value="minimal-light" title="Classic Light" style="--sw-bg:#f8fafc;--sw-ac:#4f46e5"></button>
                     <button class="theme-swatch" data-theme-value="github-light" title="GitHub Light" style="--sw-bg:#ffffff;--sw-ac:#0969da"></button>
                     <button class="theme-swatch" data-theme-value="sepia-light" title="Sepia (Sıcak Kağıt)" style="--sw-bg:#f4ecd8;--sw-ac:#a15c2b"></button>
                     <button class="theme-swatch" data-theme-value="slate-dark" title="Obsidian Dark" style="--sw-bg:#0f172a;--sw-ac:#6366f1"></button>
                     <button class="theme-swatch" data-theme-value="nord-dark" title="Nord Frost" style="--sw-bg:#2e3440;--sw-ac:#88c0d0"></button>
+                </div>
                 </div>
 
                 <!-- PDF olarak dışa aktar (tarayıcının "PDF olarak kaydet" yazıcısı) -->
@@ -174,7 +185,7 @@
                 </button>
 
                 <!-- Save Button (Only for edit mode) -->
-                <button class="primary-btn hidden" id="btn-save">
+                <button class="primary-btn hidden" id="btn-save" title="Kaydet (Ctrl+S)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
