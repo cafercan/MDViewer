@@ -1,10 +1,21 @@
-﻿; MD Flow Viewer - Inno Setup kurulum betiği (pywebview / Python sürümü)
+﻿; MD Flow Viewer - Inno Setup kurulum betiği (Rust / Tauri sürümü, 3.0+)
 ; Program Files'a kurar, kurulum klasörü seçilebilir, Ekle/Kaldır'da görünür,
 ; .md/.markdown için sağ tık "Birlikte Aç" girişi ve varsayılan atanabilir kayıt ekler.
-; Kendi penceresi WebView2 kullanır; ayrı Node.js / .NET gerekmez.
+; Kendi penceresi WebView2 kullanır; ayrı Node.js / .NET / Python gerekmez.
+;
+; Derleme: scripts\build-installer.ps1 (sürümü tauri.conf.json'dan, exe'yi
+; cargo'nun hedef klasöründen verir):
+;   ISCC /DAppVersion=<sürüm> /DTargetDir=<cargo target_directory> installer\MDFlowViewer.iss
+; AppId 2.x ile aynıdır: 3.0 kurulumu 2.x'in üstüne yükseltme olarak kurulur.
+
+#ifndef AppVersion
+  #error AppVersion verilmedi (/DAppVersion=<sürüm>) - scripts\build-installer.ps1 kullanın
+#endif
+#ifndef TargetDir
+  #error TargetDir verilmedi (/DTargetDir=<cargo hedef klasörü>) - scripts\build-installer.ps1 kullanın
+#endif
 
 #define AppName "MD Flow Viewer"
-#define AppVersion "2.9.3"
 #define AppPublisher "cafercan"
 #define AppExeName "MDFlowViewer.exe"
 #define AppUrl "https://github.com/cafercan/MDViewer"
@@ -42,13 +53,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [InstallDelete]
-; Yükseltmede eski PyInstaller çıktısını tamamen sil. Aksi halde eski sürümün
-; _internal\ dosyaları yeni bundle'la karışır (belirti: ModuleNotFoundError).
+; 2.x (PyInstaller) kalıntısı: 3.0 tek exe; yükseltmede eski _internal\ klasörü silinir.
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
-; PyInstaller one-dir çıktısı (MDFlowViewer.exe + _internal\...)
-Source: "..\dist\MDFlowViewer\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Tek exe (arayüz dosyaları içine gömülü). Kayıt defteri ve kısayollar 2.x'teki
+; MDFlowViewer.exe adını kullandığı için aynı adla kurulur.
+Source: "{#TargetDir}\release\mdflowviewer.exe"; DestDir: "{app}"; DestName: "{#AppExeName}"; Flags: ignoreversion
 ; İkonu sabit bir yola da koy (kayıt defteri/kısayollar bunu gösterir)
 Source: "..\public\mdflow.ico"; DestDir: "{app}"; Flags: ignoreversion
 
