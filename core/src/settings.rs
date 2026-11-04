@@ -295,6 +295,18 @@ mod tests {
     }
 
     #[test]
+    fn merge_keeps_key_order() {
+        let (_tmp, s) = setup();
+        std::fs::write(s.path(), r#"{"theme": "x", "autosave": true, "lastDir": "C:/a"}"#).unwrap();
+        let mut patch = Map::new();
+        patch.insert("theme".into(), Value::from("y"));
+        s.merge(patch).unwrap();
+        let text = std::fs::read_to_string(s.path()).unwrap();
+        let pos = |k: &str| text.find(k).unwrap();
+        assert!(pos("theme") < pos("autosave") && pos("autosave") < pos("lastDir"), "{text}");
+    }
+
+    #[test]
     fn load_accepts_utf8_bom() {
         let (_tmp, s) = setup();
         std::fs::write(s.path(), b"\xEF\xBB\xBF{\"theme\": \"slate-dark\"}").unwrap();

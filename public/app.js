@@ -141,33 +141,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // MAIN CONTROLLER INITIALIZATION
 async function initApp() {
-    // 1. Açılış belgesi
-    const fileParam = await getInitialFile();
-
-    // 2. Fetch file content (ilk giriş: geçmişe yeni kayıt ekleme, mevcut olanı yaz)
-    await loadFile(fileParam || '', { replaceHistory: true });
-
-    // 3. Gezgin (native köprü hazır olunca)
-    initExplorer();
-
-    // 4. Uygulama açıkken gelen belgeler (macOS "Birlikte Aç")
+    // 1. Uygulama olayları. Açılış belgesi sorulmadan ÖNCE kurulur: uygulama
+    // arayüzün sorduğu andan sonra gelen belgeyi (macOS "Birlikte Aç") olayla
+    // iletir; dinleyici yoksa o belge kaybolurdu.
     const native = nativeApi();
     if (native) {
-        native.onOpenFile((path) => openRecentFile(path));
+        await native.onOpenFile((path) => openRecentFile(path));
 
-        // 5. Sürükle-bırak: .md dosyası açılır, klasör çalışma alanı olur
-        native.onDropped((drop) => {
+        // Sürükle-bırak: .md dosyası açılır, klasör çalışma alanı olur
+        await native.onDropped((drop) => {
             if (drop.kind === 'file') openRecentFile(drop.path);
             else if (drop.kind === 'folder') openWorkspacePath(drop.path);
         });
 
-        // 6. Kaydedilmemiş değişiklikle kapanırken sor
-        native.onCloseRequested((event) => {
+        // Kaydedilmemiş değişiklikle kapanırken sor
+        await native.onCloseRequested((event) => {
             if (hasUnsavedChanges && !confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?')) {
                 event.preventDefault();
             }
         });
     }
+
+    // 2. Açılış belgesi
+    const fileParam = await getInitialFile();
+
+    // 3. Fetch file content (ilk giriş: geçmişe yeni kayıt ekleme, mevcut olanı yaz)
+    await loadFile(fileParam || '', { replaceHistory: true });
+
+    // 4. Gezgin
+    initExplorer();
 }
 
 // Açılış belgesinin tek okuma noktası. Adres çubuğunda ?file= varsa (sayfa
@@ -239,7 +241,7 @@ async function loadFile(filePath, options = {}) {
             
             // Establish Live Connection
             setupFileWatcher(data.path);
-setSyncStatus('connected', 'Bağlandı');
+            setSyncStatus('connected', 'Bağlandı');
             
             // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
@@ -1761,7 +1763,7 @@ function collectSettings() {
 }
 
 // Ayarlar uygulamanın ayar dosyasında (%APPDATA%\MDFlowViewer\settings.json)
-// saklanır; localStorage yalnız aynı oturum için yedektir.
+// saklanır; localStorage yalnız köprü yokken (tarayıcıda açılmış sayfa) yedektir.
 async function saveSettings() {
     const settings = collectSettings();
     try {
@@ -2105,7 +2107,7 @@ async function printPage() {
 // ============================================================
 // DOSYA AÇ (native seçici)
 // Tarayıcıdan native diyalog açılamadığı için uygulama köprüsünü kullanır
-// (open_file komutu).Seçici son açılan klasörde başlar; seçilen
+// (open_file komutu). Seçici son açılan klasörde başlar; seçilen
 // dosyanın klasörü aynı zamanda yeni çalışma kökü olur.
 // ============================================================
 // Uygulama köprüsü (bridge.js); tarayıcıda açılmış sayfada yoktur.

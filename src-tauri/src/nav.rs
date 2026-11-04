@@ -14,6 +14,14 @@ pub fn is_app_url(url: &Url) -> bool {
     }
 }
 
+/// Engellenen gezinme sistem tarayıcısına devredilsin mi? Uygulamanın kendi
+/// yerel adresleri (mdasset, ipc) tarayıcıda açılmaz, yalnız reddedilir.
+pub fn hand_to_browser(url: &Url) -> bool {
+    let local = url.scheme() == "mdasset"
+        || url.host_str().is_some_and(|h| h == "localhost" || h.ends_with(".localhost"));
+    !local && crate::api::is_external_url(url.as_str())
+}
+
 /// `on_navigation` kancası: uygulama içi → izin; değilse dış bağlantıyı
 /// tarayıcıda açmayı dener ve gezinmeyi reddeder.
 pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -22,7 +30,9 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             if is_app_url(url) {
                 return true;
             }
-            crate::api::open_external(url.as_str(), &|u| opener::open_browser(u).is_ok());
+            if hand_to_browser(url) {
+                crate::api::open_external(url.as_str(), &|u| opener::open_browser(u).is_ok());
+            }
             false
         })
         .build()
@@ -51,5 +61,14 @@ mod tests {
         assert!(!ok("http://tauri.localhost.evil.example/"));
         assert!(!ok("tauri://evil/"));
         assert!(!ok("http://mdasset.localhost/C%3A%2Fa.png"));
+    }
+
+    #[test]
+    fn local_asset_navigation_is_not_sent_to_browser() {
+        let u = |s: &str| Url::parse(s).unwrap();
+        assert!(!hand_to_browser(&u("http://mdasset.localhost/C%3A%2Fa.png")));
+        assert!(!hand_to_browser(&u("mdasset://localhost/%2Fa.png")));
+        assert!(!hand_to_browser(&u("http://ipc.localhost/x")));
+        assert!(hand_to_browser(&u("https://example.com/")));
     }
 }
