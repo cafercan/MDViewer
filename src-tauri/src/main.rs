@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! MD Flow Viewer — masaüstü giriş noktası (Tauri 2).
 mod api;
+mod asset;
 mod commands;
 
 /// Paketlenmiş uygulamanın CI denemesi (`--selftest`): pencere açmadan
@@ -11,6 +12,8 @@ fn selftest(context: &tauri::Context<tauri::Wry>) -> i32 {
     if ok { 0 } else { 1 }
 }
 
+use tauri::Manager;
+
 fn main() {
     let context = tauri::generate_context!();
     if std::env::args().skip(1).any(|a| a == "--selftest") {
@@ -18,6 +21,11 @@ fn main() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .register_uri_scheme_protocol("mdasset", |ctx, request| {
+            let state = ctx.app_handle().state::<api::AppState>();
+            let ws = state.ws();
+            asset::handle(&ws, &request)
+        })
         .manage(api::AppState::new(mdflow_core::settings::Settings::default_location()))
         .invoke_handler(tauri::generate_handler![
             commands::content,
