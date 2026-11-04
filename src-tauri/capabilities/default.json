@@ -2,6 +2,30 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Ana pencere: yalnız uygulamanın kendi komutları ve gereken çekirdek izinler",
-  "windows": ["main"],
-  "permissions": []
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-content",
+    "allow-save",
+    "allow-get-settings",
+    "allow-set-settings",
+    "allow-open-file",
+    "allow-open-file-path",
+    "allow-open-folder",
+    "allow-open-folder-path",
+    "allow-recent-list",
+    "allow-clear-recent-list",
+    "allow-explorer-state",
+    "allow-list-dir",
+    "allow-explorer-up",
+    "allow-explorer-enter",
+    "allow-set-vault",
+    "allow-resolve-wikilink",
+    "allow-inspect-path",
+    "allow-print-page",
+    "allow-open-external",
+    "allow-open-path",
+    "allow-open-in-file-manager"
+  ]
 }

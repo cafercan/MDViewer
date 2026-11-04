@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-explorer-up"
+description = "Enables the explorer_up command without any pre-configured scope."
+commands.allow = ["explorer_up"]
+
+[[permission]]
+identifier = "deny-explorer-up"
+description = "Denies the explorer_up command without any pre-configured scope."
+commands.deny = ["explorer_up"]

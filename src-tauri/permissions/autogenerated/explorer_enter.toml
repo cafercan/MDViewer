@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-explorer-enter"
+description = "Enables the explorer_enter command without any pre-configured scope."
+commands.allow = ["explorer_enter"]
+
+[[permission]]
+identifier = "deny-explorer-enter"
+description = "Denies the explorer_enter command without any pre-configured scope."
+commands.deny = ["explorer_enter"]

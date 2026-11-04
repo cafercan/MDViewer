@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-explorer-state"
+description = "Enables the explorer_state command without any pre-configured scope."
+commands.allow = ["explorer_state"]
+
+[[permission]]
+identifier = "deny-explorer-state"
+description = "Denies the explorer_state command without any pre-configured scope."
+commands.deny = ["explorer_state"]

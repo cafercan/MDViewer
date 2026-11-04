@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-wikilink"
+description = "Enables the resolve_wikilink command without any pre-configured scope."
+commands.allow = ["resolve_wikilink"]
+
+[[permission]]
+identifier = "deny-resolve-wikilink"
+description = "Denies the resolve_wikilink command without any pre-configured scope."
+commands.deny = ["resolve_wikilink"]
