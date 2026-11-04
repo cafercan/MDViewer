@@ -155,10 +155,13 @@ async function initApp() {
         });
 
         // Kaydedilmemiş değişiklikle kapanırken sor
-        await native.onCloseRequested((event) => {
-            if (hasUnsavedChanges && !confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?')) {
-                event.preventDefault();
-            }
+        // (Tauri işleyiciyi bekleyip sonra preventDefault'a bakar: async uygundur.)
+        await native.onCloseRequested(async (event) => {
+            if (!hasUnsavedChanges) return;
+            const close = await UiDialog.confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?',
+                { okText: 'Kapat', cancelText: 'Vazgeç' });
+            if (!close) event.preventDefault();
+            else clearDraft(); // kullanıcı değişiklikleri bıraktı: sonraki açılışta taslak sorulmasın
         });
     }
 
@@ -205,10 +208,13 @@ async function loadFile(filePath, options = {}) {
             const draft = getDraft(data.path);
             if (draft && draft.content !== data.content) {
                 const draftDate = new Date(draft.savedAt).toLocaleString();
-                if (confirm(`Bu dosya icin kaydedilmemis bir taslak bulundu (${draftDate}). Taslagi geri yuklemek ister misiniz?`)) {
+                const restore = await UiDialog.confirm(
+                    `Bu dosya için kaydedilmemiş bir taslak bulundu (${draftDate}). Taslağı geri yüklemek ister misiniz?`,
+                    { okText: 'Geri yükle', cancelText: 'Taslağı sil' });
+                if (restore) {
                     currentContent = draft.content;
                     hasUnsavedChanges = true;
-                    saveStatus.textContent = 'Kurtarilan taslak henuz diske kaydedilmedi';
+                    saveStatus.textContent = 'Kurtarılan taslak henüz diske kaydedilmedi';
                 } else {
                     clearDraft(data.path);
                     currentContent = data.content;
@@ -259,7 +265,7 @@ async function loadFile(filePath, options = {}) {
         if (currentFilePath && filePath !== currentFilePath) {
             // Açık bir belge varken bağlantı/geçmiş üzerinden gelen hata belgeyi
             // silmesin; kullanıcı olduğu yerde kalsın.
-            alert('Dosya açılamadı: ' + error.message);
+            UiDialog.alert('Dosya açılamadı: ' + error.message);
             return;
         }
         markdownViewer.innerHTML = `<div class="danger-box">
@@ -319,21 +325,21 @@ async function handleDocumentLinkClick(e) {
             const api = nativeApi();
             if (api && typeof api.open_external === 'function') {
                 const ok = await api.open_external(info.target);
-                if (!ok) alert('Bu bağlantı açılamıyor: ' + info.target);
+                if (!ok) UiDialog.alert('Bu bağlantı açılamıyor: ' + info.target);
             } else {
                 window.open(info.target, '_blank', 'noopener');
             }
             return;
         }
         case 'markdown':
-            if (!confirmLeaveUnsaved()) return;
+            if (!(await confirmLeaveUnsaved())) return;
             await loadFile(info.target, { anchor: info.anchor || '' });
             return;
         case 'file':
             await openLocalTarget(info.target, e.ctrlKey);
             return;
         default:
-            alert('Bağlantı çözülemedi: ' + info.target);
+            UiDialog.alert('Bağlantı çözülemedi: ' + info.target);
     }
 }
 
@@ -341,7 +347,7 @@ async function handleDocumentLinkClick(e) {
 // aranır (sunucu tarafı, bkz. Workspace.resolve_wikilink). Native köprü yoksa
 // yalnızca belgenin klasörüne göre "hedef.md" denenir.
 async function openWikilink(target, anchor) {
-    if (!confirmLeaveUnsaved()) return;
+    if (!(await confirmLeaveUnsaved())) return;
     const api = nativeApi();
     let resolved = null;
     if (api && typeof api.resolve_wikilink === 'function') {
@@ -355,15 +361,15 @@ async function openWikilink(target, anchor) {
         resolved = AssetUrl.resolveLocalPath(guess, currentFilePath);
     }
     if (!resolved) {
-        alert('Not bulunamadı: [[' + target + ']]\nBelgenin klasöründe ve gezgin kökünde arandı.');
+        UiDialog.alert('Not bulunamadı: [[' + target + ']]\nBelgenin klasöründe ve gezgin kökünde arandı.');
         return;
     }
     await loadFile(resolved, { anchor });
 }
 
 // Geri/ileri: loadFile her belgede pushState yapar; popstate ile o kayda dönülür.
-function navigateHistory(delta) {
-    if (!confirmLeaveUnsaved()) return;
+async function navigateHistory(delta) {
+    if (!(await confirmLeaveUnsaved())) return;
     window.history.go(delta);
 }
 
@@ -385,11 +391,12 @@ function highlightActiveFile() {
 
 // Düzenleme modunda kaydedilmemiş değişiklik varsa kullanıcıya sorar.
 // true = devam edilebilir.
-function confirmLeaveUnsaved() {
+async function confirmLeaveUnsaved() {
     if (!isEditMode) return true;
     closeAllBlockEditors();
     if (reconstructMarkdownFromBlocks() === currentContent) return true;
-    return confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?');
+    return UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
+        { okText: 'Geç', cancelText: 'Vazgeç' });
 }
 
 // ============================================================
@@ -614,26 +621,26 @@ async function openLocalTarget(absPath, ctrlKey) {
     switch (info.type) {
         case 'dir':
             if (ctrlKey) {
-                if (!(await api.open_in_file_manager(info.path))) alert('Klasör açılamadı: ' + info.path);
+                if (!(await api.open_in_file_manager(info.path))) UiDialog.alert('Klasör açılamadı: ' + info.path);
                 return;
             }
             if (info.note) {
-                if (!confirmLeaveUnsaved()) return;
+                if (!(await confirmLeaveUnsaved())) return;
                 await loadFile(info.note);
                 return;
             }
             if (!(await revealInExplorer(info.path))) {
-                alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile dosya yöneticisinde açın.');
+                UiDialog.alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile dosya yöneticisinde açın.');
             }
             return;
         case 'file':
-            if (!(await api.open_path(info.path))) alert('Dosya açılamadı: ' + info.path);
+            if (!(await api.open_path(info.path))) UiDialog.alert('Dosya açılamadı: ' + info.path);
             return;
         case 'denied':
-            alert('Erişim reddedildi: çalışma klasörü dışında.\n' + info.path);
+            UiDialog.alert('Erişim reddedildi: çalışma klasörü dışında.\n' + info.path);
             return;
         default:
-            alert('Bulunamadı: ' + (info.path || absPath));
+            UiDialog.alert('Bulunamadı: ' + (info.path || absPath));
     }
 }
 
@@ -762,8 +769,8 @@ function buildFileRow(file, depth) {
     const label = document.createElement('span');
     label.textContent = file.name;
     row.appendChild(label);
-    row.addEventListener('click', () => {
-        if (!confirmLeaveUnsaved()) return;
+    row.addEventListener('click', async () => {
+        if (!(await confirmLeaveUnsaved())) return;
         loadFile(file.path);
     });
     // Sağ tık: dosyanın tam yolunu (dosya adı dahil) panoya kopyala.
@@ -827,9 +834,10 @@ async function setupFileWatcher(filePath) {
         if (isEditMode) {
             // Warn edit mode users to prevent overwriting
             saveStatus.innerHTML = `<span style="color: var(--warning); font-weight: 700;">Uyarı: Dosya diskte değiştirildi! <a href="#" id="link-reload-disk" style="color: var(--accent-secondary); text-decoration: underline;">Güncelle</a></span>`;
-            document.getElementById('link-reload-disk').addEventListener('click', (e) => {
+            document.getElementById('link-reload-disk').addEventListener('click', async (e) => {
                 e.preventDefault();
-                if (confirm('Diskteki yeni değişiklikleri yüklemek istiyor musunuz? Yerel düzenlemeleriniz kaybolacaktır.')) {
+                if (await UiDialog.confirm('Diskteki yeni değişiklikleri yüklemek istiyor musunuz? Yerel düzenlemeleriniz kaybolacaktır.',
+                    { okText: 'Yükle', cancelText: 'Vazgeç' })) {
                     loadFile(currentFilePath);
                 }
             });
@@ -2121,23 +2129,23 @@ function nativeApi() {
 async function openFolderDialog() {
     const api = nativeApi();
     if (!api || typeof api.open_folder !== 'function') {
-        alert('Klasör seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert('Klasör seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
         return;
     }
-    if (!confirmLeaveUnsaved()) return;
+    if (!(await confirmLeaveUnsaved())) return;
     try {
         const result = await api.open_folder();
         if (result) adoptWorkspace(result);
     } catch (error) {
         console.error('Klasör seçme hatası:', error);
-        alert('Klasör seçme penceresi açılamadı: ' + error);
+        UiDialog.alert('Klasör seçme penceresi açılamadı: ' + error);
     }
 }
 
 async function openWorkspacePath(path) {
     const api = nativeApi();
     if (!api || typeof api.open_folder_path !== 'function') return;
-    if (!confirmLeaveUnsaved()) return;
+    if (!(await confirmLeaveUnsaved())) return;
     try {
         const result = await api.open_folder_path(path);
         if (result) adoptWorkspace(result);
@@ -2158,7 +2166,7 @@ function adoptWorkspace(result) {
 async function openRecentFile(path) {
     const api = nativeApi();
     if (!api || typeof api.open_file_path !== 'function') return;
-    if (!confirmLeaveUnsaved()) return;
+    if (!(await confirmLeaveUnsaved())) return;
     try {
         const opened = await api.open_file_path(path);
         if (opened) await loadFile(opened);
@@ -2175,7 +2183,7 @@ async function showRecentMenu(kind, anchorEl) {
     if (menuJustClosedFor(anchorEl.id)) return;
     const api = nativeApi();
     if (!api || typeof api.recent_list !== 'function') {
-        alert('Son açılanlar yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert('Son açılanlar yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
         return;
     }
     let data;
@@ -2219,17 +2227,17 @@ function dirname(p) {
 async function openFileDialog() {
     const api = nativeApi();
     if (!api || typeof api.open_file !== 'function') {
-        alert('Dosya seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert('Dosya seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
         return;
     }
 
-    if (!confirmLeaveUnsaved()) return;
+    if (!(await confirmLeaveUnsaved())) return;
 
     try {
         const path = await api.open_file();
         if (path) await loadFile(path);
     } catch (error) {
         console.error('Dosya seçme hatası:', error);
-        alert('Dosya seçme penceresi açılamadı: ' + error);
+        UiDialog.alert('Dosya seçme penceresi açılamadı: ' + error);
     }
 }

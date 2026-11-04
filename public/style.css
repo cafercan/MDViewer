@@ -1491,3 +1491,58 @@ img.asset-missing {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
+
+/* UYGULAMA İÇİ SORU KUTUSU (public/ui-dialog.js) — window.confirm/alert yerine */
+.ui-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.35);
+    animation: ui-dialog-fade 0.12s ease-out;
+}
+.ui-dialog {
+    width: min(440px, 100%);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--glass-shadow);
+    padding: 1.25rem 1.25rem 1rem;
+    font-family: var(--font-ui);
+}
+.ui-dialog-message {
+    margin: 0 0 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.ui-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.ui-dialog-btn {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-control);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.ui-dialog-btn:hover { border-color: var(--border-color-active); }
+.ui-dialog-btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.ui-dialog-btn.primary {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    color: #fff;
+}
+@keyframes ui-dialog-fade { from { opacity: 0; } to { opacity: 1; } }
+@media print { .ui-dialog-backdrop { display: none !important; } }
