@@ -2,43 +2,29 @@
 # MD Flow Viewer - macOS paketi (Apple Silicon). Repo kökünden: bash packaging/macos/build-dmg.sh
 # Çıktı: dist/MDViewer-v<sürüm>-macos-arm64.dmg ("MD Flow Viewer.app" + Applications kısayolu)
 #
-# Uygulama Apple Developer kimliğiyle imzalı değil, yalnızca ad-hoc imzalı. Tarayıcıdan
-# indirilen DMG'yi macOS ilk açılışta engeller (README'de nasıl açılacağı anlatılıyor);
-# C Launcher ile kurulunca bu uyarı çıkmaz.
+# .app'i Tauri üretir (src-tauri/tauri.macos.conf.json). Uygulama Apple
+# Developer kimliğiyle imzalı değil, yalnızca ad-hoc imzalı. Tarayıcıdan
+# indirilen DMG'yi macOS ilk açılışta engeller (README'de nasıl açılacağı
+# anlatılıyor); C Launcher ile kurulunca bu uyarı çıkmaz.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
-VERSION="$(sed -n 's/^#define AppVersion "\(.*\)"/\1/p' installer/MDFlowViewer.iss)"
-[ -n "$VERSION" ] || { echo "Sürüm okunamadı (installer/MDFlowViewer.iss)" >&2; exit 1; }
+VERSION="$(node -p 'require("./src-tauri/tauri.conf.json").version')"
+[ -n "$VERSION" ] || { echo "Sürüm okunamadı (src-tauri/tauri.conf.json)" >&2; exit 1; }
 APP_NAME="MD Flow Viewer"
 APP="dist/$APP_NAME.app"
 DMG="dist/MDViewer-v$VERSION-macos-arm64.dmg"
-PY="${PYTHON:-python3}"
 
-# Bağımlılıklar bu yorumlayıcıda mı? (yanlış ortamla derlenen bundle sessizce bozuk çıkar)
-"$PY" -c "import flask, webview, PyInstaller"
+npx tauri build --bundles app
+# cargo'nun hedef klasörü: bir cargo ayarı onu repo dışına taşıyabilir.
+TARGET="$(cargo metadata --format-version 1 --no-deps | node -pe 'JSON.parse(require("fs").readFileSync(0, "utf8")).target_directory')"
+BUILT="$TARGET/release/bundle/macos/$APP_NAME.app"
+[ -d "$BUILT" ] || { echo "Paket bulunamadı: $BUILT" >&2; exit 1; }
 
-# Simge: favicon-512.png'den .icns
-BUILD="$(mktemp -d)"
-trap 'rm -rf "$BUILD"' EXIT
-ICONSET="$BUILD/mdflow.iconset"
-mkdir "$ICONSET"
-for s in 16 32 128 256 512; do
-  sips -z $s $s public/favicon-512.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  d=$((s * 2)); [ $d -le 512 ] && sips -z $d $d public/favicon-512.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
-done
-iconutil -c icns "$ICONSET" -o "$BUILD/mdflow.icns"
-
-# --argv-emulation: Finder'dan "Birlikte Aç" ile gelen dosya sys.argv'ye düşer
-"$PY" -m PyInstaller --noconfirm --clean --windowed --argv-emulation \
-  --name "$APP_NAME" \
-  --osx-bundle-identifier com.cafercan.mdflowviewer \
-  --icon "$BUILD/mdflow.icns" \
-  --add-data "$ROOT/public:public" \
-  --collect-all webview \
-  --distpath "$ROOT/dist" --workpath "$BUILD/work" --specpath "$BUILD" \
-  "$ROOT/app/main.py"
+mkdir -p dist
+rm -rf "$APP"
+cp -R "$BUILT" "$APP"
 
 PLIST="$APP/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
@@ -50,6 +36,11 @@ plutil -replace CFBundleDocumentTypes -json '[{"CFBundleTypeName":"Markdown","CF
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 
+# Paketlenmiş uygulamanın arayüzü içinde mi (pencere açmadan dener)
+"$APP/Contents/MacOS/$(plutil -extract CFBundleExecutable raw "$PLIST")" --selftest
+
+BUILD="$(mktemp -d)"
+trap 'rm -rf "$BUILD"' EXIT
 STAGE="$BUILD/dmg"
 mkdir "$STAGE"
 cp -R "$APP" "$STAGE/"

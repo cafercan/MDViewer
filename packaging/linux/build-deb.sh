@@ -1,43 +1,50 @@
 #!/usr/bin/env bash
 # MD Flow Viewer - Debian/Ubuntu .deb paketi
-# Çıktı: dist/mdflowviewer_<sürüm>_all.deb
+# Çıktı: dist/mdflowviewer_<sürüm>_amd64.deb
 #
-# Windows sürümünden farkı: PyInstaller bundle YOK. Uygulama saf Python olduğu
-# için kaynak /usr/lib/mdflowviewer altına kopyalanır; flask, pywebview ve
-# WebKitGTK dağıtımın kendi paketlerinden (Depends) gelir. Böylece GTK/WebKit'i
-# paketin içine gömmek gerekmez ve güvenlik güncellemeleri apt ile gelir.
+# 3.0'dan itibaren uygulama tek ikilidir (Rust/Tauri, arayüz içine gömülü):
+# /usr/bin/mdflowviewer. WebKitGTK ve GTK dağıtımın kendi paketlerinden
+# (Depends) gelir; güvenlik güncellemeleri apt ile gelir. 2.x'in Python
+# paketinin (Architecture: all, /usr/lib/mdflowviewer) yerine geçer.
 #
-# Derleme:  bash packaging/linux/build-deb.sh
-# Kurulum:  sudo apt install ./dist/mdflowviewer_<sürüm>_all.deb
+# Derleme:  bash packaging/linux/build-deb.sh   (Rust, Node.js, WebKitGTK -dev paketleri)
+# Kurulum:  sudo apt install ./dist/mdflowviewer_<sürüm>_amd64.deb
 set -euo pipefail
 umask 022
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-# Tek sürüm kaynağı: Inno Setup betiği
-VERSION="$(sed -n 's/^#define AppVersion "\(.*\)"/\1/p' "$ROOT/installer/MDFlowViewer.iss")"
-[ -n "$VERSION" ] || { echo "Sürüm okunamadı (installer/MDFlowViewer.iss)" >&2; exit 1; }
+cd "$ROOT"
+# Tek sürüm kaynağı: src-tauri/tauri.conf.json
+VERSION="$(node -p 'require("./src-tauri/tauri.conf.json").version')"
+[ -n "$VERSION" ] || { echo "Sürüm okunamadı (src-tauri/tauri.conf.json)" >&2; exit 1; }
+case "$(uname -m)" in
+  x86_64) ;;
+  *) echo "yalnız x86_64 paketlenir" >&2; exit 1 ;;
+esac
 
 PKG=mdflowviewer
-OUT="$ROOT/dist/${PKG}_${VERSION}_all.deb"
+OUT="$ROOT/dist/${PKG}_${VERSION}_amd64.deb"
+
+npx tauri build --no-bundle
+# cargo'nun hedef klasörü: bir cargo ayarı onu repo dışına taşıyabilir.
+TARGET="$(cargo metadata --format-version 1 --no-deps | node -pe 'JSON.parse(require("fs").readFileSync(0, "utf8")).target_directory')"
+BIN="$TARGET/release/mdflowviewer"
+[ -x "$BIN" ] || { echo "İkili bulunamadı: $BIN" >&2; exit 1; }
+"$BIN" --selftest
 
 # Paket ağacı geçici dizinde kurulur: repo FAT/NTFS gibi izin bitlerini
 # tutmayan bir diskte olabilir; dpkg-deb ise DEBIAN/ betiklerinin 0755
 # olmasını şart koşar.
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-STAGE="$TMP/${PKG}_${VERSION}_all"
+STAGE="$TMP/${PKG}_${VERSION}_amd64"
 install -d "$STAGE/DEBIAN" \
            "$STAGE/usr/bin" \
-           "$STAGE/usr/lib/$PKG/app" \
            "$STAGE/usr/share/applications" \
            "$STAGE/usr/share/doc/$PKG"
 
 # --- Uygulama ---
-install -m 644 "$ROOT"/app/*.py "$STAGE/usr/lib/$PKG/app/"
-cp -r "$ROOT/public" "$STAGE/usr/lib/$PKG/public"
-find "$STAGE/usr/lib/$PKG/public" -type d -exec chmod 755 {} +
-find "$STAGE/usr/lib/$PKG/public" -type f -exec chmod 644 {} +
-install -m 755 "$ROOT/packaging/linux/$PKG" "$STAGE/usr/bin/$PKG"
+install -m 755 "$BIN" "$STAGE/usr/bin/$PKG"
 
 # --- Masaüstü entegrasyonu (menü girişi, .md "Birlikte Aç", ikon) ---
 install -m 644 "$ROOT/packaging/linux/$PKG.desktop" "$STAGE/usr/share/applications/$PKG.desktop"
@@ -56,13 +63,13 @@ Package: $PKG
 Version: $VERSION
 Section: text
 Priority: optional
-Architecture: all
+Architecture: amd64
 Maintainer: cafercan <cafer.gemici@uestco.com>
 Installed-Size: $SIZE_KB
-Depends: python3 (>= 3.10), python3-flask (>= 2.0), python3-webview (>= 5.0), python3-gi, gir1.2-webkit2-4.1, gir1.2-gtk-3.0, xdg-utils
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0, xdg-utils
 Homepage: https://github.com/cafercan/MDViewer
 Description: Markdown viewer and editor with live preview
- Fast, local Markdown viewer/editor in its own window (pywebview + WebKitGTK).
+ Fast, local Markdown viewer/editor in its own window (Tauri + WebKitGTK).
  Live reload when the file changes on disk, Mermaid diagrams, syntax
  highlighting, block editing, Obsidian-style wikilinks and a folder explorer.
 CTRL
