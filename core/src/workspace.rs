@@ -25,7 +25,7 @@ pub struct ExplorerState {
     pub can_up: bool,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Workspace {
     pub root: Option<PathBuf>,
     pub explorer_root: Option<PathBuf>,

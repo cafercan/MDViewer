@@ -48,10 +48,13 @@ fn main() {
 .plugin(nav::plugin())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .on_window_event(drop::on_window_event)
-        .register_uri_scheme_protocol("mdasset", |ctx, request| {
-            let state = ctx.app_handle().state::<api::AppState>();
-            let ws = state.ws();
-            asset::handle(&ws, &request)
+        // Görsel okuma arayüz iş parçacığını bekletmesin: ayrı iş parçacığında yanıtla
+        .register_asynchronous_uri_scheme_protocol("mdasset", |ctx, request, responder| {
+            let app = ctx.app_handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let ws = app.state::<api::AppState>().snapshot();
+                responder.respond(asset::handle(&ws, &request));
+            });
         })
         .manage(watch::WatchState::default())
         .manage(state)

@@ -38,6 +38,12 @@ impl AppState {
     pub fn ws(&self) -> MutexGuard<'_, Workspace> {
         self.ws.lock().unwrap_or_else(|e| e.into_inner())
     }
+
+    /// Köklerin kopyası: uzun disk işleri (klasör tarama, görsel okuma)
+    /// sırasında kilit tutulmasın, diğer komutlar beklemesin.
+    pub fn snapshot(&self) -> Workspace {
+        self.ws().clone()
+    }
 }
 
 pub fn hash_bytes(bytes: &[u8]) -> u64 {
@@ -182,7 +188,7 @@ pub fn explorer_state(st: &AppState) -> ExplorerState {
 }
 
 pub fn list_dir(st: &AppState, path: &str) -> Value {
-    st.ws().list_dir(path)
+    st.snapshot().list_dir(path)
 }
 
 pub fn explorer_up(st: &AppState) -> ExplorerState {
@@ -200,11 +206,11 @@ pub fn set_vault(st: &AppState, path: Option<&str>) -> ExplorerState {
 }
 
 pub fn resolve_wikilink(st: &AppState, target: &str, current_file: Option<&str>) -> Option<String> {
-    st.ws().resolve_wikilink(target, current_file)
+    st.snapshot().resolve_wikilink(target, current_file)
 }
 
 pub fn inspect_path(st: &AppState, path: &str) -> Value {
-    st.ws().inspect_path(path)
+    st.snapshot().inspect_path(path)
 }
 
 // --- dışarıda açma ------------------------------------------------------------
