@@ -40,3 +40,9 @@ Thumbs.db
 
 # Tauri
 src-tauri/gen/
+
+# makepkg çıktıları
+packaging/arch/*/src/
+packaging/arch/*/pkg/
+packaging/arch/*/*.tar.*
+packaging/arch/*/*.deb
