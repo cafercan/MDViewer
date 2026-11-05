@@ -1,4 +1,4 @@
-# Release yayınlanınca Windows kurulumunu (.exe), Linux paketini (.deb) ve macOS paketini (.dmg)
+# Release yayınlanınca Windows kurulumunu (.exe), Linux paketlerini (.deb, .rpm) ve macOS paketini (.dmg)
 # derleyip release'e ekler; hepsi bitince SHA256SUMS.txt release'teki tüm
 # kurulumlar için yeniden üretilir. Elle yeniden çalıştırmak için:
 # Actions -> Release -> Run.
@@ -62,7 +62,7 @@ jobs:
       - name: WebKitGTK geliştirme paketleri
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev rpm
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v7
@@ -72,11 +72,17 @@ jobs:
       - name: .deb paketi
         run: bash packaging/linux/build-deb.sh
 
+      - name: .rpm paketi (aynı ikili)
+        run: bash packaging/linux/build-rpm.sh
+
       - name: Release'e yükle
         run: |
           deb="dist/mdflowviewer_${TAG#v}_amd64.deb"
-          test -f "$deb" || { echo "Paket bulunamadi: $deb" >&2; exit 1; }
-          gh release upload "$TAG" "$deb" --clobber
+          rpm="dist/mdflowviewer-${TAG#v}-1.x86_64.rpm"
+          for f in "$deb" "$rpm"; do
+            test -f "$f" || { echo "Paket bulunamadi: $f" >&2; exit 1; }
+          done
+          gh release upload "$TAG" "$deb" "$rpm" --clobber
 
   macos-dmg:
     runs-on: macos-14
@@ -112,9 +118,9 @@ jobs:
     steps:
       - name: SHA256SUMS
         run: |
-          # Release'teki tüm kurulumların (exe + deb + dmg) özetini yeniden üret
+          # Release'teki tüm kurulumların (exe + deb + rpm + dmg) özetini yeniden üret
           mkdir sums
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.dmg"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.rpm" -p "*.dmg"
           (cd sums && sha256sum * | sort -k2) > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber

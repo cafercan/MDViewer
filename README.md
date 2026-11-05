@@ -103,6 +103,33 @@ Paket tek ikilidir (`/usr/bin/mdflowviewer`, `amd64`); WebKitGTK
 (`libwebkit2gtk-4.1-0`) ve GTK dağıtım paketlerinden gelir. 2.x'in Python
 paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
 
+## Kurulum — Linux (Fedora / openSUSE / RHEL)
+
+[Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
+**`mdflowviewer-3.0.2-1.x86_64.rpm`** paketini indirip kurun:
+
+```bash
+sudo dnf install ./mdflowviewer-3.0.2-1.x86_64.rpm      # Fedora / RHEL
+sudo zypper install ./mdflowviewer-3.0.2-1.x86_64.rpm   # openSUSE
+```
+
+Kütüphane bağımlılıkları (WebKitGTK 4.1, GTK 3) paket yöneticisiyle gelir.
+
+## Kurulum — Linux (Arch / Manjaro)
+
+AUR'da iki paket var: `mdflowviewer` (kaynaktan derler) ve `mdflowviewer-bin`
+(Release'teki hazır ikili):
+
+```bash
+yay -S mdflowviewer-bin      # ya da: paru -S mdflowviewer
+```
+
+AUR'a gerek olmadan, depodaki PKGBUILD ile:
+
+```bash
+cd packaging/arch/mdflowviewer && makepkg -si
+```
+
 ## Mimari
 
 Arayüz saf web (HTML/CSS/JS), kabuk Rust (Tauri 2):
@@ -147,6 +174,7 @@ bir cargo ayarıyla repo dışına taşınmış olabilir.
 
 ```bash
 bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_<sürüm>_amd64.deb
+bash packaging/linux/build-rpm.sh     # -> dist/mdflowviewer-<sürüm>-1.x86_64.rpm
 bash packaging/macos/build-dmg.sh     # -> dist/MDViewer-v<sürüm>-macos-arm64.dmg
 ```
 
