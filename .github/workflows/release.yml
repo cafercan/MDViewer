@@ -1,5 +1,5 @@
-# Release yayınlanınca Windows kurulumunu (.exe), Linux paketlerini (.deb, .rpm) ve macOS paketini (.dmg)
-# derleyip release'e ekler, AUR paketlerini (mdflowviewer, mdflowviewer-bin) günceller;
+# Release yayınlanınca Windows kurulumunu (.exe), Linux paketlerini (.deb, .rpm, Arch için
+# .pkg.tar.zst) ve macOS paketini (.dmg) derleyip release'e ekler, AUR paketlerini (mdflowviewer, mdflowviewer-bin) günceller;
 # hepsi bitince SHA256SUMS.txt release'teki tüm
 # kurulumlar için yeniden üretilir. Elle yeniden çalıştırmak için:
 # Actions -> Release -> Run.
@@ -110,6 +110,40 @@ jobs:
           test -f "$dmg" || { echo "Paket bulunamadi: $dmg" >&2; exit 1; }
           gh release upload "$TAG" "$dmg" --clobber
 
+  linux-pacman:
+    # Arch paketi (.pkg.tar.zst): mdflowviewer-bin PKGBUILD'i ile release'teki .deb'den üretilir.
+    # C Launcher Arch'ta bunu "pacman -U" ile kurar. AUR anahtarından bağımsızdır.
+    needs: [linux-deb]
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Araçlar
+        run: |
+          pacman -Syu --noconfirm --needed github-cli pacman-contrib
+          # makepkg root olarak çalışmaz
+          useradd -m builder
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          path: repo
+
+      - name: Paketle ve yükle
+        run: |
+          set -euo pipefail
+          VER="${TAG#v}"
+          cp -r repo/packaging/arch/mdflowviewer-bin build
+          sed -i -e "s/^pkgver=.*/pkgver=$VER/" -e "s/^pkgrel=.*/pkgrel=1/" build/PKGBUILD
+          chown -R builder build
+          # -d: çalışma bağımlılıkları paketlemek için gerekmez (yalnızca .deb açılır)
+          su builder -c "cd build && updpkgsums && makepkg -d -f --noconfirm"
+          pkg="build/mdflowviewer-bin-$VER-1-x86_64.pkg.tar.zst"
+          test -f "$pkg" || { ls build >&2; echo "Paket bulunamadi: $pkg" >&2; exit 1; }
+          gh release upload "$TAG" "$pkg" -R "$GITHUB_REPOSITORY" --clobber
+
   aur:
     # AUR'daki mdflowviewer ve mdflowviewer-bin paketlerini bu sürüme günceller.
     # packaging/arch/*/PKGBUILD şablon olarak kullanılır (pkgver etiketten, pkgrel=1).
@@ -180,7 +214,7 @@ jobs:
           done
 
   checksums:
-    needs: [windows-setup, linux-deb, macos-dmg]
+    needs: [windows-setup, linux-deb, linux-pacman, macos-dmg]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -188,9 +222,9 @@ jobs:
     steps:
       - name: SHA256SUMS
         run: |
-          # Release'teki tüm kurulumların (exe + deb + rpm + dmg) özetini yeniden üret
+          # Release'teki tüm kurulumların (exe + deb + rpm + pkg.tar.zst + dmg) özetini yeniden üret
           mkdir sums
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.rpm" -p "*.dmg"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.rpm" -p "*.pkg.tar.zst" -p "*.dmg"
           (cd sums && sha256sum * | sort -k2) > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber
