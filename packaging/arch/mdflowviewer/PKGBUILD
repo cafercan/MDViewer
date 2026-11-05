@@ -1,4 +1,4 @@
-# Maintainer: cafercan <cafer.gemici@uestco.com>
+# Maintainer: flear <teymurzadehuseyn14 at gmail dot com>
 # AUR: mdflowviewer (kaynaktan derler). Hazır ikili için: mdflowviewer-bin
 pkgname=mdflowviewer
 pkgver=3.0.2

@@ -1,4 +1,4 @@
-# Maintainer: cafercan <cafer.gemici@uestco.com>
+# Maintainer: flear <teymurzadehuseyn14 at gmail dot com>
 # AUR: mdflowviewer-bin (GitHub Release'teki hazır .deb'i yeniden paketler)
 pkgname=mdflowviewer-bin
 _pkgname=mdflowviewer
