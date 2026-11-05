@@ -423,11 +423,21 @@ function highlightActiveFile() {
 // Düzenleme modunda kaydedilmemiş değişiklik varsa kullanıcıya sorar.
 // true = devam edilebilir.
 async function confirmLeaveUnsaved() {
-    if (!isEditMode) return true;
-    closeAllBlockEditors();
-    if (reconstructMarkdownFromBlocks() === currentContent) return true;
-    return UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
+    let blocksChanged = false;
+    if (isEditMode) {
+        closeAllBlockEditors();
+        blocksChanged = reconstructMarkdownFromBlocks() !== currentContent;
+    }
+    if (!LeaveGuard.mustAsk({ isEditMode, blocksChanged, hasUnsavedChanges })) return true;
+    const leave = await UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
         { okText: 'Geç', cancelText: 'Vazgeç' });
+    if (leave) {
+        // Değişiklikler bırakıldı: bekleyen otomatik kayıt yazmasın, taslak bir
+        // sonraki açılışta tekrar sorulmasın.
+        clearTimeout(autosaveTimer);
+        clearDraft();
+    }
+    return leave;
 }
 
 // ============================================================
