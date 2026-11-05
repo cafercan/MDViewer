@@ -41,7 +41,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.0.0.exe`** kurulumunu indirin.
+   **`MDViewer-v3.0.1.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -66,7 +66,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.0.0-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v3.0.1-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -84,11 +84,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_3.0.0_amd64.deb`** paketini indirin.
+   **`mdflowviewer_3.0.1_amd64.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_3.0.0_amd64.deb
+   sudo apt install ./mdflowviewer_3.0.1_amd64.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
