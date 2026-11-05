@@ -1,5 +1,6 @@
 # Release yayınlanınca Windows kurulumunu (.exe), Linux paketlerini (.deb, .rpm) ve macOS paketini (.dmg)
-# derleyip release'e ekler; hepsi bitince SHA256SUMS.txt release'teki tüm
+# derleyip release'e ekler, AUR paketlerini (mdflowviewer, mdflowviewer-bin) günceller;
+# hepsi bitince SHA256SUMS.txt release'teki tüm
 # kurulumlar için yeniden üretilir. Elle yeniden çalıştırmak için:
 # Actions -> Release -> Run.
 #
@@ -108,6 +109,75 @@ jobs:
           dmg="dist/MDViewer-${TAG}-macos-arm64.dmg"
           test -f "$dmg" || { echo "Paket bulunamadi: $dmg" >&2; exit 1; }
           gh release upload "$TAG" "$dmg" --clobber
+
+  aur:
+    # AUR'daki mdflowviewer ve mdflowviewer-bin paketlerini bu sürüme günceller.
+    # packaging/arch/*/PKGBUILD şablon olarak kullanılır (pkgver etiketten, pkgrel=1).
+    # Gerekli secret: AUR_SSH_PRIVATE_KEY (AUR hesabına eklenmiş bir SSH anahtarı).
+    # Secret yoksa iş atlanır; release'i bozmaz.
+    needs: [linux-deb]   # -bin paketi release'teki .deb'in özetini ister
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+    steps:
+      - name: Secret var mı
+        id: key
+        run: |
+          if [ -z "$AUR_KEY" ]; then
+            echo "::warning::AUR_SSH_PRIVATE_KEY yok, AUR güncellemesi atlandı"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Araçlar
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          pacman -Syu --noconfirm --needed git openssh pacman-contrib
+          # makepkg root olarak çalışmaz
+          useradd -m builder
+
+      - uses: actions/checkout@v7
+        if: steps.key.outputs.ok == 'true'
+        with:
+          ref: ${{ env.TAG }}
+          path: repo
+
+      - name: AUR'a gönder
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          VER="${TAG#v}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519,rsa aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes"
+          git config --global user.name "flear"
+          git config --global user.email "teymurzadehuseyn14@gmail.com"
+          git config --global init.defaultBranch master
+          # klasörler builder kullanıcısına ait; git root olarak çalışıyor
+          git config --global --add safe.directory "*"
+
+          for p in mdflowviewer mdflowviewer-bin; do
+            git clone "ssh://aur@aur.archlinux.org/$p.git" "aur-$p"
+            cp "repo/packaging/arch/$p/PKGBUILD" "aur-$p/PKGBUILD"
+            sed -i -e "s/^pkgver=.*/pkgver=$VER/" -e "s/^pkgrel=.*/pkgrel=1/" "aur-$p/PKGBUILD"
+            chown -R builder "aur-$p"
+            su builder -c "cd aur-$p && updpkgsums && makepkg --printsrcinfo > .SRCINFO"
+            cd "aur-$p"
+            git add PKGBUILD .SRCINFO
+            if git diff --cached --quiet; then
+              echo "$p: değişiklik yok"
+            else
+              git commit -m "$VER-1"
+              git push origin master
+              echo "$p: $VER-1 gönderildi"
+            fi
+            cd ..
+          done
 
   checksums:
     needs: [windows-setup, linux-deb, macos-dmg]
