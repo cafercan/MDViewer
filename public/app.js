@@ -114,6 +114,9 @@ let hasUnsavedChanges = false;
 let currentTheme = 'minimal-light';
 let lineNumbersOn = true;
 
+// Eski sürümlerden kalan taslakları bir kez temizle (bkz. drafts.js).
+if (typeof Drafts !== 'undefined') Drafts.purgeLegacy(storage);
+
 // Yerel görseller uygulamanın mdasset protokolünden gelir (bridge.js).
 if (window.MDFlowNative && typeof AssetUrl !== 'undefined') {
     AssetUrl.setBuilder(window.MDFlowNative.assetUrl);
@@ -192,7 +195,7 @@ async function initApp() {
             const close = await UiDialog.confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?',
                 { okText: 'Kapat', cancelText: 'Vazgeç' });
             if (!close) event.preventDefault();
-            else clearDraft(); // kullanıcı değişiklikleri bıraktı: sonraki açılışta taslak sorulmasın
+            else markSaved(); // kullanıcı değişiklikleri bıraktı
         });
     }
 
@@ -236,24 +239,8 @@ async function loadFile(filePath, options = {}) {
 
         if (data.success) {
             currentFilePath = data.path;
-            const draft = getDraft(data.path);
-            if (draft && draft.content !== data.content) {
-                const draftDate = new Date(draft.savedAt).toLocaleString();
-                const restore = await UiDialog.confirm(
-                    `Bu dosya için kaydedilmemiş bir taslak bulundu (${draftDate}). Taslağı geri yüklemek ister misiniz?`,
-                    { okText: 'Geri yükle', cancelText: 'Taslağı sil' });
-                if (restore) {
-                    currentContent = draft.content;
-                    hasUnsavedChanges = true;
-                    saveStatus.textContent = 'Kurtarılan taslak henüz diske kaydedilmedi';
-                } else {
-                    clearDraft(data.path);
-                    currentContent = data.content;
-                }
-            } else {
-                currentContent = data.content;
-                clearDraft(data.path);
-            }
+            currentContent = data.content;
+            markSaved();
             
             // Update UI elements
             fileNameDisplay.textContent = data.name;
@@ -432,10 +419,9 @@ async function confirmLeaveUnsaved() {
     const leave = await UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
         { okText: 'Geç', cancelText: 'Vazgeç' });
     if (leave) {
-        // Değişiklikler bırakıldı: bekleyen otomatik kayıt yazmasın, taslak bir
-        // sonraki açılışta tekrar sorulmasın.
+        // Değişiklikler bırakıldı: bekleyen otomatik kayıt yazmasın.
         clearTimeout(autosaveTimer);
-        clearDraft();
+        markSaved();
     }
     return leave;
 }
@@ -1112,9 +1098,9 @@ function renderInlineEditor(markdownText) {
         textarea.addEventListener('input', () => {
             textarea.style.height = 'auto';
             textarea.style.height = (textarea.scrollHeight + 5) + 'px';
-            writeDraft(reconstructMarkdownWithPendingEdit(index, textarea.value));
+            markUnsaved();
             if (!chkAutosave.checked) {
-                saveStatus.textContent = 'KaydedilmemiÅŸ deÄŸiÅŸiklikler var';
+                saveStatus.textContent = 'Kaydedilmemiş değişiklikler var';
             }
         });
         
@@ -1197,7 +1183,7 @@ function renderAddBlockBtn() {
                 
                 // Immediately update memory and save
                 currentContent = updatedContent;
-                writeDraft(updatedContent);
+                markUnsaved();
                 saveFile(updatedContent);
                 renderInlineEditor(updatedContent);
             } else {
@@ -1258,7 +1244,7 @@ function applyTokenEdit(index, newRaw) {
     currentTokens[index].raw = newRaw;
     const updatedContent = reconstructMarkdownFromBlocks();
     currentContent = updatedContent; // keep memory in sync
-    writeDraft(updatedContent);
+    markUnsaved();
 
     if (chkAutosave.checked) {
         saveStatus.textContent = 'Değişiklikler yapılıyor...';
@@ -1274,10 +1260,6 @@ function applyTokenEdit(index, newRaw) {
 
 function reconstructMarkdownFromBlocks() {
     return currentTokens.map(token => token.raw).join('');
-}
-
-function reconstructMarkdownWithPendingEdit(index, value) {
-    return currentTokens.map((token, tokenIndex) => tokenIndex === index ? value : token.raw).join('');
 }
 
 // TABLE WYSIWYG EDITOR HELPERS
@@ -1491,7 +1473,7 @@ async function saveFile(contentToSave = null) {
         const data = await nativeApi().save(currentFilePath, contentToSave);
         if (data.success) {
             currentContent = contentToSave;
-            clearDraft();
+            markSaved();
             setSyncStatus('connected', 'Kaydedildi');
             saveStatus.textContent = 'Tüm değişiklikler kaydedildi';
         } else {
@@ -1728,35 +1710,17 @@ function setupEventListeners() {
     });
 }
 
-// DRAFT PERSISTENCE
-function getDraftKey(filePath = currentFilePath) {
-    return `md_flow_draft:${filePath}`;
+// KAYDEDİLMEMİŞ DEĞİŞİKLİK İŞARETİ
+// 3.0.1'e kadar düzenlemeler tarayıcı deposunda "taslak" olarak saklanıp belge
+// açılınca geri yüklemesi soruluyordu: kullanıcı içeriği görmeden karar veriyor,
+// diskteki daha yeni hal ezilebiliyordu. Artık yalnız bu işaret tutulur; kayıp
+// riskini otomatik kayıt ile kapanış/geçiş uyarıları karşılar (bkz. drafts.js).
+function markUnsaved() {
+    if (currentFilePath) hasUnsavedChanges = true;
 }
 
-function getDraft(filePath) {
-    try {
-        const stored = storage.getItem(getDraftKey(filePath));
-        return stored ? JSON.parse(stored) : null;
-    } catch {
-        return null;
-    }
-}
-
-function writeDraft(content = currentContent) {
-    if (!currentFilePath) return;
-    storage.setItem(getDraftKey(), JSON.stringify({
-        content,
-        savedAt: Date.now()
-    }));
-    hasUnsavedChanges = true;
-}
-
-function clearDraft(filePath = currentFilePath) {
-    if (!filePath) return;
-    storage.removeItem(getDraftKey(filePath));
-    if (filePath === currentFilePath) {
-        hasUnsavedChanges = false;
-    }
+function markSaved() {
+    hasUnsavedChanges = false;
 }
 
 // STORAGE STORAGE PERSISTENCE
