@@ -86,7 +86,7 @@ jobs:
           gh release upload "$TAG" "$deb" "$rpm" --clobber
 
   macos-dmg:
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       GH_TOKEN: ${{ github.token }}

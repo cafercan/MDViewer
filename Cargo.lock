@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "mdflow-core"
-version = "3.0.2"
+version = "3.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1797,7 +1797,7 @@ dependencies = [
 
 [[package]]
 name = "mdflowviewer"
-version = "3.0.2"
+version = "3.1.0"
 dependencies = [
  "gtk",
  "mdflow-core",
