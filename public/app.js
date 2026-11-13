@@ -155,6 +155,8 @@ const markdownViewer = document.getElementById('markdown-viewer');
 const inlineEditor = document.getElementById('inline-editor');
 const chkAutosave = document.getElementById('chk-autosave');
 const btnLineNumbers = document.getElementById('btn-line-numbers');
+const btnSettings = document.getElementById('btn-settings');
+const settingsPanel = document.getElementById('settings-panel');
 const saveStatus = document.getElementById('save-status');
 
 const themeSwitch = document.getElementById('theme-switch');
@@ -238,6 +240,8 @@ async function loadFile(filePath, options = {}) {
         const data = await native.content(filePath || null);
 
         if (data.success) {
+            // Ayrılınan belgenin kaydırma konumunu sakla (geri dönünce oradan sürsün)
+            if (currentFilePath) scrollPositions.set(currentFilePath, captureScrollPosition());
             currentFilePath = data.path;
             currentContent = data.content;
             markSaved();
@@ -270,10 +274,13 @@ async function loadFile(filePath, options = {}) {
             // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
 
-            // Yeni belge en üstten başlasın (eski belgenin kaydırma konumu kalmasın)
+            // Önce sıfırla (eski belgenin kaydırması kalmasın); sonra #parça varsa
+            // ona, yoksa (ayar kapalıysa) bu belgede kalınan yere git.
             paneRead.scrollTop = 0;
             inlineEditor.scrollTop = 0;
+            const saved = scrollPositions.get(data.path);
             if (anchor) scrollToAnchor(anchor);
+            else if (saved && !prefs.alwaysStartAtTop) restoreScrollPosition(saved);
         } else {
             throw new Error(data.error || 'Bilinmeyen sunucu hatası');
         }
@@ -306,6 +313,295 @@ function findHeadingByAnchor(anchor) {
         const idSlug = h.id.replace(/^h-\d+-/, '');
         return idSlug === wanted || idSlug === wanted.replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-');
     }) || null;
+}
+
+// ============================================================
+// BELGE BAŞINA KAYDIRMA KONUMU
+// Konum piksel yerine "en üstteki blok + blok içi kayma" olarak tutulur:
+// okuma/düzenleme modunda bloklar birebir eşleştiği için mod değişse de
+// aynı yere dönülür. Yalnız bu oturum için bellekte saklanır.
+// ============================================================
+const scrollPositions = new Map(); // yol -> { index, offset }
+let scrollRestoreToken = 0;
+
+function captureScrollPosition() {
+    const scroller = isEditMode ? inlineEditor : paneRead;
+    const blocks = isEditMode ? editBlocks() : readBlocks();
+    const index = topBlockIndex(scroller, blocks);
+    const el = blocks[index];
+    const offset = el ? scroller.getBoundingClientRect().top - el.getBoundingClientRect().top : 0;
+    return { index, offset };
+}
+
+function restoreScrollPosition(pos) {
+    const token = ++scrollRestoreToken;
+    const scroller = isEditMode ? inlineEditor : paneRead;
+    let userScrolled = false;
+    const onUser = () => { userScrolled = true; };
+    const userEvents = ['wheel', 'pointerdown', 'keydown', 'touchstart'];
+    userEvents.forEach((ev) => scroller.addEventListener(ev, onUser, { passive: true, once: true }));
+    const apply = () => {
+        if (token !== scrollRestoreToken || userScrolled) return;
+        const blocks = isEditMode ? editBlocks() : readBlocks();
+        const el = blocks[Math.min(pos.index, blocks.length - 1)];
+        if (!el) return;
+        const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollTop += delta + pos.offset;
+    };
+    apply();
+    // Görseller / mermaid / hljs yerleşimi değiştirebilir: kısa süre yeniden uygula.
+    requestAnimationFrame(apply);
+    setTimeout(apply, 160);
+    setTimeout(apply, 600);
+    (isEditMode ? inlineEditor : markdownViewer).querySelectorAll('img').forEach((img) => {
+        if (!img.complete) img.addEventListener('load', apply, { once: true });
+    });
+    setTimeout(() => {
+        userEvents.forEach((ev) => scroller.removeEventListener(ev, onUser));
+    }, 3000);
+}
+
+// ============================================================
+// KULLANICI TERCİHLERİ & AYARLAR PANELİ
+// Hepsi ayar dosyasına (collectSettings) düz anahtarlar olarak yazılır.
+// ============================================================
+const THEMES = [
+    { id: 'minimal-light', name: 'Classic Light', bg: '#f8fafc', fg: '#0f172a', ac: '#4f46e5' },
+    { id: 'github-light', name: 'GitHub Light', bg: '#ffffff', fg: '#1f2328', ac: '#0969da' },
+    { id: 'sepia-light', name: 'Sepia', bg: '#f4ecd8', fg: '#4b3f2f', ac: '#a15c2b' },
+    { id: 'rose-light', name: 'Gül', bg: '#fdf6f7', fg: '#3b1f27', ac: '#be3c64' },
+    { id: 'mint-light', name: 'Nane', bg: '#f3faf6', fg: '#12301f', ac: '#0f8a5f' },
+    { id: 'slate-dark', name: 'Obsidian Dark', bg: '#0f172a', fg: '#f8fafc', ac: '#6366f1' },
+    { id: 'nord-dark', name: 'Nord Frost', bg: '#2e3440', fg: '#eceff4', ac: '#88c0d0' },
+    { id: 'forest-dark', name: 'Orman', bg: '#111a15', fg: '#e6f0e9', ac: '#6ec88c' },
+    { id: 'plum-dark', name: 'Mürdüm', bg: '#1a1320', fg: '#f3eaf6', ac: '#d68ce6' },
+    { id: 'midnight-dark', name: 'Gece Yarısı', bg: '#000000', fg: '#ededed', ac: '#60a5fa' },
+];
+
+const PREF_DEFAULTS = {
+    fontSize: 'm',            // s | m | l | xl
+    readingWidth: 'normal',   // narrow | normal | full
+    readingFont: 'sans',      // sans | serif | mono
+    codeWrap: false,
+    followSystem: false,
+    lightTheme: 'minimal-light',
+    darkTheme: 'slate-dark',
+    alwaysStartAtTop: false,
+    imageZoom: true,
+    customCss: '',
+};
+const PREF_CHOICES = {
+    fontSize: { s: 0.9, m: 1, l: 1.15, xl: 1.3 },
+    readingWidth: { narrow: '780px', normal: '1400px', full: 'none' },
+    readingFont: {
+        sans: null, // style.css varsayılanı
+        serif: "'Iowan Old Style', 'Palatino Linotype', Palatino, 'Noto Serif', Georgia, serif",
+        mono: "var(--font-mono)",
+    },
+};
+let prefs = { ...PREF_DEFAULTS };
+
+function normalizePrefs(raw) {
+    const out = { ...PREF_DEFAULTS };
+    for (const key of Object.keys(PREF_DEFAULTS)) {
+        const v = raw ? raw[key] : undefined;
+        if (v === undefined) continue;
+        const def = PREF_DEFAULTS[key];
+        if (PREF_CHOICES[key]) {
+            if (Object.prototype.hasOwnProperty.call(PREF_CHOICES[key], v)) out[key] = v;
+        } else if (key === 'lightTheme' || key === 'darkTheme') {
+            const wantDark = key === 'darkTheme';
+            if (THEMES.some((t) => t.id === v && t.id.endsWith('-dark') === wantDark)) out[key] = v;
+        } else if (typeof v === typeof def) {
+            out[key] = v;
+        }
+    }
+    return out;
+}
+
+const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+function systemTheme() {
+    return darkQuery && darkQuery.matches ? prefs.darkTheme : prefs.lightTheme;
+}
+
+if (darkQuery) {
+    const onSystemChange = () => { if (prefs.followSystem) setTheme(systemTheme()); };
+    if (darkQuery.addEventListener) darkQuery.addEventListener('change', onSystemChange);
+    else if (darkQuery.addListener) darkQuery.addListener(onSystemChange);
+}
+
+// Okuma tercihlerini CSS değişkenlerine / sınıflara uygula.
+function applyPrefs() {
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--md-scale', String(PREF_CHOICES.fontSize[prefs.fontSize]));
+    rootStyle.setProperty('--md-width', PREF_CHOICES.readingWidth[prefs.readingWidth]);
+    const font = PREF_CHOICES.readingFont[prefs.readingFont];
+    if (font) {
+        rootStyle.setProperty('--font-reading', font);
+        rootStyle.setProperty('--font-heading', font);
+    } else {
+        rootStyle.removeProperty('--font-reading');
+        rootStyle.removeProperty('--font-heading');
+    }
+    document.documentElement.classList.toggle('code-wrap', prefs.codeWrap);
+    document.documentElement.classList.toggle('img-zoom-on', prefs.imageZoom);
+    applyCustomCss(prefs.customCss);
+}
+
+function applyCustomCss(css) {
+    let el = document.getElementById('user-custom-css');
+    if (!css) {
+        if (el) el.remove();
+        return;
+    }
+    if (!el) {
+        el = document.createElement('style');
+        el.id = 'user-custom-css';
+        document.head.appendChild(el); // style.css'ten sonra: aynı seçici kazanır
+    }
+    el.textContent = css;
+}
+
+// Kullanıcı bir temayı elle seçti (swatch ya da panel kartı).
+function chooseTheme(theme) {
+    if (prefs.followSystem) {
+        // Seçilen tema, kendi türünün (açık/koyu) sistem tercihi olur; sistem
+        // şu an diğer moddaysa takip kapanır ki seçim görünsün.
+        const isDark = theme.endsWith('-dark');
+        prefs[isDark ? 'darkTheme' : 'lightTheme'] = theme;
+        const systemDark = !!(darkQuery && darkQuery.matches);
+        if (isDark !== systemDark) {
+            prefs.followSystem = false;
+            showToast('Sistem teması takibi kapatıldı');
+        }
+    }
+    setTheme(theme);
+    saveSettings();
+}
+
+function setPref(key, value) {
+    prefs[key] = value;
+    if (key === 'followSystem' || key === 'lightTheme' || key === 'darkTheme') {
+        if (prefs.followSystem) setTheme(systemTheme());
+    }
+    applyPrefs();
+    syncSettingsPanel();
+    saveSettings();
+}
+
+function setupSettingsPanel() {
+    if (!settingsPanel) return;
+    if (btnSettings) btnSettings.addEventListener('click', openSettingsPanel);
+
+    // Tema kartları ve açık/koyu seçim listeleri
+    const grid = document.getElementById('settings-theme-grid');
+    THEMES.forEach((t) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'theme-card';
+        card.dataset.themeValue = t.id;
+        card.title = t.name;
+        card.style.setProperty('--tc-bg', t.bg);
+        card.style.setProperty('--tc-fg', t.fg);
+        card.style.setProperty('--tc-ac', t.ac);
+        card.innerHTML = '<span class="theme-card-preview"><b></b><i></i></span><span class="theme-card-name"></span>';
+        card.querySelector('.theme-card-name').textContent = t.name;
+        card.addEventListener('click', () => chooseTheme(t.id));
+        grid.appendChild(card);
+    });
+    settingsPanel.querySelectorAll('select[data-pref]').forEach((sel) => {
+        const wantDark = sel.dataset.pref === 'darkTheme';
+        THEMES.filter((t) => t.id.endsWith('-dark') === wantDark).forEach((t) => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+        });
+        sel.addEventListener('change', () => setPref(sel.dataset.pref, sel.value));
+    });
+
+    settingsPanel.querySelectorAll('.seg[data-pref]').forEach((seg) => {
+        seg.querySelectorAll('button').forEach((b) =>
+            b.addEventListener('click', () => setPref(seg.dataset.pref, b.dataset.value)));
+    });
+    settingsPanel.querySelectorAll('input[type="checkbox"][data-pref]').forEach((chk) => {
+        chk.addEventListener('change', () => setPref(chk.dataset.pref, chk.checked));
+    });
+
+    // Özel CSS: yazdıkça uygula, kısa beklemeyle kaydet
+    const cssBox = document.getElementById('custom-css');
+    let cssTimer = null;
+    cssBox.addEventListener('input', () => {
+        prefs.customCss = cssBox.value;
+        applyCustomCss(prefs.customCss);
+        clearTimeout(cssTimer);
+        cssTimer = setTimeout(saveSettings, 500);
+    });
+    // Sekme tuşu odak değiştirmesin, girinti eklesin
+    cssBox.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab' || e.shiftKey) return;
+        e.preventDefault();
+        const { selectionStart: a, selectionEnd: b } = cssBox;
+        cssBox.setRangeText('    ', a, b, 'end');
+        cssBox.dispatchEvent(new Event('input'));
+    });
+
+    document.getElementById('btn-settings-close').addEventListener('click', closeSettingsPanel);
+    document.getElementById('btn-settings-done').addEventListener('click', closeSettingsPanel);
+    document.getElementById('btn-settings-reset').addEventListener('click', async () => {
+        if (!(await UiDialog.confirm('Tüm görünüm ve davranış ayarları varsayılana dönsün mü? Özel CSS de silinir.',
+            { okText: 'Sıfırla', cancelText: 'Vazgeç' }))) return;
+        prefs = { ...PREF_DEFAULTS };
+        applyPrefs();
+        setTheme('minimal-light');
+        saveSettings();
+    });
+    settingsPanel.addEventListener('mousedown', (e) => {
+        if (e.target === settingsPanel) closeSettingsPanel();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPanel.classList.contains('hidden')
+            && !document.querySelector('.ui-dialog-backdrop')) {
+            e.preventDefault();
+            closeSettingsPanel();
+        }
+    });
+}
+
+let settingsReturnFocus = null;
+function openSettingsPanel() {
+    settingsReturnFocus = document.activeElement;
+    syncSettingsPanel();
+    settingsPanel.classList.remove('hidden');
+    const active = settingsPanel.querySelector('.theme-card.active') || settingsPanel.querySelector('button');
+    if (active) active.focus();
+}
+function closeSettingsPanel() {
+    if (settingsPanel.classList.contains('hidden')) return;
+    settingsPanel.classList.add('hidden');
+    if (settingsReturnFocus && typeof settingsReturnFocus.focus === 'function') settingsReturnFocus.focus();
+}
+
+// Paneldeki kontrolleri güncel duruma getir.
+function syncSettingsPanel() {
+    if (!settingsPanel) return;
+    settingsPanel.querySelectorAll('.theme-card').forEach((c) =>
+        c.classList.toggle('active', c.dataset.themeValue === currentTheme));
+    settingsPanel.querySelectorAll('.seg[data-pref]').forEach((seg) => {
+        seg.querySelectorAll('button').forEach((b) =>
+            b.classList.toggle('active', b.dataset.value === prefs[seg.dataset.pref]));
+    });
+    settingsPanel.querySelectorAll('input[type="checkbox"][data-pref]').forEach((chk) => {
+        chk.checked = !!prefs[chk.dataset.pref];
+    });
+    settingsPanel.querySelectorAll('select[data-pref]').forEach((sel) => {
+        sel.value = prefs[sel.dataset.pref];
+    });
+    settingsPanel.querySelectorAll('[data-follow-only]').forEach((row) =>
+        row.classList.toggle('disabled', !prefs.followSystem));
+    const cssBox = document.getElementById('custom-css');
+    if (cssBox && document.activeElement !== cssBox) cssBox.value = prefs.customCss;
 }
 
 function scrollToAnchor(anchor) {
@@ -1582,8 +1878,7 @@ function setupEventListeners() {
     if (themeSwitch) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((btn) => {
             btn.addEventListener('click', () => {
-                setTheme(btn.dataset.themeValue);
-                saveSettings();
+                chooseTheme(btn.dataset.themeValue);
                 setThemeMenuOpen(false);
             });
         });
@@ -1611,6 +1906,18 @@ function setupEventListeners() {
             saveSettings();
         });
     }
+
+    // 5c. Ayarlar paneli
+    setupSettingsPanel();
+
+    // 5d. Okuma modunda görsele tıklayınca yakınlaştırma penceresi
+    markdownViewer.addEventListener('click', (e) => {
+        const img = e.target.closest('img');
+        if (!img || !prefs.imageZoom || typeof ImageZoom === 'undefined') return;
+        if (img.closest('a[href]') || img.classList.contains('asset-missing')) return;
+        e.preventDefault();
+        ImageZoom.open(img.currentSrc || img.src, img.getAttribute('alt') || '');
+    });
 
     // 6. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
@@ -1742,6 +2049,7 @@ function setThemeMenuOpen(open) {
 }
 
 function setTheme(theme) {
+    if (!THEMES.some((t) => t.id === theme)) theme = 'minimal-light';
     currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
     // Kod vurgusu renk paleti: koyu temada koyu, açık temada açık palet
@@ -1755,6 +2063,7 @@ function setTheme(theme) {
         themeSwitch.querySelectorAll('.theme-swatch').forEach((b) =>
             b.classList.toggle('active', b.dataset.themeValue === theme));
     }
+    syncSettingsPanel();
 }
 
 // --- Okuma <-> Düzenleme kaydırma senkronu ---
@@ -1787,7 +2096,8 @@ function collectSettings() {
         theme: currentTheme,
         autosave: chkAutosave.checked,
         lineNumbers: lineNumbersOn,
-        sidebarTab: activeSidebarTab
+        sidebarTab: activeSidebarTab,
+        ...prefs
     };
 }
 
@@ -1813,8 +2123,12 @@ async function loadSettings() {
         try { settings = JSON.parse(storage.getItem('md_viewer_settings') || '{}'); } catch (_) { settings = {}; }
     }
 
-    // Tema — varsayılan AÇIK (minimal-light)
-    setTheme(settings.theme || 'minimal-light');
+    // Kullanıcı tercihleri (Ayarlar paneli); bilinmeyen/eksik değer varsayılana döner
+    prefs = normalizePrefs(settings);
+    applyPrefs();
+
+    // Tema — varsayılan AÇIK (minimal-light); sistem takibi açıksa o seçer
+    setTheme(prefs.followSystem ? systemTheme() : (settings.theme || 'minimal-light'));
 
     // Satır numarası — varsayılan AÇIK (yalnızca düzenleme modu)
     applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
