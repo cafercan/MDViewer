@@ -19,6 +19,8 @@ const COMMANDS: &[&str] = &[
     "set_vault",
     "resolve_wikilink",
     "inspect_path",
+    "list_notes",
+    "create_note",
     "print_page",
     "open_external",
     "open_path",
@@ -26,6 +28,7 @@ const COMMANDS: &[&str] = &[
     "watch_file",
     "unwatch_file",
     "initial_file",
+    "notes_dir",
 ];
 
 fn main() {

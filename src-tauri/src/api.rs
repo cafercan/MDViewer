@@ -213,6 +213,14 @@ pub fn inspect_path(st: &AppState, path: &str) -> Value {
     st.snapshot().inspect_path(path)
 }
 
+pub fn list_notes(st: &AppState) -> Value {
+    st.snapshot().list_notes()
+}
+
+pub fn create_note(st: &AppState, dir: &str, name: &str) -> Value {
+    st.snapshot().create_note(dir, name)
+}
+
 // --- dışarıda açma ------------------------------------------------------------
 
 /// Yalnız http(s)/mailto; file:, javascript: … güvenilmeyen belgeden gelebilir.

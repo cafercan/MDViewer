@@ -22,6 +22,20 @@ pub fn hand_to_browser(url: &Url) -> bool {
     !local && crate::api::is_external_url(url.as_str())
 }
 
+/// Adresi sistem tarayıcısında açar. Android'de bağlantıları arayüz
+/// MainActivity üzerinden açar (public/mobile.js); buradan açılan bir şey yok.
+pub fn open_in_browser(url: &str) -> bool {
+    #[cfg(desktop)]
+    {
+        opener::open_browser(url).is_ok()
+    }
+    #[cfg(mobile)]
+    {
+        let _ = url;
+        false
+    }
+}
+
 /// `on_navigation` kancası: uygulama içi → izin; değilse dış bağlantıyı
 /// tarayıcıda açmayı dener ve gezinmeyi reddeder.
 pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -31,7 +45,7 @@ pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
                 return true;
             }
             if hand_to_browser(url) {
-                crate::api::open_external(url.as_str(), &|u| opener::open_browser(u).is_ok());
+                crate::api::open_external(url.as_str(), &open_in_browser);
             }
             false
         })

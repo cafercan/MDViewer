@@ -9,6 +9,7 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:window:allow-destroy",
+    "core:app:allow-register-listener",
     "allow-content",
     "allow-save",
     "allow-get-settings",
@@ -26,12 +27,15 @@
     "allow-set-vault",
     "allow-resolve-wikilink",
     "allow-inspect-path",
+    "allow-list-notes",
+    "allow-create-note",
     "allow-print-page",
     "allow-open-external",
     "allow-open-path",
     "allow-open-in-file-manager",
     "allow-watch-file",
     "allow-unwatch-file",
-    "allow-initial-file"
+    "allow-initial-file",
+    "allow-notes-dir"
   ]
 }

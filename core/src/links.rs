@@ -8,6 +8,9 @@ pub const MD_EXTENSIONS: [&str; 2] = [".md", ".markdown"];
 
 pub const DENIED: &str = "Erişim reddedildi: çalışma klasörü dışında.";
 
+/// `list_notes` en çok bu kadar dosya döndürür (çok büyük klasörde arayüz donmasın).
+pub const NOTE_LIST_LIMIT: usize = 5000;
+
 fn is_md(name: &str) -> bool {
     let low = name.to_lowercase();
     MD_EXTENSIONS.iter().any(|e| low.ends_with(e))
@@ -63,6 +66,44 @@ impl Workspace {
         } else {
             json!({"type": "missing", "path": shown})
         }
+    }
+
+    /// Gezgin kökünün altındaki bütün md dosyaları (hızlı geçiş listesi için):
+    /// `{name, path, dir}`; `dir` köke göreli klasördür. Gizli klasörler atlanır.
+    pub fn list_notes(&self) -> Value {
+        let Some(root) = self.explorer_state().root.map(PathBuf::from) else {
+            return json!({"success": true, "root": null, "files": [], "truncated": false});
+        };
+        let mut files = Vec::new();
+        walk_notes(&root, &root, &mut files);
+        let truncated = files.len() >= NOTE_LIST_LIMIT;
+        json!({"success": true, "root": root.to_string_lossy(), "files": files, "truncated": truncated})
+    }
+
+    /// İzinli bir klasörde yeni not oluşturur; ad doluysa "Ad 1.md", "Ad 2.md"…
+    /// denenir, var olan dosyanın üstüne yazılmaz. Dönüş: `{success, path}`.
+    pub fn create_note(&self, dir: &str, name: &str) -> Value {
+        let abs = absolutize(&cwd(), dir);
+        if !self.within_root(&abs) {
+            return json!({"success": false, "error": DENIED});
+        }
+        let stem = note_stem(name);
+        for n in 0..1000 {
+            let file = if n == 0 { format!("{stem}.md") } else { format!("{stem} {n}.md") };
+            let path = abs.join(file);
+            match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(mut f) => {
+                    use std::io::Write;
+                    if let Err(e) = f.write_all(format!("# {stem}\n\n").as_bytes()) {
+                        return json!({"success": false, "error": e.to_string()});
+                    }
+                    return json!({"success": true, "path": path.to_string_lossy()});
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return json!({"success": false, "error": e.to_string()}),
+            }
+        }
+        json!({"success": false, "error": "Bu adla çok fazla not var."})
     }
 
     /// [[hedef]] için diskteki dosyayı bulur: (1) belgenin klasörüne göre yol,
@@ -134,6 +175,53 @@ fn folder_note(dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Not adı: uzantı ve dosya adında geçersiz karakterler atılır; boşsa "Adsız".
+fn note_stem(name: &str) -> String {
+    let mut stem = name.trim();
+    for ext in MD_EXTENSIONS {
+        if stem.to_lowercase().ends_with(ext) {
+            stem = &stem[..stem.len() - ext.len()];
+        }
+    }
+    let clean: String = stem
+        .chars()
+        .map(|c| if c.is_control() || "/\\:*?\"<>|".contains(c) { '-' } else { c })
+        .collect();
+    let clean = clean.trim().trim_matches('.').trim();
+    if clean.is_empty() {
+        "Adsız".to_string()
+    } else {
+        clean.to_string()
+    }
+}
+
+/// `walk_find` ile aynı sıra: önce klasörün md dosyaları, sonra alt klasörler.
+fn walk_notes(root: &Path, dir: &Path, out: &mut Vec<Value>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let mut entries: Vec<std::fs::DirEntry> = rd.filter_map(Result::ok).collect();
+    entries.sort_by_key(|e| e.file_name().to_string_lossy().to_lowercase());
+    let rel = dir.strip_prefix(root).map(|r| r.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut subdirs = Vec::new();
+    for e in &entries {
+        let Ok(ft) = e.file_type() else { continue };
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        if ft.is_dir() {
+            subdirs.push(e.path());
+        } else if ft.is_file() && is_md(&name) {
+            if out.len() >= NOTE_LIST_LIMIT {
+                return;
+            }
+            out.push(json!({"name": name, "path": e.path().to_string_lossy(), "dir": rel}));
+        }
+    }
+    for d in subdirs {
+        walk_notes(root, &d, out);
+    }
+}
+
 /// Python `os.walk` sırası: önce klasörün dosyaları (ada göre), sonra gizli
 /// olmayan alt klasörler (ada göre) derinlik öncelikli. Symlink klasörlere inilmez.
 fn walk_find(dir: &Path, wanted: &[String]) -> Option<PathBuf> {
@@ -177,6 +265,40 @@ mod tests {
         assert_eq!(names(&r, "dirs"), ["empty", "sub"]);
         assert_eq!(names(&r, "files"), ["a.md", "b.markdown"]);
         assert_eq!(r["dirs"][1]["path"], ps(&t, "vault/sub"));
+    }
+
+    #[test]
+    fn list_notes_walks_explorer_root_skipping_hidden() {
+        let t = tree();
+        let r = vault_ws(&t).list_notes();
+        assert_eq!(r["root"], ps(&t, "vault"));
+        assert_eq!(names(&r, "files"), ["a.md", "b.markdown", "c.md"]);
+        assert_eq!(r["files"][0]["dir"], "");
+        assert_eq!(r["files"][2]["dir"], "sub");
+        assert_eq!(r["files"][2]["path"], ps(&t, "vault/sub/c.md"));
+        assert_eq!(Workspace::default().list_notes()["files"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn create_note_cleans_name_and_never_overwrites() {
+        let t = tree();
+        let ws = vault_ws(&t);
+        let r = ws.create_note(&ps(&t, "vault/sub"), " Toplantı: 1/2.md ");
+        assert_eq!(r["success"], true);
+        assert_eq!(r["path"], ps(&t, "vault/sub/Toplantı- 1-2.md"));
+        assert_eq!(std::fs::read_to_string(p(&t, "vault/sub/Toplantı- 1-2.md")).unwrap(), "# Toplantı- 1-2\n\n");
+
+        assert_eq!(ws.create_note(&ps(&t, "vault"), "a")["path"], ps(&t, "vault/a 1.md"));
+        assert_eq!(std::fs::read_to_string(p(&t, "vault/a.md")).unwrap(), "# x\n");
+        assert_eq!(ws.create_note(&ps(&t, "vault"), "  ")["path"], ps(&t, "vault/Adsız.md"));
+    }
+
+    #[test]
+    fn create_note_outside_roots_is_refused() {
+        let t = tree();
+        let r = vault_ws(&t).create_note(&t.path().to_string_lossy(), "x");
+        assert_eq!(r["error"], super::DENIED);
+        assert!(!p(&t, "x.md").exists());
     }
 
     #[test]

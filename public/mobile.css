@@ -1,0 +1,970 @@
+/* ============================================================
+   TELEFON ARAYÜZÜ (Android)
+   Yalnız <html class="mobile"> altında geçerlidir; sınıfı mobile.js koyar.
+   Masaüstü görünümüne dokunmaz: style.css aynı kalır, buradaki kurallar onu
+   telefonda ezer. Düzen:
+     üst bar   : menü · klasör/not adı (dokun: hızlı geçiş) · kaydet · oku/düzenle · ⋮
+     çekmece   : mevcut kenar çubuğu (İçindekiler / Gezgin), soldan kayar
+     alt bar   : geri · ileri · yeni not · sayfada ara · içindekiler
+   Sistem çubukları ve klavye payını MainActivity verir; burada env() yok.
+
+   Görsel dil: düz yüzeyler, ince çizgiler, tek vurgu rengi. Masaüstündeki
+   gradyan, parıltı ve cam efekti telefonda kullanılmaz; renkler temanın
+   kendi değişkenlerinden color-mix ile türetilir, böylece her temada tutar.
+   ============================================================ */
+html.mobile {
+    --header-height: 56px;
+    --m-bar-height: 60px;
+    --md-width: none !important;
+    /* Masaüstü yazı tipleri telefonda yok; sistem yazı tipine (Roboto) düş */
+    --font-reading: var(--font-ui);
+
+    /* Temadan türeyen telefon renkleri */
+    --m-ink: var(--text-primary);
+    --m-ink-2: color-mix(in srgb, var(--text-primary) 72%, var(--bg-base));
+    --m-ink-3: color-mix(in srgb, var(--text-primary) 48%, var(--bg-base));
+    --m-line: color-mix(in srgb, var(--text-primary) 10%, transparent);
+    --m-press: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    --m-raised: color-mix(in srgb, var(--text-primary) 4%, var(--bg-base));
+    --m-sunken: color-mix(in srgb, var(--text-primary) 6%, var(--bg-base));
+    --m-tint: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-base));
+    --m-tint-ink: color-mix(in srgb, var(--accent-primary) 80%, var(--text-primary));
+    --m-ease: cubic-bezier(0.2, 0, 0, 1);
+
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+}
+html.mobile body,
+html.mobile .app-container {
+    width: 100%;
+    height: 100%;
+}
+html.mobile,
+html.mobile body {
+    height: 100%;
+    overscroll-behavior: none;
+}
+html.mobile ::selection { background: color-mix(in srgb, var(--accent-primary) 30%, transparent); }
+
+/* --- üst bar -------------------------------------------------------------- */
+html.mobile .app-header {
+    position: relative;
+    padding: 0 0.25rem;
+    gap: 0;
+    background: var(--bg-base);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 1px solid transparent;
+    box-shadow: none;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: border-color 0.2s;
+}
+/* Çizgi yalnız sayfa kaydırılınca belirir */
+html.mobile.m-scrolled .app-header { border-bottom-color: var(--m-line); }
+html.mobile .header-left,
+html.mobile .header-right { gap: 0; }
+html.mobile .header-left > :not(.m-btn),
+html.mobile .header-right > :not(.m-btn):not(#btn-save) { display: none; }
+
+/* Okuma ilerlemesi: üst barın altında ince çizgi */
+#m-progress { display: none; }
+html.mobile #m-progress {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent-primary);
+    transform-origin: 0 50%;
+    transform: scaleX(var(--m-read, 0));
+    opacity: 0.85;
+    pointer-events: none;
+}
+html.mobile.m-editing #m-progress,
+html.mobile.m-find #m-progress { display: none; }
+
+.m-btn { display: none; }
+html.mobile .m-btn,
+html.mobile #btn-save {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--m-ink-2);
+    box-shadow: none;
+    transform: none;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+html.mobile .m-btn:active,
+html.mobile #btn-save:active { background: var(--m-press); }
+html.mobile .m-btn:disabled { opacity: 0.28; }
+html.mobile .m-btn.active { color: var(--accent-primary); }
+html.mobile #btn-save { color: var(--accent-primary); }
+html.mobile #btn-save.hidden { display: none !important; }
+html.mobile #btn-save > span { display: none; }
+
+html.mobile .header-center { justify-content: flex-start; gap: 0; }
+html.mobile .current-file-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    height: 48px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    padding: 0 0.5rem;
+    font-family: var(--font-ui);
+    color: var(--m-ink);
+    flex: 1 1 auto;
+    min-width: 0;
+    transition: background 0.15s;
+}
+html.mobile .current-file-badge:active { background: var(--m-press); }
+html.mobile .current-file-badge > svg,
+html.mobile #file-name-display { display: none; }
+html.mobile .m-crumb {
+    max-width: 100%;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    color: var(--m-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+html.mobile .m-crumb:empty { display: none; }
+html.mobile .m-title {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: 100%;
+    font-size: 1.05rem;
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+}
+html.mobile .m-title > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+html.mobile .m-title > svg { flex-shrink: 0; color: var(--m-ink-3); }
+
+/* Sayfada ara: açıkken üst barı tek başına kaplar */
+html.mobile .find-bar { display: none; }
+html.mobile.m-find .find-bar {
+    display: flex;
+    flex: 1 1 auto;
+    max-width: none;
+    height: 42px;
+    margin-right: 0.4rem;
+    border: none;
+    border-radius: 21px;
+    background: var(--m-sunken);
+    box-shadow: none;
+}
+html.mobile.m-find .current-file-badge,
+html.mobile.m-find .header-right,
+html.mobile.m-find #m-menu { display: none; }
+html.mobile #m-find-close { display: none; }
+html.mobile.m-find #m-find-close { display: flex; }
+html.mobile #find-input { font-size: 1rem; }
+html.mobile .find-nav { width: 34px; height: 34px; border-radius: 50%; }
+
+/* --- gövde: okuma ---------------------------------------------------------- */
+html.mobile .main-layout {
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+}
+html.mobile .workspace-viewport { width: 100%; }
+html.mobile .viewport-pane {
+    padding: 0.75rem 1.25rem 4rem;
+    display: block;
+    overscroll-behavior: contain;
+}
+html.mobile .markdown-body {
+    width: 100%;
+    max-width: none;
+    font-size: calc(1.0625rem * var(--md-scale));
+    line-height: 1.7;
+    overflow-wrap: break-word;
+    color: var(--m-ink);
+}
+html.mobile .markdown-body p,
+html.mobile .markdown-body li { color: var(--m-ink-2); }
+html.mobile .markdown-body p { margin-bottom: 1.05rem; }
+html.mobile .markdown-body strong { color: var(--m-ink); font-weight: 650; }
+
+/* Başlıklar: düz renk, sıkı aralık, çizgisiz */
+html.mobile .markdown-body h1,
+html.mobile .markdown-body h2,
+html.mobile .markdown-body h3,
+html.mobile .markdown-body h4 {
+    color: var(--m-ink);
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+}
+html.mobile .markdown-body h1 {
+    display: block;
+    font-size: calc(1.85rem * var(--md-scale));
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    margin: 0.6rem 0 0.9rem;
+    padding: 0;
+    border: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+}
+html.mobile .markdown-body h2 {
+    font-size: calc(1.32rem * var(--md-scale));
+    font-weight: 700;
+    margin: 2.1rem 0 0.7rem;
+    padding: 0;
+    border: none;
+}
+html.mobile .markdown-body h3 {
+    font-size: calc(1.1rem * var(--md-scale));
+    font-weight: 650;
+    margin: 1.6rem 0 0.5rem;
+}
+html.mobile .markdown-body h4 {
+    font-size: calc(0.8rem * var(--md-scale));
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--m-ink-3);
+}
+
+html.mobile .markdown-body a {
+    color: var(--accent-primary);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+html.mobile .markdown-body ul,
+html.mobile .markdown-body ol { padding-left: 1.3rem; }
+html.mobile .markdown-body li { margin-bottom: 0.35rem; }
+html.mobile .markdown-body li::marker { color: var(--m-ink-3); }
+/* Görev listesi: madde işareti yerine yalnız kutu */
+html.mobile .markdown-body li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.3rem; }
+html.mobile .markdown-body li > input[type="checkbox"] {
+    width: 1.05em;
+    height: 1.05em;
+    margin: 0 0.55em 0 0;
+    vertical-align: -0.12em;
+    accent-color: var(--accent-primary);
+}
+html.mobile .markdown-body hr {
+    height: 1px;
+    margin: 2rem 0;
+    border: none;
+    background: var(--m-line);
+}
+
+html.mobile .markdown-body code {
+    background: var(--m-sunken);
+    border: none;
+    border-radius: 5px;
+    padding: 0.12em 0.36em;
+    color: var(--m-ink);
+}
+html.mobile .markdown-body pre {
+    padding: 0.9rem 1rem;
+    margin: 1.2rem -1.25rem;
+    border: none;
+    border-top: 1px solid var(--m-line);
+    border-bottom: 1px solid var(--m-line);
+    border-radius: 0;
+    background: var(--m-sunken);
+    box-shadow: none;
+}
+html.mobile .markdown-body pre code {
+    background: transparent;
+    padding: 0;
+    font-size: calc(0.8rem * var(--md-scale));
+    line-height: 1.6;
+}
+html.mobile .markdown-body blockquote {
+    margin: 1.3rem 0;
+    padding: 0.1rem 0 0.1rem 1rem;
+    border-left: 3px solid var(--accent-primary);
+    border-radius: 0;
+    background: none;
+    font-style: normal;
+}
+html.mobile .markdown-body blockquote p { color: var(--m-ink-2); }
+html.mobile .markdown-body blockquote p:last-child { margin-bottom: 0; }
+
+/* :::info / :::warning / :::danger — tam renkli kutu yerine sakin bir not */
+html.mobile .markdown-body .info-box,
+html.mobile .markdown-body .warning-box,
+html.mobile .markdown-body .danger-box {
+    --m-box: var(--accent-primary);
+    margin: 1.3rem 0;
+    padding: 0.85rem 1rem;
+    border: none;
+    border-left: 3px solid var(--m-box);
+    border-radius: 4px 10px 10px 4px;
+    background: color-mix(in srgb, var(--m-box) 8%, var(--bg-base));
+    box-shadow: none;
+}
+html.mobile .markdown-body .warning-box { --m-box: var(--warning); }
+html.mobile .markdown-body .danger-box { --m-box: var(--error); }
+html.mobile .markdown-body .info-box p,
+html.mobile .markdown-body .warning-box p,
+html.mobile .markdown-body .danger-box p { color: var(--m-ink); }
+html.mobile .markdown-body .info-box > :last-child,
+html.mobile .markdown-body .warning-box > :last-child,
+html.mobile .markdown-body .danger-box > :last-child { margin-bottom: 0; }
+
+/* Geniş tablo sayfayı değil kendini yatay kaydırır */
+html.mobile .markdown-body table:not(.frontmatter) {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 1.3rem 0;
+    border: 1px solid var(--m-line);
+    border-radius: 10px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: calc(0.9rem * var(--md-scale));
+}
+html.mobile .markdown-body th,
+html.mobile .markdown-body td {
+    padding: 0.55rem 0.8rem;
+    border: none;
+    border-bottom: 1px solid var(--m-line);
+}
+html.mobile .markdown-body tr:last-child td { border-bottom: none; }
+html.mobile .markdown-body th {
+    background: var(--m-raised);
+    color: var(--m-ink);
+    font-weight: 650;
+    text-align: left;
+}
+html.mobile .markdown-body tr:nth-child(even) { background: transparent; }
+
+/* Frontmatter: tablo yerine notun üstünde sessiz bir künye */
+html.mobile .markdown-body table.frontmatter {
+    display: table;
+    width: 100%;
+    margin: 0 0 1.25rem;
+    padding: 0 0 0.6rem;
+    border: none;
+    border-bottom: 1px solid var(--m-line);
+    border-radius: 0;
+    background: none;
+    font-size: calc(0.8rem * var(--md-scale));
+}
+html.mobile .markdown-body table.frontmatter tr { background: none; }
+html.mobile .markdown-body table.frontmatter th,
+html.mobile .markdown-body table.frontmatter td {
+    padding: 0.12rem 0;
+    border: none;
+    background: none;
+    color: var(--m-ink-2);
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+html.mobile .markdown-body table.frontmatter th {
+    width: 1%;
+    padding-right: 1rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    color: var(--m-ink-3);
+}
+html.mobile .mermaid {
+    padding: 0.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--m-line);
+    border-radius: 10px;
+    background: var(--m-raised);
+}
+
+/* --- gövde: düzenleme ------------------------------------------------------ */
+/* Çerçevesiz, tam genişlik; satır numarası oluğu dar ekranda yok */
+html.mobile .edit-pane { padding: 0; overflow: hidden; }
+html.mobile .editor-container {
+    width: 100%;
+    max-width: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+html.mobile .editor-header {
+    padding: 0.4rem 1.25rem;
+    border-bottom: 1px solid var(--m-line);
+    background: transparent;
+    font-size: 0.78rem;
+    color: var(--m-ink-3);
+}
+html.mobile .editor-indicator { display: none; }
+html.mobile .editor-save-type { margin: 0; padding: 0; border: none; }
+html.mobile .inline-editor { padding: 0.75rem 0.75rem 4rem; overscroll-behavior: contain; }
+html.mobile .md-linenums .markdown-body { padding-left: 0; }
+html.mobile .md-linenums .md-block[data-ln]::before { display: none; }
+html.mobile .block-textarea {
+    font-size: calc(0.92rem * var(--md-scale));
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
+    border-radius: 10px;
+    background: var(--m-raised);
+    box-shadow: none;
+}
+html.mobile .inline-block-wrapper { border-radius: 8px; }
+html.mobile .inline-block-wrapper:hover { background: transparent; border-left-color: transparent; }
+html.mobile .inline-block-wrapper:active { background: var(--m-press); border-left-color: var(--accent-primary); }
+
+/* --- çekmece (kenar çubuğu) ------------------------------------------------ */
+html.mobile .sidebar-toggle-grip { display: none; }
+html.mobile .app-sidebar,
+html.mobile .app-sidebar.collapsed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: min(84vw, 336px);
+    z-index: 300;
+    background: var(--m-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: none;
+    border-radius: 0 20px 20px 0;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+    transition: transform 0.3s var(--m-ease), visibility 0.3s;
+    user-select: none;
+    -webkit-user-select: none;
+}
+html.mobile .app-sidebar.collapsed {
+    transform: translateX(-105%);
+    visibility: hidden;
+    box-shadow: none;
+    transition-duration: 0.22s;
+}
+/* Açılışta (mobile.js hazır olana kadar) çekmece kapalı dursun, kayarak kapanmasın */
+html.mobile:not(.m-ready) .app-sidebar {
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: none;
+}
+#m-scrim { display: none; }
+html.mobile #m-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 290;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+}
+html.mobile .app-sidebar:not(.collapsed) ~ #m-scrim {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.m-drawer-head,
+.m-drawer-foot { display: none; }
+html.mobile .m-drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 0.35rem 0.4rem 1.25rem;
+    flex-shrink: 0;
+}
+html.mobile .m-brand {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+html.mobile .m-brand b {
+    font-size: 1.15rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    color: var(--m-ink);
+}
+html.mobile .m-brand small {
+    font-size: 0.75rem;
+    color: var(--m-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+html.mobile .m-drawer-foot {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-top: 1px solid var(--m-line);
+    padding: 0.4rem 0.6rem 0.6rem;
+}
+html.mobile .m-drawer-foot button {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    height: 46px;
+    padding: 0 0.75rem;
+    border: none;
+    border-radius: 23px;
+    background: transparent;
+    color: var(--m-ink-2);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 550;
+    text-align: left;
+}
+html.mobile .m-drawer-foot button svg { color: var(--m-ink-3); }
+html.mobile .m-drawer-foot button:active { background: var(--m-press); color: var(--m-ink); }
+
+/* Sekmeler: çizgili sekme yerine iki parçalı seçici */
+html.mobile .sidebar-tabs {
+    margin: 0.5rem 1rem 0.35rem;
+    padding: 3px;
+    gap: 3px;
+    border: none;
+    border-radius: 12px;
+    background: var(--m-sunken);
+}
+html.mobile .sidebar-tab {
+    padding: 0.55rem 0.25rem;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--m-ink-3);
+    transition: background 0.2s, color 0.2s;
+}
+html.mobile .sidebar-tab:hover { background: transparent; color: var(--m-ink-3); }
+html.mobile .sidebar-tab.active,
+html.mobile .sidebar-tab.active:hover {
+    background: var(--bg-base);
+    color: var(--m-ink);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+html.mobile[data-theme$="-dark"] .sidebar-tab.active,
+html.mobile:not([data-theme]) .sidebar-tab.active {
+    background: color-mix(in srgb, var(--text-primary) 14%, var(--bg-base));
+    box-shadow: none;
+}
+
+html.mobile .explorer-toolbar {
+    padding: 0.25rem 0.6rem 0.25rem 1rem;
+    border-bottom: none;
+}
+html.mobile .explorer-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+}
+html.mobile .explorer-btn:active { background: var(--m-press); }
+html.mobile .explorer-btn svg { width: 18px; height: 18px; }
+html.mobile .explorer-root {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--m-ink-3);
+}
+html.mobile .explorer-container,
+html.mobile .toc-container {
+    padding: 0 0.6rem 0.75rem;
+    overscroll-behavior: contain;
+}
+html.mobile .tree-row {
+    padding-top: 0.66rem;
+    padding-bottom: 0.66rem;
+    padding-left: calc(0.75rem + var(--depth, 0) * 1rem);
+    gap: 0.6rem;
+    font-size: 0.94rem;
+    color: var(--m-ink-2);
+    border: none;
+    border-radius: 23px;
+}
+html.mobile .tree-row svg.tree-folder-icon,
+html.mobile .tree-row svg.tree-file-icon { width: 18px; height: 18px; color: var(--m-ink-3); }
+html.mobile .tree-row:hover { background: transparent; color: var(--m-ink-2); }
+html.mobile .tree-row:active { background: var(--m-press); }
+html.mobile .tree-file.active,
+html.mobile .tree-file.active:hover,
+html.mobile .tree-dir.revealed {
+    background: var(--m-tint);
+    color: var(--m-tint-ink);
+    font-weight: 600;
+    border: none;
+}
+html.mobile .tree-file.active svg.tree-file-icon { color: var(--accent-primary); }
+html.mobile .tree-note { font-size: 0.85rem; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+html.mobile .toc-link {
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.94rem;
+    color: var(--m-ink-2);
+    border: none;
+    border-radius: 23px;
+}
+html.mobile .toc-link:hover { padding-left: 0.9rem; background: transparent; color: var(--m-ink-2); }
+html.mobile .toc-link:active { background: var(--m-press); }
+html.mobile .toc-link.active {
+    background: var(--m-tint);
+    color: var(--m-tint-ink);
+    font-weight: 600;
+}
+
+/* --- alt bar -------------------------------------------------------------- */
+#m-bar { display: none; }
+html.mobile #m-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-shrink: 0;
+    height: var(--m-bar-height);
+    padding: 0 0.5rem;
+    background: var(--m-raised);
+    border-top: 1px solid var(--m-line);
+    user-select: none;
+    -webkit-user-select: none;
+}
+/* Yeni not: gradyanlı yuvarlak yerine temanın renginde dolu bir hap */
+html.mobile #m-new {
+    width: 60px;
+    height: 40px;
+    border-radius: 20px;
+    background: var(--m-tint);
+    color: var(--m-tint-ink);
+    box-shadow: none;
+}
+html.mobile #m-new:active {
+    background: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-base));
+}
+/* Klavye açıkken yer yazıya kalsın */
+html.mobile.m-kbd #m-bar { display: none; }
+
+/* --- alttan açılan menü (bağlam menüsü, ⋮, son açılanlar, tema) ------------- */
+html.mobile .context-menu {
+    left: 0 !important;
+    top: auto !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 0.35rem 0.6rem 0.9rem;
+    border: none;
+    border-radius: 24px 24px 0 0;
+    background: var(--m-raised);
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.4);
+    animation: m-sheet-up 0.26s var(--m-ease);
+}
+html.mobile .context-menu::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 4px;
+    margin: 0.4rem auto 0.6rem;
+    border-radius: 2px;
+    background: var(--m-ink-3);
+    opacity: 0.4;
+}
+html.mobile .m-menu-title {
+    padding: 0.2rem 0.9rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--m-ink-3);
+}
+html.mobile .context-menu-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "icon label" "icon hint";
+    align-items: center;
+    column-gap: 1rem;
+    min-height: 52px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.98rem;
+    color: var(--m-ink);
+    border-radius: 14px;
+}
+html.mobile .context-menu-item > .context-menu-label { grid-area: label; }
+html.mobile .context-menu-item > .context-menu-hint { grid-area: hint; }
+html.mobile .context-menu-item:not(:has(.context-menu-hint)) > .context-menu-label { grid-row: 1 / span 2; }
+html.mobile .context-menu-item:not(:has(.m-ico, .m-swatch)) { grid-template-columns: 0 1fr; column-gap: 0; }
+html.mobile .m-ico {
+    grid-area: icon;
+    display: flex;
+    color: var(--m-ink-3);
+}
+html.mobile .context-menu-item:hover:not(:disabled) { background: transparent; color: var(--m-ink); }
+html.mobile .context-menu-item:active:not(:disabled) { background: var(--m-press); }
+html.mobile .context-menu-hint { font-size: 0.78rem; margin-top: 0.05rem; color: var(--m-ink-3); }
+html.mobile .context-menu-sep { margin: 0.35rem 0.9rem; background: var(--m-line); }
+
+/* Tema menüsü: her satırda temanın küçük bir önizlemesi */
+html.mobile .m-swatch {
+    grid-area: icon;
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--sw-bg);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 22%, transparent);
+}
+html.mobile .m-swatch::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--sw-ac);
+    box-shadow: 0 0 0 2px var(--m-raised);
+}
+html.mobile .context-menu-item.m-current .context-menu-label { font-weight: 650; }
+html.mobile .context-menu-item.m-current::after {
+    content: '';
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    width: 6px;
+    height: 11px;
+    margin-right: 0.3rem;
+    border-right: 2px solid var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+    transform: rotate(45deg) translate(-2px, -2px);
+}
+html.mobile .context-menu-item.m-current { grid-template-columns: auto 1fr auto; }
+
+@keyframes m-sheet-up {
+    from { transform: translateY(32px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Bildirim: ters renkli, alt barın hemen üstünde */
+html.mobile .app-toast {
+    bottom: calc(var(--m-bar-height) + 0.9rem);
+    max-width: calc(100vw - 2rem);
+    padding: 0.75rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--bg-base);
+    background: var(--m-ink);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+html.mobile.m-kbd .app-toast { bottom: 1rem; }
+
+/* --- hızlı geçiş / ad sorma ----------------------------------------------- */
+.m-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-base);
+    color: var(--m-ink);
+    font-family: var(--font-ui);
+    animation: m-fade-in 0.2s var(--m-ease);
+}
+@keyframes m-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+.m-sheet-head {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    height: var(--header-height);
+    padding: 0 0.75rem 0 0.25rem;
+    flex-shrink: 0;
+}
+.m-sheet-head input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 1.1rem;
+    border: none;
+    border-radius: 22px;
+    background: var(--m-sunken);
+    color: var(--m-ink);
+    font: inherit;
+    font-size: 1rem;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.m-sheet-head input::placeholder { color: var(--m-ink-3); }
+.m-sheet-head input:focus { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
+.m-sheet-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.25rem 0.6rem 2rem;
+    overscroll-behavior: contain;
+}
+.m-sheet-label {
+    padding: 1rem 0.9rem 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--m-ink-3);
+}
+.m-note {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "icon name" "icon dir";
+    column-gap: 0.9rem;
+    align-items: center;
+    width: 100%;
+    min-height: 54px;
+    padding: 0.5rem 0.9rem;
+    border: none;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--m-ink);
+    font: inherit;
+    font-size: 0.98rem;
+    font-weight: 500;
+    text-align: left;
+}
+.m-note > svg { grid-area: icon; color: var(--m-ink-3); }
+.m-note > span {
+    grid-area: name;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.m-note:not(:has(small)) > span { grid-row: 1 / span 2; }
+.m-note:active { background: var(--m-press); }
+.m-note.current { background: var(--m-tint); color: var(--m-tint-ink); font-weight: 600; }
+.m-note.current > svg { color: var(--accent-primary); }
+.m-note small {
+    grid-area: dir;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--m-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.m-prompt-input {
+    width: 100%;
+    margin-bottom: 1.25rem;
+    padding: 0 1rem;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+    background: var(--m-sunken);
+    color: var(--m-ink);
+    font: inherit;
+    font-size: 1rem;
+    outline: none;
+}
+.m-prompt-input:focus { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
+
+/* Soru kutusu */
+html.mobile .ui-dialog-backdrop {
+    align-items: flex-start;
+    padding: 20vh 1.25rem 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+html.mobile .ui-dialog {
+    width: 100%;
+    max-width: 400px;
+    padding: 1.4rem 1.4rem 1rem;
+    border: none;
+    border-radius: 24px;
+    background: var(--m-raised);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+html.mobile .ui-dialog-message { font-size: 1rem; line-height: 1.5; color: var(--m-ink); }
+html.mobile .ui-dialog-actions { gap: 0.25rem; }
+html.mobile .ui-dialog-btn {
+    min-height: 40px;
+    padding: 0 1.1rem;
+    border: none;
+    border-radius: 20px;
+    background: transparent;
+    color: var(--accent-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+html.mobile .ui-dialog-btn:active { background: var(--m-press); }
+html.mobile .ui-dialog-btn.primary {
+    background: var(--accent-primary);
+    color: var(--bg-base);
+}
+
+/* --- ayarlar: tam ekran ---------------------------------------------------- */
+html.mobile .settings-backdrop { padding: 0; }
+html.mobile .settings-dialog {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    background: var(--bg-base);
+    box-shadow: none;
+}
+html.mobile .settings-head {
+    padding: 0.35rem 0.35rem 0.35rem 1.25rem;
+    border-bottom: 1px solid var(--m-line);
+}
+html.mobile .settings-head .icon-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+}
+html.mobile .settings-body { flex: 1; overscroll-behavior: contain; }
+html.mobile .settings-row { flex-wrap: wrap; padding: 0.85rem 0; border-color: var(--m-line); }
+html.mobile .settings-label { flex: 1 1 55%; font-size: 0.95rem; }
+html.mobile .seg { flex-wrap: wrap; }
+html.mobile .seg button { padding: 0.5rem 0.85rem; font-size: 0.88rem; }
+html.mobile .settings-row select { font-size: 0.95rem; padding: 0.5rem 0.6rem; }
+html.mobile .switch { width: 46px; height: 26px; }
+html.mobile .switch span::after { width: 20px; height: 20px; }
+html.mobile .switch input:checked + span::after { transform: translateX(20px); }
+html.mobile .theme-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+html.mobile .theme-card { border-radius: 14px; }
+html.mobile .theme-card-preview { height: 44px; }
+html.mobile .theme-card-name { padding: 0.45rem 0.5rem; font-size: 0.8rem; }
+
+html.mobile .img-zoom-bar { bottom: 1.5rem; }
+html.mobile .img-zoom-bar button { min-width: 42px; height: 40px; }
+html.mobile .img-zoom { touch-action: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    html.mobile .app-sidebar,
+    html.mobile #m-scrim,
+    html.mobile .context-menu,
+    .m-sheet { transition: none; animation: none; }
+}
+
+@media print {
+    #m-bar, #m-scrim, #m-progress, .m-sheet { display: none !important; }
+}

@@ -31,6 +31,9 @@ pub fn prepare(st: &AppState, file: Option<&Path>, home: &Path) {
     }
 }
 
+/// Android'de uygulamanın kendi not klasörü; masaüstünde `None`.
+pub struct NotesDir(pub Option<PathBuf>);
+
 /// Arayüzün açılışta bir kez sorduğu belge. Arayüz sorduktan sonra gelen
 /// dosyalar (macOS "Birlikte Aç") olay olarak iletilir.
 #[derive(Default)]
