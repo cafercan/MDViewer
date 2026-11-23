@@ -398,9 +398,11 @@ const THEMES = [
     { id: 'sepia-light', name: 'Sepia', bg: '#f4ecd8', fg: '#4b3f2f', ac: '#a15c2b' },
     { id: 'rose-light', name: 'Gül', bg: '#fdf6f7', fg: '#3b1f27', ac: '#be3c64' },
     { id: 'mint-light', name: 'Nane', bg: '#f3faf6', fg: '#12301f', ac: '#0f8a5f' },
+    { id: 'oak-light', name: 'Meşe', bg: '#faf5ea', fg: '#33261c', ac: '#9a5526' },
     { id: 'slate-dark', name: 'Obsidian Dark', bg: '#0f172a', fg: '#f8fafc', ac: '#6366f1' },
     { id: 'nord-dark', name: 'Nord Frost', bg: '#2e3440', fg: '#eceff4', ac: '#88c0d0' },
     { id: 'forest-dark', name: 'Orman', bg: '#111a15', fg: '#e6f0e9', ac: '#6ec88c' },
+    { id: 'lantern-dark', name: 'Fener', bg: '#1b1410', fg: '#f5e9d8', ac: '#f0b45a' },
     { id: 'plum-dark', name: 'Mürdüm', bg: '#1a1320', fg: '#f3eaf6', ac: '#d68ce6' },
     { id: 'midnight-dark', name: 'Gece Yarısı', bg: '#000000', fg: '#ededed', ac: '#60a5fa' },
 ];

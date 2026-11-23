@@ -1177,6 +1177,46 @@ img.asset-missing {
     --error: #e07a6f;
 }
 
+/* Telefon simgesinin renkleri: kâğıt ve ahşap (açık), fener ışığı (koyu) */
+[data-theme="oak-light"] {
+    --bg-base: #faf5ea;
+    --bg-surface: rgba(255, 251, 243, 0.92);
+    --bg-surface-hover: #f3ead9;
+    --bg-control: #eee3cf;
+    --border-color: rgba(92, 60, 34, 0.15);
+    --border-color-active: rgba(154, 85, 38, 0.45);
+    --text-primary: #33261c;
+    --text-secondary: #5f4d3e;
+    --text-muted: #8f7c6a;
+    --accent-primary: #9a5526;
+    --accent-secondary: #4d6b3c;
+    --accent-gradient: linear-gradient(135deg, #9a5526 0%, #4d6b3c 100%);
+    --accent-glow: rgba(154, 85, 38, 0.15);
+    --success: #4d6b3c;
+    --warning: #a1741f;
+    --error: #b23a2e;
+    --glass-shadow: 0 8px 32px 0 rgba(75, 50, 30, 0.1);
+}
+
+[data-theme="lantern-dark"] {
+    --bg-base: #1b1410;
+    --bg-surface: rgba(42, 31, 24, 0.85);
+    --bg-surface-hover: rgba(58, 43, 33, 0.9);
+    --bg-control: #32251c;
+    --border-color: rgba(255, 232, 200, 0.09);
+    --border-color-active: rgba(240, 180, 90, 0.45);
+    --text-primary: #f5e9d8;
+    --text-secondary: #c9b8a3;
+    --text-muted: #8e7c69;
+    --accent-primary: #f0b45a;
+    --accent-secondary: #8fb573;
+    --accent-gradient: linear-gradient(135deg, #f0b45a 0%, #8fb573 100%);
+    --accent-glow: rgba(240, 180, 90, 0.2);
+    --success: #8fb573;
+    --warning: #f0b45a;
+    --error: #e57f68;
+}
+
 [data-theme="plum-dark"] {
     --bg-base: #1a1320;
     --bg-surface: rgba(38, 27, 46, 0.8);
