@@ -75,6 +75,26 @@
         note: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline points="14 3 14 8 19 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',
         newNote: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline points="14 3 14 8 19 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>',
         target: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="10 11 13 14 10 17"/>',
+        share: '<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><line x1="8.4" y1="10.7" x2="15.6" y2="6.4"/><line x1="8.4" y1="13.3" x2="15.6" y2="17.6"/>',
+        trash: '<polyline points="4 7 20 7"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
+        copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4V4h11v1"/>',
+        day: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><line x1="3.5" y1="10" x2="20.5" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+        heading: '<path d="M6 5v14"/><path d="M18 5v14"/><path d="M6 12h12"/>',
+        bold: '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/>',
+        italic: '<line x1="10" y1="5" x2="17" y2="5"/><line x1="7" y1="19" x2="14" y2="19"/><line x1="14" y1="5" x2="10" y2="19"/>',
+        strike: '<line x1="4" y1="12" x2="20" y2="12"/><path d="M16.5 7.5C16 6 14.5 5 12 5 9 5 7.5 6.5 7.5 8.3"/><path d="M7.5 16c.5 2 2 3 4.5 3 3 0 4.7-1.5 4.7-3.5"/>',
+        bullet: '<line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+        number: '<line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4 4.5 5.5 4v5"/><path d="M4 15.2c2.5-1 3 1 0 4h3"/>',
+        task: '<rect x="4" y="4" width="16" height="16" rx="3"/><polyline points="8 12.5 11 15.5 16.5 9"/>',
+        quote: '<line x1="5" y1="5" x2="5" y2="19"/><line x1="10" y1="8" x2="20" y2="8"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="16" x2="16" y2="16"/>',
+        code: '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>',
+        link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+        wikilink: '<path d="M8 4H4v16h4"/><path d="M16 4h4v16h-4"/><line x1="9" y1="12" x2="15" y2="12"/>',
+        indent: '<line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="11" y1="18" x2="20" y2="18"/><polyline points="4 9 7 12 4 15"/>',
+        outdent: '<line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="11" y1="18" x2="20" y2="18"/><polyline points="7 9 4 12 7 15"/>',
+        undo: '<polyline points="8 5 4 9 8 13"/><path d="M4 9h10a5.5 5.5 0 0 1 0 11h-3"/>',
+        redo: '<polyline points="16 5 20 9 16 13"/><path d="M20 9H10a5.5 5.5 0 0 0 0 11h3"/>',
+        done: '<polyline points="5 12.5 10 17.5 19 7"/>',
         chevron: '<polyline points="6 9 12 15 18 9"/>',
         gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
     };
@@ -289,6 +309,15 @@
             if (e.target.closest('.toc-link')) closeDrawer();
         });
 
+        // Nota uzun basış: not menüsü (app.js'in masaüstü menüsünün yerine)
+        explorerTree.addEventListener('contextmenu', function (e) {
+            var row = e.target.closest('.tree-file');
+            if (!row) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openNoteMenu(row.getAttribute('data-path'));
+        }, true);
+
         // Klasöre uzun basış: masaüstündeki üçlü tıklamanın karşılığı.
         explorerTree.addEventListener('contextmenu', function (e) {
             var row = e.target.closest('.tree-dir');
@@ -419,6 +448,13 @@
         }
     }
 
+    // Not içi aramadan gelindi: eşleşme notta da boyalı görünsün.
+    function showFind(query) {
+        html.classList.add('m-find');
+        findInput.value = query;
+        runFind(0, true);
+    }
+
     function buildBars() {
         var left = doc.querySelector('.header-left');
         var center = doc.querySelector('.header-center');
@@ -466,7 +502,9 @@
         sheet(null, [
             { label: 'Yeni not', icon: 'newNote', action: function () { newNote(); } },
             { label: 'Not ara', icon: 'search', hint: 'Klasördeki bütün notlar', action: openSwitcher },
+            { label: 'Bugünün notu', icon: 'day', action: openToday },
             { separator: true },
+            { label: 'Bu not', icon: 'note', hint: 'Paylaş, yeniden adlandır, sil', action: function () { openNoteMenu(currentFilePath); } },
             { label: 'Klasör aç', icon: 'folder', action: openFolderDialog },
             { label: 'Dosya aç', icon: 'file', action: openFileDialog },
             { label: 'Son açılan dosyalar', icon: 'clock', action: function () { showRecentMenu('file', recentAnchor); } },
@@ -497,7 +535,7 @@
     // ------------------------------------------------------------------
     // Yeni not
     // ------------------------------------------------------------------
-    function promptText(message, placeholder, okText) {
+    function promptText(message, placeholder, okText, value) {
         return new Promise(function (resolve) {
             var backdrop = doc.createElement('div');
             backdrop.className = 'ui-dialog-backdrop m-prompt';
@@ -513,6 +551,7 @@
             input.type = 'text';
             input.className = 'm-prompt-input';
             input.placeholder = placeholder || '';
+            input.value = value || '';
             input.autocomplete = 'off';
             input.enterKeyHint = 'done';
             var actions = doc.createElement('div');
@@ -546,6 +585,7 @@
             });
             doc.body.appendChild(backdrop);
             input.focus();
+            input.select();
         });
     }
 
@@ -556,7 +596,8 @@
     }
 
     // dir verilmezse: açık notun klasörü (gezgin kökünün altındaysa), yoksa gezgin kökü.
-    async function newNote(dir) {
+    // text verilirse (paylaşılan metin) not onunla başlar.
+    async function newNote(dir, suggested, text) {
         var native = nativeApi();
         var rootDir = explorerState && explorerState.root;
         if (!native || !rootDir) {
@@ -567,21 +608,241 @@
             var here = currentFilePath ? dirname(currentFilePath) : '';
             dir = here && pathUnder(here, rootDir) ? here : rootDir;
         }
-        var name = await promptText('Yeni not · ' + placeName(dir), 'Not adı', 'Oluştur');
+        var name = await promptText('Yeni not · ' + placeName(dir), 'Not adı', 'Oluştur', suggested);
         if (name === null) return;
         if (!(await confirmLeaveUnsaved())) return;
+        await createAndOpen(dir, name, text);
+    }
 
+    async function createAndOpen(dir, name, text) {
+        var native = nativeApi();
         var result = await native.create_note(dir, name);
         if (!result || !result.success) {
             UiDialog.alert('Not oluşturulamadı: ' + ((result && result.error) || 'bilinmeyen hata'));
             return;
         }
+        if (text) {
+            var made = await native.content(result.path);
+            var saved = made && made.success && await native.save(result.path, made.content + text + '\n');
+            if (!saved || !saved.success) UiDialog.alert('Metin nota yazılamadı.');
+        }
         closeDrawer();
         applyExplorerState(explorerState);      // ağaç yeni notu göstersin
         await loadFile(result.path);
-        if (!isEditMode) btnEditMode.click();
+        if (!text && !isEditMode) btnEditMode.click();
     }
 
+    // Günün notu: gezgin kökünde YYYY-AA-GG.md; yoksa oluşturulur.
+    async function openToday() {
+        var native = nativeApi();
+        var rootDir = explorerState && explorerState.root;
+        if (!native || !rootDir) {
+            showToast('Önce bir klasör açın');
+            return;
+        }
+        var d = new Date();
+        var name = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+        var path = rootDir + '/' + name + '.md';
+        if (path === currentFilePath || !(await confirmLeaveUnsaved())) return;
+        var there = await native.inspect_path(path);
+        closeDrawer();
+        if (there && there.type === 'file') await loadFile(path);
+        else await createAndOpen(rootDir, name);
+    }
+
+    // ------------------------------------------------------------------
+    // Not menüsü: paylaş, yeniden adlandır, sil
+    // ------------------------------------------------------------------
+    function noteName(path) { return basename(path).replace(/\.(md|markdown)$/i, ''); }
+
+    function openNoteMenu(path) {
+        if (!path) {
+            showToast('Açık not yok');
+            return;
+        }
+        var items = [];
+        if (android) {
+            items.push({ label: 'Metin olarak paylaş', icon: 'share', action: function () { shareNote(path, false); } });
+            items.push({ label: 'Dosya olarak paylaş', icon: 'file', action: function () { shareNote(path, true); } });
+        }
+        items.push(
+            { label: 'Yeniden adlandır', icon: 'edit', action: function () { renameNote(path); } },
+            { label: 'Tam yolu kopyala', icon: 'copy', hint: path, action: async function () {
+                showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
+            } },
+            { separator: true },
+            { label: 'Sil', icon: 'trash', hint: 'Klasördeki .trash içine taşınır', action: function () { trashNote(path); } }
+        );
+        sheet(noteName(path), items);
+    }
+
+    // Açık not düzenleniyorsa bekleyen yazı önce diske insin.
+    async function settle(path) {
+        if (path !== currentFilePath) return true;
+        if (isEditMode) closeAllBlockEditors();
+        if (!hasUnsavedChanges) return true;
+        clearTimeout(autosaveTimer);
+        await saveFile();
+        if (hasUnsavedChanges) showToast('Not kaydedilemedi');
+        return !hasUnsavedChanges;
+    }
+
+    async function shareNote(path, asFile) {
+        if (!(await settle(path))) return;
+        var data = await nativeApi().content(path);
+        if (!data || !data.success) {
+            UiDialog.alert((data && data.error) || 'Not okunamadı.');
+            return;
+        }
+        var error = android.shareNote(basename(path), data.content, asFile);
+        if (error) UiDialog.alert(error);
+    }
+
+    async function renameNote(path) {
+        var name = await promptText('Yeniden adlandır', 'Not adı', 'Kaydet', noteName(path));
+        if (name === null || !name.trim() || name.trim() === noteName(path)) return;
+        if (!(await settle(path))) return;
+        var r = await invoke('rename_note', { path: path, name: name });
+        if (!r || !r.success) {
+            UiDialog.alert('Yeniden adlandırılamadı: ' + ((r && r.error) || 'bilinmeyen hata'));
+            return;
+        }
+        applyExplorerState(explorerState);
+        if (path === currentFilePath) await loadFile(r.path, { replaceHistory: true });
+        showToast('Yeni ad: ' + noteName(r.path));
+    }
+
+    async function trashNote(path) {
+        if (!(await UiDialog.confirm('"' + noteName(path) + '" silinsin mi? Not, bulunduğu klasördeki gizli .trash klasörüne taşınır.',
+            { okText: 'Sil', cancelText: 'Vazgeç' }))) return;
+        if (!(await settle(path))) return;
+        var r = await invoke('trash_note', { path: path });
+        if (!r || !r.success) {
+            UiDialog.alert('Silinemedi: ' + ((r && r.error) || 'bilinmeyen hata'));
+            return;
+        }
+        applyExplorerState(explorerState);
+        showToast('Not silindi');
+        if (path !== currentFilePath) return;
+        if (isEditMode) btnReadMode.click();
+        var recents = ((await nativeApi().recent_list()) || {}).files || [];
+        var next = recents.length ? await nativeApi().open_file_path(recents[0]) : null;
+        await loadFile(next || '', { replaceHistory: true });
+    }
+
+    // ------------------------------------------------------------------
+    // Biçim çubuğu: bir blok yazılırken klavyenin üstünde durur
+    // ------------------------------------------------------------------
+    // Değişikliği tarayıcının geri alma yığınına giren tek bir ekleme yapar.
+    function replaceText(ta, next) {
+        var old = ta.value;
+        if (next.text !== old) {
+            var a = 0;
+            var max = Math.min(old.length, next.text.length);
+            while (a < max && old.charCodeAt(a) === next.text.charCodeAt(a)) a++;
+            var b = 0;
+            while (b < max - a && old.charCodeAt(old.length - 1 - b) === next.text.charCodeAt(next.text.length - 1 - b)) b++;
+            var ins = next.text.slice(a, next.text.length - b);
+            ta.setSelectionRange(a, old.length - b);
+            var ok = ins ? doc.execCommand('insertText', false, ins) : doc.execCommand('delete');
+            if (!ok) {
+                ta.setRangeText(ins, a, old.length - b, 'end');
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        ta.setSelectionRange(next.start, next.end);
+    }
+
+    function buildFormatBar() {
+        var bar = doc.createElement('div');
+        bar.id = 'm-format';
+        bar.setAttribute('role', 'toolbar');
+        bar.setAttribute('aria-label', 'Biçim');
+        var target = null;
+
+        [
+            ['undo', 'Geri al'], ['redo', 'Yinele'],
+            ['heading', 'Başlık'], ['bold', 'Kalın'], ['italic', 'İtalik'], ['strike', 'Üstü çizili'],
+            ['bullet', 'Madde'], ['number', 'Numaralı liste'], ['task', 'Görev'], ['quote', 'Alıntı'],
+            ['indent', 'Girinti artır'], ['outdent', 'Girinti azalt'],
+            ['link', 'Bağlantı'], ['wikilink', 'Not bağlantısı'], ['code', 'Kod']
+        ].forEach(function (item) {
+            var name = item[0];
+            bar.appendChild(button('m-fmt-' + name, name, item[1], function () {
+                if (!target) return;
+                target.focus();
+                if (name === 'undo' || name === 'redo') doc.execCommand(name);
+                else replaceText(target, MdFormat.apply(name, target.value, target.selectionStart, target.selectionEnd));
+            }, 20));
+        });
+        bar.appendChild(button('m-fmt-done', 'done', 'Bitti', function () { if (target) target.blur(); }, 20));
+        // Dokunuş odağı yazıdan almasın (odak giderse blok kapanır, klavye iner).
+        // click yine gelir; touchstart'a dokunulmaz ki çubuk yatay kaydırılabilsin.
+        bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        doc.querySelector('.app-container').appendChild(bar);
+
+        inlineEditor.addEventListener('focusin', function (e) {
+            if (!e.target.classList.contains('block-textarea')) return;
+            target = e.target;
+            html.classList.add('m-format');
+        });
+        inlineEditor.addEventListener('focusout', function (e) {
+            if (e.target !== target) return;
+            target = null;
+            html.classList.remove('m-format');
+        });
+        // Listede Enter: maddeyi sürdür
+        inlineEditor.addEventListener('beforeinput', function (e) {
+            var ta = e.target;
+            if (e.inputType !== 'insertLineBreak' || !ta.classList.contains('block-textarea')) return;
+            if (ta.selectionStart !== ta.selectionEnd) return;
+            var next = MdFormat.newline(ta.value, ta.selectionStart);
+            if (!next) return;
+            e.preventDefault();
+            replaceText(ta, next);
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Okurken görev kutusuna dokun: kaynakta [ ] ⇔ [x] çevrilir ve kaydedilir
+    // ------------------------------------------------------------------
+    function enableTasks() {
+        var saving = Promise.resolve();
+        var selector = 'input[type="checkbox"]';
+        function unlock() {
+            markdownViewer.querySelectorAll(selector).forEach(function (c) { c.disabled = !currentFilePath; });
+        }
+        new MutationObserver(unlock).observe(markdownViewer, { childList: true, subtree: true });
+        unlock();
+
+        markdownViewer.addEventListener('change', function (e) {
+            var box = e.target;
+            if (!box.matches || !box.matches(selector)) return;
+            var boxes = Array.from(markdownViewer.querySelectorAll(selector));
+            var index = boxes.indexOf(box);
+            var shown = boxes.map(function (b) { return b === box ? !b.checked : b.checked; });
+            var next = MdFormat.toggleTask(currentContent, index, shown);
+            if (next === null) {
+                box.checked = !box.checked;
+                showToast('Bu kutu yalnız düzenleme modunda değiştirilebilir');
+                return;
+            }
+            // Bellek hemen, disk sırayla: hızlı dokunuşlar birbirini ezmesin.
+            var path = currentFilePath;
+            currentContent = next;
+            markUnsaved();
+            saving = saving.then(async function () {
+                if (path !== currentFilePath || !hasUnsavedChanges) return;
+                var content = currentContent;
+                await saveFile(content);
+                if (hasUnsavedChanges) {
+                    showToast('Kaydedilemedi');
+                    markSaved();
+                    await loadFile(path, { pushHistory: false });
+                }
+            });
+        });
+    }
     // ------------------------------------------------------------------
     // Hızlı geçiş: gezgin kökündeki bütün notlar arasında ada göre arama
     // ------------------------------------------------------------------
@@ -650,7 +911,8 @@
                 if (note.recent) {
                     openRecentFile(note.path);
                 } else if (await confirmLeaveUnsaved()) {
-                    loadFile(note.path);
+                    await loadFile(note.path);
+                    if (note.find && note.path === currentFilePath) showFind(note.find);
                 }
             });
             return b;
@@ -662,9 +924,36 @@
             return el;
         }
 
+        // Not içi arama: yazma durunca; eski sorgunun geç gelen yanıtı atılır.
+        var searchTimer = null;
+        var searchGen = 0;
+        var searchBox = null;
+        function searchInside(query) {
+            clearTimeout(searchTimer);
+            var gen = ++searchGen;
+            if (query.length < 2) return;
+            searchTimer = setTimeout(async function () {
+                var r = null;
+                try { r = await invoke('search_notes', { query: query }); } catch (e) { console.error('Arama:', e); }
+                if (gen !== searchGen || switcher !== sheet || !searchBox) return;
+                var files = (r && r.files) || [];
+                if (!files.length) return;
+                var empty = list.querySelector('.empty-state');
+                if (empty) empty.remove();
+                searchBox.appendChild(label('Not içinde' + (r.truncated ? ' (ilk ' + files.length + ')' : '')));
+                files.forEach(function (n) {
+                    var b = row({ name: n.name, path: n.path, dir: n.snippet, find: query });
+                    b.classList.add('m-hit');
+                    searchBox.appendChild(b);
+                });
+            }, 220);
+        }
+
         function render() {
             var q = fold(input.value.trim());
             list.innerHTML = '';
+            searchBox = null;
+            searchInside(input.value.trim());
             var shown = notes;
             if (q) {
                 // Adı sorguyla başlayanlar önce, içinde geçenler sonra.
@@ -688,6 +977,8 @@
                 empty.textContent = q ? 'Eşleşen not yok' : 'Bu klasörde not yok';
                 list.appendChild(empty);
             }
+            searchBox = doc.createElement('div');
+            list.appendChild(searchBox);
         }
 
         input.addEventListener('input', render);
@@ -701,6 +992,51 @@
         render();
         input.focus();
     }
+
+    // ------------------------------------------------------------------
+    // Başka uygulamadan paylaşılan metin ve ana ekran kısayolları
+    // ------------------------------------------------------------------
+    function runAction(a) {
+        if (!a || !a.action) return;
+        closeSwitcher();
+        closeDrawer();
+        if (a.action === 'new') newNote();
+        else if (a.action === 'today') openToday();
+        else if (a.action === 'search') openSwitcher();
+        else if (a.action === 'share' && a.text) {
+            var first = String(a.subject || a.text.split('\n')[0]).replace(/^#+\s*/, '').trim().slice(0, 60);
+            newNote(null, /^https?:/.test(first) ? 'Bağlantı' : first, a.text);
+        }
+    }
+
+    // Açılıştaki eylem gezgin hazır olunca çalışır.
+    function runPendingAction() {
+        if (!android || !android.takeAction) return;
+        var a = {};
+        try { a = JSON.parse(android.takeAction() || '{}'); } catch (e) { return; }
+        if (!a.action) return;
+        var tries = 0;
+        (function wait() {
+            if (explorerState && explorerState.root) runAction(a);
+            else if (tries++ < 50) setTimeout(wait, 100);
+        })();
+    }
+
+    /** Güncelleme (updater.js): doğrulanmış APK'yı sistem kurulumuna verir. */
+    api.installUpdate = async function (result) {
+        if (!android) return true;
+        if (!android.canInstall()) {
+            var ok = await UiDialog.confirm('Güncellemeyi kurabilmek için MD Flow Viewer\'a "bilinmeyen uygulama yükleme" izni gerekiyor.',
+                { okText: 'İzin ver', cancelText: 'Vazgeç' });
+            if (!ok) return false;
+            var granted = once('install-permission');
+            android.requestInstall();
+            if (!(await granted)) return false;
+        }
+        var error = android.installApk(result.path);
+        if (error) UiDialog.alert(error);
+        return false;       // kurulum ekranı kapatılırsa kart "Kur" ile kalsın
+    };
 
     // ------------------------------------------------------------------
     // Geri tuşu, sistem çubuğu rengi, menü dışına dokunma
@@ -755,7 +1091,10 @@
         patchBridge();
         buildDrawer();
         buildBars();
+        buildFormatBar();
+        enableTasks();
         guardMenus();
+        runPendingAction();
         root.requestAnimationFrame(function () { html.classList.add('m-ready'); });
 
         new MutationObserver(syncChrome).observe(html, { attributes: true, attributeFilter: ['data-theme'] });
@@ -769,6 +1108,7 @@
         });
 
         // Uygulama açıkken "Birlikte aç" ile gelen dosya
+        listeners.action = runAction;
         listeners.open = function (data) {
             var path = parseOpened(JSON.stringify(data || {}));
             if (!path) return;

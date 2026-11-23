@@ -19,6 +19,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -39,7 +40,9 @@ class MainActivity : TauriActivity() {
   private var webView: WebView? = null
   private var pendingOpen: Uri? = null
   private var inboxDir: String = ""
+  private var pendingAction: JSONObject? = null
   private var askedStorage = false
+  private var askedInstall = false
 
   private val folderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
     val result = JSONObject()
@@ -62,7 +65,10 @@ class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
-    if (savedInstanceState == null) pendingOpen = viewUri(intent)
+    if (savedInstanceState == null) {
+      pendingOpen = viewUri(intent)
+      pendingAction = intentAction(intent)
+    }
 
     // Sistem çubukları ve klavye kadar iç boşluk: arayüz güvenli alanı hesaplamak zorunda kalmaz.
     val content = findViewById<View>(android.R.id.content)
@@ -81,6 +87,10 @@ class MainActivity : TauriActivity() {
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    intentAction(intent)?.let {
+      emit("action", it)
+      return
+    }
     val uri = viewUri(intent) ?: return
     emit("open", localFile(uri))
   }
@@ -91,10 +101,34 @@ class MainActivity : TauriActivity() {
       askedStorage = false
       emit("storage", hasStorageAccess())
     }
+    if (askedInstall) {
+      askedInstall = false
+      emit("install-permission", canInstall())
+    }
   }
 
   private fun viewUri(intent: Intent?): Uri? =
     if (intent?.action == Intent.ACTION_VIEW) intent.data else null
+
+  /** Paylaşılan metin ya da ana ekran kısayolu: `{action, text?, subject?}`. */
+  private fun intentAction(intent: Intent?): JSONObject? {
+    if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
+    val action = intent.action ?: return null
+    if (action == Intent.ACTION_SEND) {
+      val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString() ?: return null
+      return JSONObject().put("action", "share").put("text", text)
+        .put("subject", intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: "")
+    }
+    val prefix = "com.cafercan.mdflowviewer.action."
+    return if (action.startsWith(prefix)) JSONObject().put("action", action.removePrefix(prefix).lowercase(java.util.Locale.ROOT)) else null
+  }
+
+  private fun canInstall(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+
+  /** Önbellekteki dosyanın başka uygulamaya verilebilen adresi. */
+  private fun sharedUri(file: File): Uri =
+    FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
 
   private fun emit(event: String, data: Any) {
     runOnUiThread {
@@ -194,6 +228,72 @@ class MainActivity : TauriActivity() {
       val uri = pendingOpen ?: return "{}"
       pendingOpen = null
       return localFile(uri).toString()
+    }
+
+    /** Açılıştaki paylaşım/kısayol (JSON, yoksa `{}`); bir kez verilir. */
+    @JavascriptInterface
+    fun takeAction(): String {
+      val action = pendingAction ?: return "{}"
+      pendingAction = null
+      return action.toString()
+    }
+
+    /** Notu sistemin paylaşım ekranına verir; hata metni ya da "". */
+    @JavascriptInterface
+    fun shareNote(name: String, text: String, asFile: Boolean): String = try {
+      val send = Intent(Intent.ACTION_SEND)
+      // Büyük metin Intent'e sığmaz (Binder sınırı): dosya olarak gider.
+      if (asFile || text.length > 100_000) {
+        val dir = File(cacheDir, "share")
+        dir.deleteRecursively()
+        dir.mkdirs()
+        val file = File(dir, File(name).name)
+        file.writeText(text)
+        val uri = sharedUri(file)
+        send.setType("text/markdown").putExtra(Intent.EXTRA_STREAM, uri)
+        send.clipData = android.content.ClipData.newRawUri(name, uri)
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } else {
+        send.setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+          .putExtra(Intent.EXTRA_SUBJECT, name.substringBeforeLast('.'))
+      }
+      startActivity(Intent.createChooser(send, name))
+      ""
+    } catch (e: Exception) {
+      "Paylaşılamadı: ${e.message}"
+    }
+
+    @JavascriptInterface
+    fun canInstall(): Boolean = this@MainActivity.canInstall()
+
+    /** "Bilinmeyen uygulama" izin ekranı; dönüşte `install-permission` olayı gelir. */
+    @JavascriptInterface
+    fun requestInstall() = runOnUiThread {
+      askedInstall = true
+      startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+    }
+
+    /**
+     * Güncelleme paketini sistem kurulumuna verir; hata metni ya da "". Yalnız
+     * update.rs'in indirdiği klasördeki APK. Sistem, imzası kurulu uygulamanınkiyle
+     * aynı olmayan paketi reddeder.
+     */
+    @JavascriptInterface
+    fun installApk(path: String): String = try {
+      val file = File(path).canonicalFile
+      val dir = File(cacheDir, "updates").canonicalFile
+      if (file.parentFile != dir || file.extension != "apk" || !file.isFile) {
+        "Güncelleme paketi bulunamadı."
+      } else {
+        startActivity(
+          Intent(Intent.ACTION_VIEW)
+            .setDataAndType(sharedUri(file), "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        )
+        ""
+      }
+    } catch (e: Exception) {
+      "Kurulum başlatılamadı: ${e.message}"
     }
 
     @JavascriptInterface

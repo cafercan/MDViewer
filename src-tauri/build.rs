@@ -29,6 +29,13 @@ const COMMANDS: &[&str] = &[
     "unwatch_file",
     "initial_file",
     "notes_dir",
+    "search_notes",
+    "rename_note",
+    "trash_note",
+    "update_info",
+    "update_check",
+    "update_download",
+    "update_install",
 ];
 
 fn main() {

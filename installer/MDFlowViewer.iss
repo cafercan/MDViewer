@@ -108,6 +108,8 @@ Root: HKLM; Subkey: "Software\Classes\SystemFileAssociations\.markdown\shell\Ope
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,MD Flow Viewer}"; Flags: nowait postinstall skipifsilent
+; Uygulama kendini güncellerken sessiz kurulum sonunda yeniden açılır (src-tauri/src/update.rs)
+Filename: "{app}\{#AppExeName}"; Flags: nowait runasoriginaluser skipifnotsilent; Check: WantsRelaunch
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -129,6 +131,11 @@ begin
     SHChangeNotify($08000000, $0000, 0, 0);
     Exec(ExpandConstant('{sys}\ie4uinit.exe'), '-show', '', SW_HIDE, ewNoWait, ResultCode);
   end;
+end;
+
+function WantsRelaunch(): Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 // WebView2 Runtime kontrolü (Evergreen).

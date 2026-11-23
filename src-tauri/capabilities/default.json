@@ -36,6 +36,13 @@
     "allow-watch-file",
     "allow-unwatch-file",
     "allow-initial-file",
-    "allow-notes-dir"
+    "allow-notes-dir",
+    "allow-search-notes",
+    "allow-rename-note",
+    "allow-trash-note",
+    "allow-update-info",
+    "allow-update-check",
+    "allow-update-download",
+    "allow-update-install"
   ]
 }

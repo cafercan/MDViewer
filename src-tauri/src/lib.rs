@@ -8,6 +8,7 @@ mod drop;
 mod mobile;
 mod nav;
 mod startup;
+mod update;
 mod watch;
 
 use tauri::Manager;
@@ -78,6 +79,7 @@ pub fn run() {
             });
         })
         .manage(watch::WatchState::default())
+        .manage(update::UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             commands::content,
             commands::save,
@@ -106,6 +108,13 @@ pub fn run() {
             commands::unwatch_file,
             commands::initial_file,
             commands::notes_dir,
+            commands::search_notes,
+            commands::rename_note,
+            commands::trash_note,
+            commands::update_info,
+            commands::update_check,
+            commands::update_download,
+            commands::update_install,
         ]);
 
     let app = platform(builder).build(context).expect("MD Flow Viewer başlatılamadı");

@@ -11,6 +11,36 @@ pub const DENIED: &str = "Erişim reddedildi: çalışma klasörü dışında.";
 /// `list_notes` en çok bu kadar dosya döndürür (çok büyük klasörde arayüz donmasın).
 pub const NOTE_LIST_LIMIT: usize = 5000;
 
+/// Not içi aramada sonuç ve dosya boyu sınırı.
+pub const SEARCH_HIT_LIMIT: usize = 100;
+const SEARCH_FILE_LIMIT: u64 = 1024 * 1024;
+
+/// Arama için sadeleştirme: küçük harf, Türkçe I/İ/ı/i tek harf.
+/// Her karakter tek karaktere iner; konumlar kaynakla aynı kalır.
+fn fold_char(c: char) -> char {
+    match c {
+        'I' | 'İ' | 'ı' => 'i',
+        _ => c.to_lowercase().next().unwrap_or(c),
+    }
+}
+
+fn fold(s: &str) -> String {
+    s.chars().map(fold_char).collect()
+}
+
+/// Eşleşmenin çevresinden kısa alıntı.
+fn snippet(line: &str, want: &str) -> String {
+    let folded = fold(line);
+    let at = folded.find(want).map(|b| folded[..b].chars().count()).unwrap_or(0);
+    let start = at.saturating_sub(30);
+    let len = want.chars().count() + 90;
+    let total = line.chars().count();
+    let body: String = line.chars().skip(start).take(len).collect();
+    let head = if start > 0 { "…" } else { "" };
+    let tail = if start + len < total { "…" } else { "" };
+    format!("{head}{}{tail}", body.trim())
+}
+
 fn is_md(name: &str) -> bool {
     let low = name.to_lowercase();
     MD_EXTENSIONS.iter().any(|e| low.ends_with(e))
@@ -104,6 +134,90 @@ impl Workspace {
             }
         }
         json!({"success": false, "error": "Bu adla çok fazla not var."})
+    }
+
+    /// Gezgin kökündeki notların içinde arama: not başına ilk eşleşme
+    /// `{name, path, dir, line, snippet}`. Büyük/küçük harf ve I/İ/ı/i farkı gözetilmez.
+    pub fn search_notes(&self, query: &str) -> Value {
+        let want = fold(query.trim());
+        let root = self.explorer_state().root.map(PathBuf::from);
+        let (Some(root), false) = (root, want.is_empty()) else {
+            return json!({"success": true, "files": [], "truncated": false});
+        };
+        let mut notes = Vec::new();
+        walk_notes(&root, &root, &mut notes);
+        let mut hits = Vec::new();
+        for mut note in notes {
+            let path = PathBuf::from(note["path"].as_str().unwrap_or_default());
+            if !std::fs::metadata(&path).is_ok_and(|m| m.len() <= SEARCH_FILE_LIMIT) {
+                continue;
+            }
+            let Ok(text) = crate::textfile::read_doc(&path) else { continue };
+            let Some((i, line)) = text.lines().enumerate().find(|(_, l)| fold(l).contains(&want)) else { continue };
+            note["line"] = json!(i + 1);
+            note["snippet"] = json!(snippet(line, &want));
+            hits.push(note);
+            if hits.len() >= SEARCH_HIT_LIMIT {
+                return json!({"success": true, "files": hits, "truncated": true});
+            }
+        }
+        json!({"success": true, "files": hits, "truncated": false})
+    }
+
+    /// Kök içindeki bir md dosyası; değilse gösterilecek hata.
+    fn note_in_root(&self, path: &str) -> Result<PathBuf, Value> {
+        let abs = absolutize(&cwd(), path);
+        let name = abs.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        if path.is_empty() || !self.within_root(&abs) || !is_md(&name) {
+            return Err(json!({"success": false, "error": DENIED}));
+        }
+        if !abs.is_file() {
+            return Err(json!({"success": false, "error": "Not bulunamadı."}));
+        }
+        Ok(abs)
+    }
+
+    /// Notu aynı klasörde yeniden adlandırır; uzantı korunur, var olan notun üstüne yazılmaz.
+    pub fn rename_note(&self, path: &str, name: &str) -> Value {
+        let abs = match self.note_in_root(path) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+        let ext = abs.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
+        let target = abs.with_file_name(format!("{}.{ext}", note_stem(name)));
+        // Yalnız harf büyüklüğü değişiyorsa harf duyarsız diskte hedef "var" görünür.
+        let same = crate::paths::same_path(&abs.to_string_lossy().to_lowercase(), &target.to_string_lossy().to_lowercase());
+        if target != abs && !same && target.exists() {
+            return json!({"success": false, "error": "Bu adda bir not zaten var."});
+        }
+        match std::fs::rename(&abs, &target) {
+            Ok(()) => json!({"success": true, "path": target.to_string_lossy()}),
+            Err(e) => json!({"success": false, "error": e.to_string()}),
+        }
+    }
+
+    /// Notu klasöründeki gizli `.trash` klasörüne taşır (kalıcı silmez).
+    pub fn trash_note(&self, path: &str) -> Value {
+        let abs = match self.note_in_root(path) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+        let trash = abs.with_file_name(".trash");
+        if let Err(e) = std::fs::create_dir_all(&trash) {
+            return json!({"success": false, "error": e.to_string()});
+        }
+        let stem = abs.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+        let ext = abs.extension().unwrap_or_default().to_string_lossy().into_owned();
+        let target = (0..10_000)
+            .map(|n| trash.join(if n == 0 { format!("{stem}.{ext}") } else { format!("{stem} {n}.{ext}") }))
+            .find(|p| !p.exists());
+        let Some(target) = target else {
+            return json!({"success": false, "error": "Çöp klasörü dolu."});
+        };
+        match std::fs::rename(&abs, &target) {
+            Ok(()) => json!({"success": true, "path": target.to_string_lossy()}),
+            Err(e) => json!({"success": false, "error": e.to_string()}),
+        }
     }
 
     /// [[hedef]] için diskteki dosyayı bulur: (1) belgenin klasörüne göre yol,
@@ -244,6 +358,8 @@ fn walk_find(dir: &Path, wanted: &[String]) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    use super::{snippet, PathBuf, DENIED};
+    use serde_json::json;
     use crate::workspace::tests::{p, ps, touch, tree};
     use crate::workspace::Workspace;
 
@@ -381,5 +497,63 @@ mod tests {
         touch(&p(&t, "vault/sub/Readme.MD"));
         assert_eq!(ws.inspect_path(&sub)["note"], ps(&t, "vault/sub/Readme.MD"));
         assert_eq!(ws.inspect_path(&format!("{sub}/"))["type"], "dir");
+    }
+
+    #[test]
+    fn search_notes_folds_turkish_and_skips_hidden() {
+        let (t, ws) = search_fx();
+        let r = ws.search_notes("ISPARTA gülü");
+        assert_eq!(r["files"].as_array().unwrap().len(), 1);
+        assert_eq!(r["files"][0]["name"], "gezi.md");
+        assert_eq!(r["files"][0]["line"], 3);
+        assert_eq!(r["files"][0]["snippet"], "Bugün ısparta gülü aldım");
+        assert_eq!(ws.search_notes("yok böyle")["files"], json!([]));
+        assert_eq!(ws.search_notes("  ")["files"], json!([]));
+        drop(t);
+    }
+
+    #[test]
+    fn search_snippet_is_cut_around_match() {
+        let line = format!("{} HEDEF {}", "ğ".repeat(80), "ş".repeat(200));
+        let s = snippet(&line, "hedef");
+        assert!(s.starts_with('…') && s.ends_with('…') && s.contains("HEDEF"));
+    }
+
+    #[test]
+    fn rename_note_keeps_extension_and_never_overwrites() {
+        let (t, ws) = search_fx();
+        let a = t.path().join("gezi.md").to_string_lossy().into_owned();
+        assert_eq!(ws.rename_note(&a, "diğer")["success"], false);
+        let r = ws.rename_note(&a, "../Yeni: ad.md");
+        assert_eq!(r["success"], true);
+        assert_eq!(PathBuf::from(r["path"].as_str().unwrap()).parent(), Some(t.path()));
+        assert!(!t.path().join("gezi.md").exists());
+        assert_eq!(ws.rename_note("/etc/passwd", "x")["error"], DENIED);
+    }
+
+    #[test]
+    fn trash_note_moves_to_hidden_folder() {
+        let (t, ws) = search_fx();
+        let a = t.path().join("gezi.md");
+        for _ in 0..2 {
+            std::fs::write(&a, "x").unwrap();
+            assert_eq!(ws.trash_note(&a.to_string_lossy())["success"], true);
+        }
+        assert!(!a.exists());
+        assert!(t.path().join(".trash").join("gezi.md").is_file());
+        assert!(t.path().join(".trash").join("gezi 1.md").is_file());
+        assert_eq!(ws.trash_note(&a.to_string_lossy())["error"], "Not bulunamadı.");
+        assert_eq!(ws.trash_note(&t.path().to_string_lossy())["error"], DENIED);
+    }
+
+    fn search_fx() -> (tempfile::TempDir, Workspace) {
+        let t = tempfile::TempDir::new().unwrap();
+        std::fs::write(t.path().join("gezi.md"), "# Gezi\n\nBugün ısparta gülü aldım\n").unwrap();
+        std::fs::write(t.path().join("diğer.md"), "# Diğer\n").unwrap();
+        std::fs::create_dir(t.path().join(".gizli")).unwrap();
+        std::fs::write(t.path().join(".gizli").join("x.md"), "Isparta gülü").unwrap();
+        let mut ws = Workspace::default();
+        ws.set_explorer_root(&t.path().to_string_lossy()).unwrap();
+        (t, ws)
     }
 }

@@ -1,5 +1,5 @@
 # Release yayınlanınca Windows kurulumunu (.exe), Linux paketlerini (.deb, .rpm, Arch için
-# .pkg.tar.zst) ve macOS paketini (.dmg) derleyip release'e ekler, AUR paketlerini (mdflowviewer, mdflowviewer-bin) günceller;
+# .pkg.tar.zst), macOS paketini (.dmg) ve Android APK'sını derleyip release'e ekler, AUR paketlerini (mdflowviewer, mdflowviewer-bin) günceller;
 # hepsi bitince SHA256SUMS.txt release'teki tüm
 # kurulumlar için yeniden üretilir. Elle yeniden çalıştırmak için:
 # Actions -> Release -> Run.
@@ -213,8 +213,80 @@ jobs:
             cd ..
           done
 
+  android-apk:
+    # İmzalı APK. Telefondaki uygulama yalnız aynı anahtarla imzalı APK ile
+    # güncellenebilir: anahtar hiç değişmemeli ve kaybolmamalı.
+    # Gerekli secret'lar: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+    # ANDROID_KEY_ALIAS. Yoksa iş atlanır; release'i bozmaz.
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - name: Secret var mı
+        id: key
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 yok, APK atlandı"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.key.outputs.ok == 'true'
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v5
+        if: steps.key.outputs.ok == 'true'
+        with: { distribution: temurin, java-version: 21 }
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.key.outputs.ok == 'true'
+        with: { targets: "aarch64-linux-android,armv7-linux-androideabi" }
+      - uses: actions/setup-node@v7
+        if: steps.key.outputs.ok == 'true'
+        with: { node-version: 22 }
+
+      - name: Android NDK
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
+
+      - name: İmzalı APK
+        if: steps.key.outputs.ok == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "password=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+          } > src-tauri/gen/android/keystore.properties
+          npm ci
+          npx tauri android build --apk --target aarch64 armv7
+          rm -f src-tauri/gen/android/keystore.properties "$RUNNER_TEMP/release.jks"
+
+      - name: Release'e yükle
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          mkdir -p dist
+          apk="dist/MDViewer-${TAG}-android.apk"
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
+          gh release upload "$TAG" "$apk" --clobber
+
   checksums:
-    needs: [windows-setup, linux-deb, linux-pacman, macos-dmg]
+    # Uygulamanın kendini güncellemesi bu dosyaya bakar: en son yüklenmelidir.
+    # APK işi bozulursa masaüstü güncellemesi yine de yayınlansın.
+    needs: [windows-setup, linux-deb, linux-pacman, macos-dmg, android-apk]
+    if: >-
+      !cancelled() && needs.windows-setup.result == 'success' && needs.linux-deb.result == 'success' &&
+      needs.linux-pacman.result == 'success' && needs.macos-dmg.result == 'success'
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -222,9 +294,9 @@ jobs:
     steps:
       - name: SHA256SUMS
         run: |
-          # Release'teki tüm kurulumların (exe + deb + rpm + pkg.tar.zst + dmg) özetini yeniden üret
+          # Release'teki tüm kurulumların (exe + deb + rpm + pkg.tar.zst + dmg + apk) özetini yeniden üret
           mkdir sums
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.rpm" -p "*.pkg.tar.zst" -p "*.dmg"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D sums -p "*.exe" -p "*.deb" -p "*.rpm" -p "*.pkg.tar.zst" -p "*.dmg" -p "*.apk"
           (cd sums && sha256sum * | sort -k2) > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber

@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">"MD Flow Viewer"</string>
     <string name="main_activity_title">"MD Flow Viewer"</string>
+    <string name="share_label">Yeni not olarak kaydet</string>
+    <string name="shortcut_new">Yeni not</string>
+    <string name="shortcut_today">Bugünün notu</string>
+    <string name="shortcut_search">Not ara</string>
 </resources>

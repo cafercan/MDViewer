@@ -175,6 +175,52 @@ pub async fn create_note(app: AppHandle, dir: String, name: String) -> Value {
     off_main(app, move |st| api::create_note(st, &dir, &name)).await
 }
 
+#[tauri::command]
+pub async fn search_notes(app: AppHandle, query: String) -> Value {
+    off_main(app, move |st| api::search_notes(st, &query)).await
+}
+
+#[tauri::command]
+pub async fn rename_note(app: AppHandle, path: String, name: String) -> Value {
+    off_main(app, move |st| api::rename_note(st, &path, &name)).await
+}
+
+#[tauri::command]
+pub async fn trash_note(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::trash_note(st, &path)).await
+}
+
+// --- güncelleme ---------------------------------------------------------------------
+
+/// Güncelleme işi ağda ya da yönetici izninde bekleyebilir: kendi iş parçacığında koşar.
+async fn update_job(f: impl FnOnce() -> Result<Value, String> + Send + 'static) -> Value {
+    match tauri::async_runtime::spawn_blocking(f).await {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => serde_json::json!({"success": false, "error": e}),
+        Err(e) => serde_json::json!({"success": false, "error": e.to_string()}),
+    }
+}
+
+#[tauri::command]
+pub async fn update_info() -> Value {
+    update_job(|| Ok(crate::update::info())).await
+}
+
+#[tauri::command]
+pub async fn update_check(app: AppHandle) -> Value {
+    update_job(move || Ok(crate::update::check(&app))).await
+}
+
+#[tauri::command]
+pub async fn update_download(app: AppHandle) -> Value {
+    update_job(move || crate::update::download(&app)).await
+}
+
+#[tauri::command]
+pub async fn update_install(app: AppHandle, file: Option<String>) -> Value {
+    update_job(move || crate::update::install(&app, file.as_deref())).await
+}
+
 // --- yazdırma / dışarıda açma -------------------------------------------------------
 
 /// Linux (WebKitGTK): `window.print()` sessizce yok sayıldığı için yazdırma

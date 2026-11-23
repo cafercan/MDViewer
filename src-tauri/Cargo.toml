@@ -1,6 +1,6 @@
 [package]
 name = "mdflowviewer"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2021"
 license = "MIT"
 description = "MD Flow Viewer: Markdown görüntüleyici ve düzenleyici"
@@ -22,6 +22,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 percent-encoding = "2"
 notify = "8"
+# Güncelleme: indirme (rustls) ve özet doğrulama
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+sha2 = "0.10"
 
 # Yalnız masaüstü: native dosya seçici, sistemde açma, pencere konumu.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
@@ -31,6 +34,9 @@ tauri-plugin-window-state = "2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = "3"
