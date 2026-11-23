@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uygulama simgesine uzun basınca çıkan kısayollar -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="new" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new">
+        <intent android:action="com.cafercan.mdflowviewer.action.NEW"
+            android:targetPackage="com.cafercan.mdflowviewer"
+            android:targetClass="com.cafercan.mdflowviewer.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="today" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_today">
+        <intent android:action="com.cafercan.mdflowviewer.action.TODAY"
+            android:targetPackage="com.cafercan.mdflowviewer"
+            android:targetClass="com.cafercan.mdflowviewer.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="search" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_search">
+        <intent android:action="com.cafercan.mdflowviewer.action.SEARCH"
+            android:targetPackage="com.cafercan.mdflowviewer"
+            android:targetClass="com.cafercan.mdflowviewer.MainActivity" />
+    </shortcut>
+</shortcuts>

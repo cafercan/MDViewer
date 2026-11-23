@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rename-note"
+description = "Enables the rename_note command without any pre-configured scope."
+commands.allow = ["rename_note"]
+
+[[permission]]
+identifier = "deny-rename-note"
+description = "Denies the rename_note command without any pre-configured scope."
+commands.deny = ["rename_note"]

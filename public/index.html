@@ -30,6 +30,10 @@
 
     <!-- Custom Application CSS -->
     <link rel="stylesheet" href="style.css">
+    <!-- Telefon arayüzü (yalnız Android'de devreye girer; bkz. mobile.js) -->
+    <link rel="stylesheet" href="mobile.css">
+    <script src="md-format.js"></script>
+    <script src="mobile.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -390,6 +394,22 @@
                 </section>
 
                 <section class="settings-section">
+                    <h3>Güncelleme</h3>
+                    <div class="settings-row">
+                        <span class="settings-label">Otomatik güncelle
+                            <span class="settings-hint">Yeni sürüm çıkınca haber verir; tek tıkla kurulur. Yalnız GitHub'a bağlanır</span>
+                        </span>
+                        <label class="switch"><input type="checkbox" data-pref="autoUpdate" aria-label="Otomatik güncelle"><span></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-label"><span id="app-version">Sürüm</span>
+                            <span class="settings-hint" id="update-status" aria-live="polite"></span>
+                        </span>
+                        <button type="button" class="ui-dialog-btn" id="btn-update-check">Şimdi denetle</button>
+                    </div>
+                </section>
+
+                <section class="settings-section">
                     <h3>Özel CSS</h3>
                     <div class="settings-row stack">
                         <span class="settings-label">Kendi stillerin
@@ -416,6 +436,7 @@
     <script src="drafts.js"></script>
     <script src="lazy-script.js"></script>
     <script src="image-zoom.js"></script>
+    <script src="updater.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

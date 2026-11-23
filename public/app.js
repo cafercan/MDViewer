@@ -170,9 +170,10 @@ const btnFindClear = document.getElementById('btn-find-clear');
 
 // APP INIT
 window.addEventListener('DOMContentLoaded', () => {
-    loadSettings();
+    const settingsReady = loadSettings();
     initApp();
     setupEventListeners();
+    settingsReady.then(startUpdater);
 });
 
 // MAIN CONTROLLER INITIALIZATION
@@ -209,6 +210,32 @@ async function initApp() {
 
     // 4. Gezgin
     initExplorer();
+}
+
+// Kendi kendini güncelleme (updater.js). Kurulum uygulamayı kapatır: açık
+// düzenleme önce kaydedilir; kaydedilemezse güncellemeden vazgeçilir.
+function startUpdater() {
+    if (typeof Updater === 'undefined') return;
+    Updater.start({
+        enabled: () => prefs.autoUpdate,
+        currentFile: () => currentFilePath,
+        openPage: (url) => nativeApi().open_external(url),
+        prepare: async () => {
+            if (isEditMode) {
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                closeAllBlockEditors();
+            }
+            if (!hasUnsavedChanges) return true;
+            if (!chkAutosave.checked && !(await UiDialog.confirm('Kaydedilmemiş değişiklikler kaydedilip güncellensin mi?',
+                { okText: 'Kaydet ve güncelle', cancelText: 'Vazgeç' }))) return false;
+            clearTimeout(autosaveTimer);
+            await saveFile();
+            if (hasUnsavedChanges) showToast('Belge kaydedilemedi; güncelleme durduruldu');
+            return !hasUnsavedChanges;
+        },
+        // Android: kurulumu sistem ekranı yapar (mobile.js)
+        finish: (result) => (window.MDFlowMobile ? window.MDFlowMobile.installUpdate(result) : true),
+    });
 }
 
 // Açılış belgesinin tek okuma noktası. Adres çubuğunda ?file= varsa (sayfa
@@ -388,6 +415,7 @@ const PREF_DEFAULTS = {
     darkTheme: 'slate-dark',
     alwaysStartAtTop: false,
     imageZoom: true,
+    autoUpdate: true,
     customCss: '',
 };
 const PREF_CHOICES = {

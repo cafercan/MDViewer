@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notes-dir"
+description = "Enables the notes_dir command without any pre-configured scope."
+commands.allow = ["notes_dir"]
+
+[[permission]]
+identifier = "deny-notes-dir"
+description = "Denies the notes_dir command without any pre-configured scope."
+commands.deny = ["notes_dir"]

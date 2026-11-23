@@ -1949,3 +1949,28 @@ html.img-zoom-on #markdown-viewer a img { cursor: pointer; }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* GÜNCELLEME KARTI (public/updater.js) */
+.update-card {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 700;
+    width: min(380px, calc(100vw - 2rem));
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+.update-card.hidden, .update-card .hidden { display: none; }
+.update-title { font-weight: 650; font-size: 0.95rem; }
+.update-text { margin: 0.25rem 0 0.8rem; font-size: 0.85rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.update-bar { height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--text-primary) 12%, transparent); }
+.update-bar span { display: block; height: 100%; background: var(--accent-primary); transition: width 0.2s; }
+.update-bar.indeterminate span { width: 100% !important; animation: update-pulse 1.2s ease-in-out infinite; }
+@keyframes update-pulse { 50% { opacity: 0.35; } }
+.update-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+@media print { .update-card { display: none !important; } }

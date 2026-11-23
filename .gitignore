@@ -38,11 +38,14 @@ Thumbs.db
 # superpowers execution scratch
 .superpowers/
 
-# Tauri
-src-tauri/gen/
+# Tauri (Android projesi gen/android altında tutulur; şemalar yeniden üretilir)
+src-tauri/gen/schemas/
 
 # makepkg çıktıları
 packaging/arch/*/src/
 packaging/arch/*/pkg/
 packaging/arch/*/*.tar.*
 packaging/arch/*/*.deb
+
+# Kök Cargo derleme çıktısı (Android hedefleri)
+/target/

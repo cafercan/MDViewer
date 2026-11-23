@@ -36,12 +36,13 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
 - 📥 Pencereye `.md` dosyası sürükleyince açılır, klasör sürükleyince çalışma alanı olur
 - 💾 Kaydederken dosyanın satır sonu (CRLF/LF) ve BOM'u korunur; kayıt atomiktir (yarım dosya kalmaz)
+- ⬆️ **Kendi kendini günceller**: yeni release çıkınca paketi indirir, SHA-256 ile doğrular, tek tıkla kurup yeniden açılır (Ayarlar → Güncelleme'den kapatılabilir; AUR `mdflowviewer` ve kaynaktan derleme yalnız haber alır)
 - 🔒 Ağ portu açmaz; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
 
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.1.0.exe`** kurulumunu indirin.
+   **`MDViewer-v3.2.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -66,7 +67,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.1.0-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v3.2.0-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -84,11 +85,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_3.1.0_amd64.deb`** paketini indirin.
+   **`mdflowviewer_3.2.0_amd64.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_3.1.0_amd64.deb
+   sudo apt install ./mdflowviewer_3.2.0_amd64.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -106,11 +107,11 @@ paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
 ## Kurulum — Linux (Fedora / openSUSE / RHEL)
 
 [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-**`mdflowviewer-3.1.0-1.x86_64.rpm`** paketini indirip kurun:
+**`mdflowviewer-3.2.0-1.x86_64.rpm`** paketini indirip kurun:
 
 ```bash
-sudo dnf install ./mdflowviewer-3.1.0-1.x86_64.rpm      # Fedora / RHEL
-sudo zypper install ./mdflowviewer-3.1.0-1.x86_64.rpm   # openSUSE
+sudo dnf install ./mdflowviewer-3.2.0-1.x86_64.rpm      # Fedora / RHEL
+sudo zypper install ./mdflowviewer-3.2.0-1.x86_64.rpm   # openSUSE
 ```
 
 Kütüphane bağımlılıkları (WebKitGTK 4.1, GTK 3) paket yöneticisiyle gelir.
@@ -129,6 +130,24 @@ AUR'a gerek olmadan, depodaki PKGBUILD ile:
 ```bash
 cd packaging/arch/mdflowviewer && makepkg -si
 ```
+
+## Android
+
+APK, release iş akışında derlenir ve uygulama içinden güncellenir. Bunun için
+depoda üç Actions secret'ı gerekir; yoksa APK adımı atlanır:
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
+Anahtar bir kez üretilir ve **saklanmalıdır**: farklı anahtarla imzalı APK kurulu
+uygulamanın üstüne kurulamaz.
+
+```bash
+keytool -genkeypair -v -keystore mdflow.jks -alias mdflow -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 mdflow.jks      # -> ANDROID_KEYSTORE_BASE64
+npx tauri android build --apk --target aarch64 armv7   # yerel derleme
+```
+
+Telefona özgü: biçim çubuğu, okurken dokunulabilir görev kutuları, notların
+içinde arama, günün notu, paylaşma / paylaşılan metinden not, yeniden adlandırma,
+çöpe taşıma (`.trash`), ana ekran kısayolları.
 
 ## Mimari
 

@@ -10,9 +10,7 @@ use crate::startup::InitialFile;
 use crate::watch::{FileWatcher, WatchState};
 use mdflow_core::workspace::ExplorerState;
 use serde_json::Value;
-use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 /// Komut gövdesini engelleyici iş parçacığında çalıştırır.
@@ -47,19 +45,17 @@ pub async fn set_settings(app: AppHandle, patch: Value) -> Value {
 
 // --- dosya / klasör açma ---------------------------------------------------------
 
-fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
-    app.get_webview_window("main")
-}
-
-type Picked = Pin<Box<dyn Future<Output = Option<rfd::FileHandle>> + Send>>;
+#[cfg(desktop)]
+type Picked = std::pin::Pin<Box<dyn std::future::Future<Output = Option<rfd::FileHandle>> + Send>>;
 
 /// Native dosya/klasör seçici (rfd). Diyalog ana iş parçacığında kurulur
 /// (macOS bunu şart koşar), sonucu burada beklenir. tauri-plugin-dialog
 /// kullanılmaz: o eklenti window.confirm/alert'i async bir sürümle değiştirir
 /// ve arayüzün "kaydedilmemiş değişiklik" soruları sessizce geçilir.
+#[cfg(desktop)]
 async fn pick(app: &AppHandle, folder: bool, start: Option<PathBuf>) -> Option<PathBuf> {
     let (tx, rx) = std::sync::mpsc::channel::<Picked>();
-    let window = main_window(app);
+    let window = app.get_webview_window("main");
     app.run_on_main_thread(move || {
         let mut d = rfd::AsyncFileDialog::new();
         if !folder {
@@ -77,6 +73,13 @@ async fn pick(app: &AppHandle, folder: bool, start: Option<PathBuf>) -> Option<P
     .ok()?;
     let fut = tauri::async_runtime::spawn_blocking(move || rx.recv().ok()).await.ok()??;
     fut.await.map(|h| h.path().to_path_buf())
+}
+
+/// Android'de seçiciyi sistem açar (MainActivity → public/mobile.js); seçilen
+/// yol `open_file_path` / `open_folder_path` ile gelir.
+#[cfg(mobile)]
+async fn pick(_app: &AppHandle, _folder: bool, _start: Option<PathBuf>) -> Option<PathBuf> {
+    None
 }
 
 /// Dosya seçme penceresi son kullanılan klasörde açılır; seçilen dosyanın
@@ -162,6 +165,62 @@ pub async fn inspect_path(app: AppHandle, path: String) -> Value {
     off_main(app, move |st| api::inspect_path(st, &path)).await
 }
 
+#[tauri::command]
+pub async fn list_notes(app: AppHandle) -> Value {
+    off_main(app, api::list_notes).await
+}
+
+#[tauri::command]
+pub async fn create_note(app: AppHandle, dir: String, name: String) -> Value {
+    off_main(app, move |st| api::create_note(st, &dir, &name)).await
+}
+
+#[tauri::command]
+pub async fn search_notes(app: AppHandle, query: String) -> Value {
+    off_main(app, move |st| api::search_notes(st, &query)).await
+}
+
+#[tauri::command]
+pub async fn rename_note(app: AppHandle, path: String, name: String) -> Value {
+    off_main(app, move |st| api::rename_note(st, &path, &name)).await
+}
+
+#[tauri::command]
+pub async fn trash_note(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::trash_note(st, &path)).await
+}
+
+// --- güncelleme ---------------------------------------------------------------------
+
+/// Güncelleme işi ağda ya da yönetici izninde bekleyebilir: kendi iş parçacığında koşar.
+async fn update_job(f: impl FnOnce() -> Result<Value, String> + Send + 'static) -> Value {
+    match tauri::async_runtime::spawn_blocking(f).await {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => serde_json::json!({"success": false, "error": e}),
+        Err(e) => serde_json::json!({"success": false, "error": e.to_string()}),
+    }
+}
+
+#[tauri::command]
+pub async fn update_info() -> Value {
+    update_job(|| Ok(crate::update::info())).await
+}
+
+#[tauri::command]
+pub async fn update_check(app: AppHandle) -> Value {
+    update_job(move || Ok(crate::update::check(&app))).await
+}
+
+#[tauri::command]
+pub async fn update_download(app: AppHandle) -> Value {
+    update_job(move || crate::update::download(&app)).await
+}
+
+#[tauri::command]
+pub async fn update_install(app: AppHandle, file: Option<String>) -> Value {
+    update_job(move || crate::update::install(&app, file.as_deref())).await
+}
+
 // --- yazdırma / dışarıda açma -------------------------------------------------------
 
 /// Linux (WebKitGTK): `window.print()` sessizce yok sayıldığı için yazdırma
@@ -181,11 +240,17 @@ pub fn print_page(window: WebviewWindow) -> bool {
 
 #[tauri::command]
 pub fn open_external(url: String) -> bool {
-    api::open_external(&url, &|u| opener::open_browser(u).is_ok())
+    api::open_external(&url, &crate::nav::open_in_browser)
 }
 
+#[cfg(desktop)]
 fn system_open(p: &Path) -> std::io::Result<()> {
     opener::open(p).map_err(std::io::Error::other)
+}
+
+#[cfg(mobile)]
+fn system_open(_p: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
 }
 
 /// Yerel dosyayı (md dışı) varsayılan uygulamasında açar; kök dışı reddedilir.
@@ -243,6 +308,13 @@ pub fn unwatch_file(watch: State<'_, WatchState>) {
 #[tauri::command]
 pub fn initial_file(initial: State<'_, InitialFile>) -> Option<String> {
     initial.take()
+}
+
+/// Android'de uygulamanın kendi not klasörü (ilk açılışta örnek notlarla
+/// kurulur, depolama izni istemez). Masaüstünde yoktur.
+#[tauri::command]
+pub fn notes_dir(notes: State<'_, crate::startup::NotesDir>) -> Option<String> {
+    notes.0.as_ref().map(|p| p.to_string_lossy().into_owned())
 }
 
 /// macOS "Birlikte Aç": arayüz henüz sormadıysa açılış belgesi olur (kök onun

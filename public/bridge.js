@@ -108,6 +108,14 @@
             return call('resolve_wikilink', { target: target, currentFile: currentFile || null });
         },
         inspect_path: function (path) { return call('inspect_path', { path: path }); },
+        // --- güncelleme (updater.js) ----------------------------------------------
+        update_info: function () { return call('update_info'); },
+        update_check: function () { return call('update_check'); },
+        update_download: function () { return call('update_download'); },
+        update_install: function (file) { return call('update_install', { file: file || null }); },
+        onUpdateProgress: function (cb) {
+            return tauri.event.listen('update-progress', function (e) { cb(e.payload); });
+        },
         open_path: function (path) { return call('open_path', { path: path }); },
         open_in_file_manager: function (path) { return call('open_in_file_manager', { path: path }); }
     };

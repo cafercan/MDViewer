@@ -213,9 +213,29 @@ pub fn inspect_path(st: &AppState, path: &str) -> Value {
     st.snapshot().inspect_path(path)
 }
 
+pub fn list_notes(st: &AppState) -> Value {
+    st.snapshot().list_notes()
+}
+
+pub fn create_note(st: &AppState, dir: &str, name: &str) -> Value {
+    st.snapshot().create_note(dir, name)
+}
+
 // --- dışarıda açma ------------------------------------------------------------
 
 /// Yalnız http(s)/mailto; file:, javascript: … güvenilmeyen belgeden gelebilir.
+pub fn search_notes(st: &AppState, query: &str) -> Value {
+    st.snapshot().search_notes(query)
+}
+
+pub fn rename_note(st: &AppState, path: &str, name: &str) -> Value {
+    st.snapshot().rename_note(path, name)
+}
+
+pub fn trash_note(st: &AppState, path: &str) -> Value {
+    st.snapshot().trash_note(path)
+}
+
 pub fn open_external(url: &str, browser: &dyn Fn(&str) -> bool) -> bool {
     let url = url.trim();
     if !is_external_url(url) {
