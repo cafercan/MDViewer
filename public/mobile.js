@@ -139,6 +139,8 @@
                 ic.innerHTML = icon(ICON[it.icon], 22);
                 row.insertBefore(ic, row.firstChild);
             }
+            if (it.tile) row.classList.add('m-tile');
+            if (it.danger) row.classList.add('m-danger');
             if (it.current) row.classList.add('m-current');
         });
         if (title) {
@@ -229,6 +231,9 @@
             if (d && d.settings && d.settings.theme === undefined && d.settings.followSystem === undefined) {
                 d.settings.followSystem = true;
             }
+            // Seçilmemişse telefonun kendi temaları (uygulama simgesinin renkleri)
+            if (d && d.settings && d.settings.lightTheme === undefined) d.settings.lightTheme = 'oak-light';
+            if (d && d.settings && d.settings.darkTheme === undefined) d.settings.darkTheme = 'lantern-dark';
             return d;
         };
     }
@@ -269,7 +274,7 @@
         head.className = 'm-drawer-head';
         var brand = doc.createElement('div');
         brand.className = 'm-brand';
-        brand.innerHTML = '<b>MD Flow</b><small></small>';
+        brand.innerHTML = '<img src="logo-mobile.png" alt=""><span><b>MD Flow</b><small></small></span>';
         drawerPlace = brand.querySelector('small');
         head.appendChild(brand);
         head.appendChild(button('m-settings', 'gear', 'Ayarlar', function () {
@@ -277,6 +282,13 @@
             openSettingsPanel();
         }, 20));
         sidebar.insertBefore(head, sidebar.firstChild);
+
+        var find = doc.createElement('button');
+        find.type = 'button';
+        find.className = 'm-drawer-find';
+        find.innerHTML = icon(ICON.search, 18) + '<span>Notlarda ara</span>';
+        find.addEventListener('click', function () { closeDrawer(); openSwitcher(); });
+        head.insertAdjacentElement('afterend', find);
 
         var foot = doc.createElement('div');
         foot.className = 'm-drawer-foot';
@@ -300,6 +312,16 @@
         scrim.id = 'm-scrim';
         scrim.addEventListener('click', closeDrawer);
         sidebar.parentNode.insertBefore(scrim, sidebar.nextSibling);
+
+        // Ağaçta not adları uzantısız görünür.
+        function trimNames() {
+            explorerTree.querySelectorAll('.tree-file > span').forEach(function (el) {
+                var name = el.textContent.replace(/\.(md|markdown)$/i, '');
+                if (name !== el.textContent) el.textContent = name;
+            });
+        }
+        new MutationObserver(trimNames).observe(explorerTree, { childList: true, subtree: true });
+        trimNames();
 
         // Not ya da başlık seçilince çekmece kapanır.
         explorerTree.addEventListener('click', function (e) {
@@ -482,7 +504,7 @@
         bar.id = 'm-bar';
         bar.appendChild(button('m-back', 'back', 'Geri', function () { navigateHistory(-1); }));
         bar.appendChild(button('m-forward', 'forward', 'İleri', function () { navigateHistory(1); }));
-        bar.appendChild(button('m-new', 'plus', 'Yeni not', function () { newNote(); }, 24));
+        bar.appendChild(button('m-new', 'plus', 'Yeni not', function () { newNote(); }, 26));
         bar.appendChild(button('m-find', 'search', 'Sayfada ara', function () { setFindOpen(true); }));
         bar.appendChild(button('m-toc', 'toc', 'İçindekiler', function () { openDrawer('toc'); }));
         doc.querySelector('.app-container').appendChild(bar);
@@ -500,9 +522,10 @@
     function openMoreMenu() {
         var recentAnchor = doc.getElementById('m-more');
         sheet(null, [
-            { label: 'Yeni not', icon: 'newNote', action: function () { newNote(); } },
-            { label: 'Not ara', icon: 'search', hint: 'Klasördeki bütün notlar', action: openSwitcher },
-            { label: 'Bugünün notu', icon: 'day', action: openToday },
+            { label: 'Yeni not', icon: 'newNote', tile: true, action: function () { newNote(); } },
+            { label: 'Not ara', icon: 'search', tile: true, action: openSwitcher },
+            { label: 'Bugün', icon: 'day', tile: true, action: openToday },
+            { label: 'Tema', icon: 'palette', tile: true, action: openThemeMenu },
             { separator: true },
             { label: 'Bu not', icon: 'note', hint: 'Paylaş, yeniden adlandır, sil', action: function () { openNoteMenu(currentFilePath); } },
             { label: 'Klasör aç', icon: 'folder', action: openFolderDialog },
@@ -510,15 +533,9 @@
             { label: 'Son açılan dosyalar', icon: 'clock', action: function () { showRecentMenu('file', recentAnchor); } },
             { label: 'Son açılan klasörler', icon: 'recentFolder', action: function () { showRecentMenu('folder', recentAnchor); } },
             { separator: true },
-            { label: 'Tema', icon: 'palette', hint: themeName(currentTheme), action: openThemeMenu },
             { label: 'Yazdır / PDF', icon: 'print', action: exportToPdf },
             { label: 'Ayarlar', icon: 'gear', action: openSettingsPanel }
         ]);
-    }
-
-    function themeName(id) {
-        var t = THEMES.filter(function (x) { return x.id === id; })[0];
-        return t ? t.name : id;
     }
 
     function openThemeMenu() {
@@ -671,7 +688,7 @@
                 showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
             } },
             { separator: true },
-            { label: 'Sil', icon: 'trash', hint: 'Klasördeki .trash içine taşınır', action: function () { trashNote(path); } }
+            { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: function () { trashNote(path); } }
         );
         sheet(noteName(path), items);
     }

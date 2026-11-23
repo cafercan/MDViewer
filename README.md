@@ -133,17 +133,19 @@ cd packaging/arch/mdflowviewer && makepkg -si
 
 ## Android
 
-APK, release iş akışında derlenir ve uygulama içinden güncellenir. Bunun için
-depoda üç Actions secret'ı gerekir; yoksa APK adımı atlanır:
-`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
-Anahtar bir kez üretilir ve **saklanmalıdır**: farklı anahtarla imzalı APK kurulu
-uygulamanın üstüne kurulamaz.
+APK uygulama içinden güncellenir. Şu an yerelde derlenip imzalanır ve release
+oluşturulurken eklenir (`MDViewer-vX.Y.Z-android.apk`); iş akışı bunu
+`SHA256SUMS.txt`'e katar:
 
 ```bash
-keytool -genkeypair -v -keystore mdflow.jks -alias mdflow -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 mdflow.jks      # -> ANDROID_KEYSTORE_BASE64
-npx tauri android build --apk --target aarch64 armv7   # yerel derleme
+npx tauri android build --apk --target aarch64 armv7
+gh release create vX.Y.Z dist/MDViewer-vX.Y.Z-android.apk
 ```
+
+Yayınlanan APK'lar hep **aynı anahtarla** imzalanmalıdır: farklı anahtarla imzalı
+APK kurulu uygulamanın üstüne kurulamaz. Derlemeyi iş akışına bırakmak için bu
+anahtar depoya Actions secret'ı olarak eklenir (yoksa APK adımı atlanır):
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
 
 Telefona özgü: biçim çubuğu, okurken dokunulabilir görev kutuları, notların
 içinde arama, günün notu, paylaşma / paylaşılan metinden not, yeniden adlandırma,

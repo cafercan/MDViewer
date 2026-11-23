@@ -1016,3 +1016,220 @@ html.mobile .img-zoom { touch-action: none; }
 @media print {
     #m-bar, #m-format, #m-scrim, #m-progress, .m-sheet { display: none !important; }
 }
+
+/* ============================================================
+   SICAK GÖRÜNÜM: yüzen alt bar, kart yüzeyler, renkli ikon rozetleri
+   ============================================================ */
+html.mobile {
+    --m-bar-height: 76px;
+    --m-card: color-mix(in srgb, var(--text-primary) 3%, var(--bg-base));
+    --m-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+/* Renkler gövdede çözülmeli: koyu temada kart zeminden açık, açık temada beyaza yakın */
+html.mobile:not([data-theme$="-dark"]) { --m-card: color-mix(in srgb, #fff 60%, var(--bg-base)); }
+html.mobile[data-theme$="-dark"] {
+    --m-card: color-mix(in srgb, var(--text-primary) 7%, var(--bg-base));
+    --m-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* --- alt bar: kenarlardan ayrık, yuvarlak --- */
+html.mobile #m-bar {
+    height: 60px;
+    margin: 4px 14px 12px;
+    padding: 0 0.4rem;
+    border: 1px solid var(--m-line);
+    border-radius: 30px;
+    background: var(--m-card);
+    box-shadow: var(--m-shadow);
+}
+html.mobile #m-new {
+    width: 56px;
+    height: 46px;
+    border-radius: 23px;
+    background: var(--accent-primary);
+    color: var(--bg-base);
+}
+html.mobile #m-new:active { background: color-mix(in srgb, var(--accent-primary) 82%, var(--text-primary)); }
+html.mobile .m-btn:active { transform: scale(0.94); }
+html.mobile #m-format { background: var(--m-card); }
+
+/* --- okuma --- */
+html.mobile .viewport-pane { padding: 0.5rem 1.35rem 3rem; }
+html.mobile .markdown-body h1 { line-height: 1.18; }
+html.mobile .markdown-body h1::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin-top: 0.7rem;
+    border-radius: 2px;
+    background: var(--accent-gradient);
+}
+html.mobile .markdown-body table.frontmatter {
+    border: 1px solid var(--m-line);
+    border-radius: 16px;
+    border-collapse: separate;
+    border-spacing: 0;
+    padding: 0.55rem 0.9rem;
+    background: var(--m-card);
+}
+html.mobile .markdown-body pre {
+    margin: 1.2rem 0;
+    border: 1px solid var(--m-line);
+    border-radius: 16px;
+}
+html.mobile .markdown-body table:not(.frontmatter),
+html.mobile .mermaid { border-radius: 16px; }
+html.mobile .markdown-body img { border-radius: 14px; }
+html.mobile .markdown-body blockquote {
+    padding: 0.75rem 1rem;
+    border-radius: 6px 16px 16px 6px;
+    background: var(--m-card);
+}
+html.mobile .markdown-body .info-box,
+html.mobile .markdown-body .warning-box,
+html.mobile .markdown-body .danger-box { border-radius: 6px 16px 16px 6px; }
+html.mobile .markdown-body li::marker { color: var(--accent-primary); }
+
+/* --- çekmece --- */
+html.mobile .app-sidebar,
+html.mobile .app-sidebar.collapsed {
+    background: var(--bg-base);
+    border-radius: 0 28px 28px 0;
+}
+html.mobile .m-drawer-head { padding: 1rem 0.5rem 0.5rem 1.1rem; }
+html.mobile .m-brand { flex-direction: row; align-items: center; gap: 0.8rem; }
+html.mobile .m-brand img {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
+}
+html.mobile .m-brand span { display: flex; flex-direction: column; min-width: 0; }
+.m-drawer-find { display: none; }
+html.mobile .m-drawer-find {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-shrink: 0;
+    height: 46px;
+    margin: 0.5rem 1rem 0.25rem;
+    padding: 0 1rem;
+    border: 1px solid var(--m-line);
+    border-radius: 23px;
+    background: var(--m-card);
+    color: var(--m-ink-3);
+    font: inherit;
+    font-size: 0.92rem;
+}
+html.mobile .sidebar-tabs { border-radius: 16px; }
+html.mobile .sidebar-tab { border-radius: 13px; }
+html.mobile .m-drawer-foot {
+    flex-direction: row;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 1rem;
+}
+html.mobile .m-drawer-foot button {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.35rem;
+    height: 66px;
+    padding: 0 0.2rem;
+    border: 1px solid var(--m-line);
+    border-radius: 18px;
+    background: var(--m-card);
+    font-size: 0.76rem;
+    white-space: nowrap;
+}
+html.mobile .m-drawer-foot button svg { color: var(--accent-primary); }
+
+/* --- alttan açılan menü: hızlı işlem kutuları + rozetli satırlar --- */
+html.mobile .context-menu {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0 0.5rem;
+    padding: 0.35rem 0.9rem 1.1rem;
+    border-radius: 28px 28px 0 0;
+    background: var(--bg-base);
+}
+html.mobile .context-menu::before,
+html.mobile .context-menu > * { grid-column: 1 / -1; }
+html.mobile .context-menu::before { justify-self: center; }
+html.mobile .m-menu-title { padding: 0.2rem 0.5rem 0.7rem; font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--m-ink); overflow-wrap: anywhere; }
+html.mobile .context-menu-item { padding: 0.45rem 0.5rem; }
+html.mobile .m-ico {
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    background: var(--m-tint);
+    color: var(--m-tint-ink);
+}
+html.mobile .m-ico svg { width: 20px; height: 20px; }
+html.mobile .m-swatch { margin: 0 7px; }
+html.mobile .context-menu-item.m-tile {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.45rem;
+    min-width: 0;
+    min-height: 86px;
+    padding: 0.5rem 0.1rem;
+    border: 1px solid var(--m-line);
+    border-radius: 20px;
+    background: var(--m-card);
+    font-size: 0.8rem;
+    font-weight: 550;
+    text-align: center;
+}
+html.mobile .context-menu-item.m-tile:hover:not(:disabled) { background: var(--m-card); }
+html.mobile .context-menu-item.m-tile:active:not(:disabled) { background: var(--m-press); }
+html.mobile .context-menu-item.m-danger .context-menu-label { color: var(--error); }
+html.mobile .m-danger .m-ico { color: var(--error); background: color-mix(in srgb, var(--error) 13%, var(--bg-base)); }
+html.mobile .context-menu-sep { margin: 0.5rem; }
+
+/* --- not listesi --- */
+.m-sheet-list { padding: 0.25rem 1rem 2rem; }
+.m-sheet-label { padding: 1.1rem 0.3rem 0.5rem; }
+.m-note {
+    min-height: 62px;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--m-line);
+    border-radius: 18px;
+    background: var(--m-card);
+}
+.m-note > svg {
+    width: 40px;
+    height: 40px;
+    padding: 10px;
+    border-radius: 13px;
+    background: var(--m-tint);
+    color: var(--m-tint-ink);
+}
+.m-note.current { border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent); }
+.m-note.current > svg { background: var(--accent-primary); color: var(--bg-base); }
+
+/* --- kutular ve ayarlar --- */
+html.mobile .ui-dialog { border-radius: 28px; background: var(--bg-base); }
+html.mobile .update-card { background: var(--m-card); border: 1px solid var(--m-line); }
+html.mobile .settings-head h2 { font-size: 1.35rem; letter-spacing: -0.02em; }
+html.mobile .settings-head { border-bottom: none; }
+html.mobile .settings-body { padding: 0 1rem 1.5rem; }
+html.mobile .settings-section {
+    margin-bottom: 0.9rem;
+    padding: 0.2rem 1rem 0.5rem;
+    border: 1px solid var(--m-line);
+    border-radius: 22px;
+    background: var(--m-card);
+}
+html.mobile .settings-section h3 { margin: 0.9rem 0 0.7rem; color: var(--m-tint-ink); }
+html.mobile .theme-card { border-radius: 16px; }
+html.mobile .settings-row select { border-radius: 12px; max-width: 100%; }
+html.mobile .seg { border-radius: 14px; }
+html.mobile .seg button { border-radius: 11px; }
+html.mobile .seg button.active { color: var(--bg-base); }
+/* app.js girintiyi satır içi padding ile verir; hapın kenarına yapışmasın */
+html.mobile .toc-link { border-left: 0.5rem solid transparent; }
