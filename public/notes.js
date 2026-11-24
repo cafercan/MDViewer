@@ -70,7 +70,10 @@
         hooks.beforeOpen();
         applyExplorerState(explorerState);      // ağaç yeni notu göstersin
         await loadFile(result.path);
-        if (!text && !isEditMode) btnEditMode.click();
+        if (text) return;
+        if (!isEditMode) btnEditMode.click();
+        LiveEditor.setCursorLine(Infinity);
+        LiveEditor.focus();
     }
 
     // Günün notu: gezgin kökünde YYYY-AA-GG.md; yoksa oluşturulur.
