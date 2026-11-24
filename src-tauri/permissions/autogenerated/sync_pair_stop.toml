@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-pair-stop"
+description = "Enables the sync_pair_stop command without any pre-configured scope."
+commands.allow = ["sync_pair_stop"]
+
+[[permission]]
+identifier = "deny-sync-pair-stop"
+description = "Denies the sync_pair_stop command without any pre-configured scope."
+commands.deny = ["sync_pair_stop"]

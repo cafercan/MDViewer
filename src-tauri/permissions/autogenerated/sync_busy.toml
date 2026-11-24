@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-busy"
+description = "Enables the sync_busy command without any pre-configured scope."
+commands.allow = ["sync_busy"]
+
+[[permission]]
+identifier = "deny-sync-busy"
+description = "Denies the sync_busy command without any pre-configured scope."
+commands.deny = ["sync_busy"]

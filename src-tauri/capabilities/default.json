@@ -44,6 +44,18 @@
     "allow-update-info",
     "allow-update-check",
     "allow-update-download",
-    "allow-update-install"
+    "allow-update-install",
+    "allow-sync-status",
+    "allow-sync-host",
+    "allow-sync-pick-folder",
+    "allow-sync-pair-start",
+    "allow-sync-pair-stop",
+    "allow-sync-remove-peer",
+    "allow-sync-discover",
+    "allow-sync-pair",
+    "allow-sync-set-link",
+    "allow-sync-unlink",
+    "allow-sync-now",
+    "allow-sync-busy"
   ]
 }

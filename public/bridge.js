@@ -123,6 +123,24 @@
         onUpdateProgress: function (cb) {
             return tauri.event.listen('update-progress', function (e) { cb(e.payload); });
         },
+        // --- eşitleme (sync.js) ------------------------------------------------------
+        sync_status: function () { return call('sync_status'); },
+        sync_host: function (enabled, folder) { return call('sync_host', { enabled: enabled, folder: folder || null }); },
+        sync_pick_folder: function () { return call('sync_pick_folder'); },
+        sync_pair_start: function () { return call('sync_pair_start'); },
+        sync_pair_stop: function () { return call('sync_pair_stop'); },
+        sync_remove_peer: function (id) { return call('sync_remove_peer', { id: id }); },
+        sync_discover: function () { return call('sync_discover'); },
+        sync_pair: function (addr, code, name, folder) {
+            return call('sync_pair', { addr: addr, code: code, name: name, folder: folder });
+        },
+        sync_set_link: function (folder, auto) { return call('sync_set_link', { folder: folder, auto: auto }); },
+        sync_unlink: function () { return call('sync_unlink'); },
+        sync_now: function (allowDeletes) { return call('sync_now', { allowDeletes: !!allowDeletes }); },
+        sync_busy: function (path) { return call('sync_busy', { path: path || null }); },
+        onSyncEvent: function (cb) {
+            return tauri.event.listen('sync-event', function (e) { cb(e.payload); });
+        },
         open_path: function (path) { return call('open_path', { path: path }); },
         open_in_file_manager: function (path) { return call('open_in_file_manager', { path: path }); }
     };

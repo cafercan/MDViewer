@@ -19,7 +19,10 @@
             ['Dosya aç…', 'Ctrl+O', openFileDialog],
             ['Klasör aç…', 'Ctrl+Shift+O', openFolderDialog],
             ['Yazdır / PDF', 'Ctrl+P', exportToPdf],
-            ['Ayarlar', '', openSettingsPanel]
+            ['Ayarlar', 'Ctrl+,', function () { openSettingsPanel(); }],
+            ['Tema galerisi', '', function () { openSettingsPanel('theme'); }],
+            ['Kendi temanı yap…', '', function () { openSettingsPanel('theme'); ThemeEditor.open(null); }],
+            ['Telefonla eşitleme', '', function () { openSettingsPanel('sync'); }]
         ];
         if (currentFilePath) {
             var path = currentFilePath;

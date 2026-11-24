@@ -997,10 +997,6 @@ html.mobile .settings-row select { font-size: 0.95rem; padding: 0.5rem 0.6rem; }
 html.mobile .switch { width: 46px; height: 26px; }
 html.mobile .switch span::after { width: 20px; height: 20px; }
 html.mobile .switch input:checked + span::after { transform: translateX(20px); }
-html.mobile .theme-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
-html.mobile .theme-card { border-radius: 14px; }
-html.mobile .theme-card-preview { height: 44px; }
-html.mobile .theme-card-name { padding: 0.45rem 0.5rem; font-size: 0.8rem; }
 
 html.mobile .img-zoom-bar { bottom: 1.5rem; }
 html.mobile .img-zoom-bar button { min-width: 42px; height: 40px; }
@@ -1226,7 +1222,6 @@ html.mobile .settings-section {
     background: var(--m-card);
 }
 html.mobile .settings-section h3 { margin: 0.9rem 0 0.7rem; color: var(--m-tint-ink); }
-html.mobile .theme-card { border-radius: 16px; }
 html.mobile .settings-row select { border-radius: 12px; max-width: 100%; }
 html.mobile .seg { border-radius: 14px; }
 html.mobile .seg button { border-radius: 11px; }

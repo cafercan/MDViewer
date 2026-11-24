@@ -226,6 +226,78 @@ pub async fn update_install(app: AppHandle, file: Option<String>) -> Value {
     update_job(move || crate::update::install(&app, file.as_deref())).await
 }
 
+// --- eşitleme -----------------------------------------------------------------------
+
+type Sync = std::sync::Arc<crate::sync::SyncState>;
+
+/// Eşitleme işleri ağda bekler: kendi iş parçacığında koşar.
+async fn sync_job(app: AppHandle, f: impl FnOnce(&Sync) -> Result<Value, String> + Send + 'static) -> Value {
+    update_job(move || f(&app.state::<Sync>())).await
+}
+
+#[tauri::command]
+pub async fn sync_status(app: AppHandle) -> Value {
+    sync_job(app, |s| Ok(s.status())).await
+}
+
+#[tauri::command]
+pub async fn sync_host(app: AppHandle, enabled: bool, folder: Option<String>) -> Value {
+    sync_job(app, move |s| s.set_host(enabled, folder)).await
+}
+
+/// Eşitlenecek klasörü seçtirir (çalışma alanını değiştirmez).
+#[tauri::command]
+pub async fn sync_pick_folder(app: AppHandle) -> Option<String> {
+    let start = app.state::<AppState>().ws().explorer_state().root.map(PathBuf::from);
+    pick(&app, true, start).await.map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn sync_pair_start(app: AppHandle) -> Value {
+    sync_job(app, |s| s.pair_start()).await
+}
+
+#[tauri::command]
+pub async fn sync_pair_stop(app: AppHandle) -> Value {
+    sync_job(app, |s| Ok(s.pair_stop())).await
+}
+
+#[tauri::command]
+pub async fn sync_remove_peer(app: AppHandle, id: String) -> Value {
+    sync_job(app, move |s| s.remove_peer(&id)).await
+}
+
+#[tauri::command]
+pub async fn sync_discover(app: AppHandle) -> Value {
+    sync_job(app, |s| Ok(serde_json::json!({"success": true, "found": s.discover()}))).await
+}
+
+#[tauri::command]
+pub async fn sync_pair(app: AppHandle, addr: String, code: String, name: String, folder: String) -> Value {
+    sync_job(app, move |s| s.pair(&addr, &code, &name, &folder)).await
+}
+
+#[tauri::command]
+pub async fn sync_set_link(app: AppHandle, folder: Option<String>, auto: Option<bool>) -> Value {
+    sync_job(app, move |s| s.set_link(folder, auto)).await
+}
+
+#[tauri::command]
+pub async fn sync_unlink(app: AppHandle) -> Value {
+    sync_job(app, |s| s.unlink()).await
+}
+
+#[tauri::command]
+pub async fn sync_now(app: AppHandle, allow_deletes: bool) -> Value {
+    sync_job(app, move |s| s.sync_now(allow_deletes)).await
+}
+
+/// O an düzenlenen not: eşitleme onun üzerine yazmaz.
+#[tauri::command]
+pub fn sync_busy(sync: State<'_, Sync>, path: Option<String>) {
+    sync.set_busy(path);
+}
+
 // --- yazdırma / dışarıda açma -------------------------------------------------------
 
 /// Linux (WebKitGTK): `window.print()` sessizce yok sayıldığı için yazdırma
