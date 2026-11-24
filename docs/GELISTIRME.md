@@ -8,6 +8,8 @@ Arayüz saf web (HTML/CSS/JS), kabuk Rust (Tauri 2):
   HTML DOMPurify ile sanitize edilir, Mermaid `strict` modda ve yalnız diyagramlı
   belgede (ya da pencere boştayken) yüklenir. `public/bridge.js` uygulama
   komutlarına (`invoke`) köprüdür.
+  Düzenleyici `public/live-editor.js`tir (CodeMirror 6); CodeMirror paketi
+  `scripts/codemirror` içinde `npm ci && npm run build` ile yeniden üretilir.
 - **Çekirdek** — `core/` (`mdflow-core`): Tauri'den bağımsız, birim testli
   mantık — ayar dosyası, kök hapsi ve gezgin, wikilink çözümü, satır sonu/BOM
   koruyan atomik belge okuma/yazma.

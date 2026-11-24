@@ -830,170 +830,6 @@ body {
     max-width: 100% !important;
 }
 
-/* EDITOR PANE (Edit Mode) */
-.edit-pane {
-    padding: 1.5rem 2.5rem;
-}
-
-.editor-container {
-    max-width: calc(var(--md-width) + 50px);
-    width: 96%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--glass-shadow);
-}
-
-.editor-header {
-    padding: 0.75rem 1.25rem;
-    background: var(--bg-control);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-}
-.editor-indicator {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--accent-primary);
-}
-.editor-save-type {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-left: 0.75rem;
-    border-left: 1px solid var(--border-color);
-    padding-left: 0.75rem;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-.checkbox-label input {
-    cursor: pointer;
-    accent-color: var(--accent-primary);
-}
-
-.editor-wrapper {
-    flex-grow: 1;
-    display: flex;
-    position: relative;
-    overflow: hidden;
-}
-
-.line-numbers {
-    width: 45px;
-    padding: 1.25rem 0.5rem 1.25rem 0;
-    font-family: var(--font-mono);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    color: var(--text-muted);
-    text-align: right;
-    background: rgba(0, 0, 0, 0.15);
-    border-right: 1px solid var(--border-color);
-    user-select: none;
-    overflow: hidden;
-}
-
-#markdown-editor {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: 1.25rem;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    resize: none;
-    overflow-y: auto;
-    white-space: pre;
-    tab-size: 4;
-}
-
-/* INLINE EDITOR STYLING */
-.inline-editor {
-    max-width: 100%;
-    width: 100%;
-    margin: 0 auto;
-    padding: 1.5rem;
-    height: 100%;
-    overflow-y: auto;
-}
-
-.inline-block-wrapper {
-    position: relative;
-    margin-bottom: 0;
-    padding: 0.1rem 0.6rem;
-    border-left: 3px solid transparent;
-    border-radius: 4px;
-    transition: background 0.2s ease, border-left-color 0.2s ease;
-}
-/* Okuma modundaki sade aralığı taklit et: blok içi ilk elemanın üst margin'ini
-   kaldır ki wrapper'lar arası boşluk (collapse olmadığı için) katlanmasın.
-   Böylece bloklar arası boşluk ~ elemanın alt margin'i (read modu gibi). */
-.inline-block-wrapper .block-rendered > :first-child {
-    margin-top: 0;
-}
-
-.inline-block-wrapper:hover {
-    background: rgba(255, 255, 255, 0.02);
-    border-left-color: var(--accent-primary);
-    cursor: pointer;
-}
-
-.block-textarea {
-    width: 100%;
-    background: var(--bg-control);
-    border: 1px solid var(--accent-primary);
-    border-radius: var(--border-radius);
-    padding: 0.8rem 1rem;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: calc(0.9rem * var(--md-scale));
-    line-height: 1.6;
-    resize: none;
-    outline: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
-}
-
-.block-textarea:focus {
-    border-color: var(--accent-secondary);
-    box-shadow: 0 0 0 2px var(--accent-glow);
-}
-
-.add-block-wrapper {
-    margin-top: 2rem;
-    padding: 1rem;
-    border: 1px dashed var(--border-color);
-    border-radius: var(--border-radius);
-    text-align: center;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.add-block-wrapper:hover {
-    border-color: var(--accent-primary);
-    color: var(--text-primary);
-    background: var(--bg-surface-hover);
-}
-
-.add-block-placeholder {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
 /* RESPONSIVE DESIGN */
 @media (max-width: 900px) {
     .app-sidebar {
@@ -1025,8 +861,7 @@ body {
 }
 
 /* Markdown içindeki görseller */
-.markdown-body img,
-.block-rendered img {
+.markdown-body img {
     max-width: 100%;
     height: auto;
 }
@@ -1039,36 +874,6 @@ img.asset-missing {
     border: 1px dashed var(--danger, #d9534f);
     border-radius: 6px;
     background: rgba(217, 83, 79, 0.08);
-}
-
-/* ============================================================
-   SATIR NUMARASI OLUĞU (line numbers) — okuma + düzenleme
-   .md-linenums panele eklendiğinde her üst düzey blok (.md-block)
-   soldaki oluğa kaynak satır numarasını (data-ln) gösterir.
-   ============================================================ */
-.md-linenums .markdown-body {
-    padding-left: 3.4em;
-}
-/* Numara, bloğun sol oluğuna ABSOLUTE oturur: akışı bozmaz, ilk satırın
-   soluna hizalanır (edit blokları wrapper olduğu için inline-block üste
-   düşüyordu; absolute bunu çözer). */
-.md-linenums .md-block {
-    position: relative;
-}
-.md-linenums .md-block[data-ln]::before {
-    content: attr(data-ln);
-    position: absolute;
-    left: -3.2em;
-    top: 0.2em;
-    width: 2.6em;
-    text-align: right;
-    color: var(--text-muted);
-    font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
-    font-size: 0.7em;
-    line-height: inherit;
-    opacity: 0.55;
-    user-select: none;
-    pointer-events: none;
 }
 
 /* ============================================================
@@ -1376,7 +1181,6 @@ html.code-wrap .markdown-body pre code {
 .app-header,
 .app-sidebar,
 .sidebar-toggle-grip,
-.editor-header,
 .toggle-container,
 .theme-popover {
     user-select: none;
@@ -1392,8 +1196,7 @@ html.code-wrap .markdown-body pre code {
 
 /* Belge içeriği: okuma paneli, blok düzenleyici ve ham markdown alanları */
 .markdown-body,
-.inline-editor,
-.block-textarea,
+#live-editor,
 .read-pane,
 .edit-pane {
     user-select: text;
@@ -1507,10 +1310,6 @@ html.code-wrap .markdown-body pre code {
         page-break-after: avoid;
     }
 
-    /* Satır numarası oluğu yazdırmada gereksiz */
-    .md-linenums .markdown-body {
-        padding-left: 0 !important;
-    }
 }
 
 /* ============================================================

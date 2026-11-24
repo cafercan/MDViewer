@@ -33,6 +33,7 @@
     <!-- Telefon arayüzü (yalnız Android'de devreye girer; bkz. mobile.js) -->
     <link rel="stylesheet" href="mobile.css">
     <!-- Komut paleti, durum çubuğu, kutular, odak modu -->
+    <link rel="stylesheet" href="live-editor.css">
     <link rel="stylesheet" href="features.css">
     <link rel="stylesheet" href="settings.css">
     <script src="themes.js"></script>
@@ -300,26 +301,13 @@
                 </div>
 
                 <!-- VIEW MODE: EDIT -->
-                <div class="viewport-pane edit-pane hidden md-linenums" id="pane-edit">
-                    <div class="editor-container">
-                        <div class="editor-header">
-                            <div class="editor-info">
-                                <span class="editor-indicator">Markdown Düzenleyici</span>
-                                <span class="editor-save-type" id="save-status">Değişiklikler otomatik kaydedilir</span>
-                            </div>
-                            <div class="editor-actions">
-                                <label class="checkbox-label" title="Yazmayı durdurduktan 1.5 saniye sonra diske kaydeder">
-                                    <input type="checkbox" id="chk-autosave" checked>
-                                    <span>Otomatik Kaydet</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="editor-wrapper">
-                            <div class="inline-editor markdown-body" id="inline-editor">
-                                <!-- Dynamic block elements will be injected here -->
-                            </div>
-                        </div>
+                <div class="viewport-pane edit-pane hidden" id="pane-edit">
+                    <div class="disk-banner" id="disk-banner" role="alert" hidden>
+                        <span>Bu not başka bir yerde de değişti.</span>
+                        <button type="button" class="ui-dialog-btn" id="disk-load">Diskteki hâlini al</button>
+                        <button type="button" class="ui-dialog-btn primary" id="disk-keep">Benimkini kaydet</button>
                     </div>
+                    <div id="live-editor"></div>
                 </div>
             </section>
         </main>
@@ -327,6 +315,7 @@
         <!-- DURUM ÇUBUĞU (masaüstü) -->
         <footer class="status-bar" id="status-bar">
             <span class="status-path" id="status-path"></span>
+            <span class="status-save" id="save-status" aria-live="polite" hidden></span>
             <span class="status-stats" id="status-stats"></span>
             <span class="status-progress" id="status-progress"></span>
             <button class="status-btn" id="btn-zen" title="Odak modu (F9)" aria-label="Odak modu">
@@ -343,6 +332,7 @@
 
     <!-- AYARLAR PANELİ (app.js: openSettingsPanel) -->
     <div class="settings-backdrop hidden" id="settings-panel">
+        <input type="checkbox" id="chk-autosave" checked hidden>
         <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div class="settings-head">
                 <button class="icon-btn" id="btn-settings-back" title="Geri" aria-label="Geri"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
@@ -459,12 +449,12 @@
     <script src="callouts.js"></script>
     <script src="doc-stats.js"></script>
     <script src="ui-dialog.js"></script>
-    <script src="leave-guard.js"></script>
     <script src="drafts.js"></script>
     <script src="lazy-script.js"></script>
     <script src="image-zoom.js"></script>
     <script src="updater.js"></script>
-    <script src="editor-keys.js"></script>
+    <script src="vendor/codemirror/codemirror.min.js"></script>
+    <script src="live-editor.js"></script>
     <script src="notes.js"></script>
     <script src="reader.js"></script>
     <script src="palette.js"></script>

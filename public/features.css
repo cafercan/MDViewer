@@ -108,7 +108,7 @@ html:not(.mobile) .markdown-body li > input[type="checkbox"] {
 .doc-meta { display: none; }
 html.mobile .doc-meta:not(:empty) {
     display: block;
-    margin: 0.1rem 0 0.9rem;
+    margin: 1.5rem 0 0;
     font-size: 0.78rem;
     font-weight: 500;
     color: var(--m-ink-3);
@@ -309,7 +309,6 @@ html.zen .app-header,
 html.zen .app-sidebar,
 html.zen .sidebar-toggle-grip,
 html.zen .status-bar,
-html.zen.mobile #m-bar,
 html.zen.mobile .doc-meta,
 html.zen .backlinks { display: none; }
 html.zen .zen-exit {
@@ -332,7 +331,7 @@ html.zen .zen-exit {
 }
 html.zen .zen-exit:hover, html.zen .zen-exit:focus-visible { opacity: 1; }
 html.zen.mobile .zen-exit { width: 48px; height: 48px; opacity: 0.8; }
-html.zen.m-format .zen-exit { display: none; }
+html.zen.editor-focus .zen-exit { display: none; }
 html.zen:not(.mobile) { --md-width: 780px !important; }
 html.zen:not(.mobile) .read-pane { padding-top: 4rem; }
 

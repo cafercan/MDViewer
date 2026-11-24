@@ -114,10 +114,9 @@ let isEditMode = false;
 let stopWatch = null;
 let autosaveTimer = null;
 let headingElements = [];
-let currentTokens = [];
 let hasUnsavedChanges = false;
 let currentTheme = 'minimal-light';
-let lineNumbersOn = true;
+let lineNumbersOn = false;
 
 // Eski sürümlerden kalan taslakları bir kez temizle (bkz. drafts.js).
 if (typeof Drafts !== 'undefined') Drafts.purgeLegacy(storage);
@@ -157,7 +156,7 @@ const btnExplorerLock = document.getElementById('explorer-lock');
 const paneRead = document.getElementById('pane-read');
 const paneEdit = document.getElementById('pane-edit');
 const markdownViewer = document.getElementById('markdown-viewer');
-const inlineEditor = document.getElementById('inline-editor');
+const liveHost = document.getElementById('live-editor');
 const chkAutosave = document.getElementById('chk-autosave');
 const btnLineNumbers = document.getElementById('btn-line-numbers');
 const btnSettings = document.getElementById('btn-settings');
@@ -204,6 +203,8 @@ async function initApp(settingsReady) {
         // Kaydedilmemiş değişiklikle kapanırken sor
         // (Tauri işleyiciyi bekleyip sonra preventDefault'a bakar: async uygundur.)
         await native.onCloseRequested(async (event) => {
+            commitCell();
+            if (hasUnsavedChanges && await flushAutosave()) return;
             if (!hasUnsavedChanges) return;
             const close = await UiDialog.confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?',
                 { okText: 'Kapat', cancelText: 'Vazgeç' });
@@ -233,8 +234,7 @@ function startUpdater() {
         openPage: (url) => nativeApi().open_external(url),
         prepare: async () => {
             if (isEditMode) {
-                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-                closeAllBlockEditors();
+                commitCell();
             }
             if (!hasUnsavedChanges) return true;
             if (!chkAutosave.checked && !(await UiDialog.confirm('Kaydedilmemiş değişiklikler kaydedilip güncellensin mi?',
@@ -303,7 +303,7 @@ async function loadFile(filePath, options = {}) {
             
             // Render Content based on active mode
             if (isEditMode) {
-                renderInlineEditor(currentContent);
+                loadIntoEditor(currentContent);
                 Reader.refresh();
             } else {
                 renderMarkdown(currentContent);
@@ -319,7 +319,7 @@ async function loadFile(filePath, options = {}) {
             // Önce sıfırla (eski belgenin kaydırması kalmasın); sonra #parça varsa
             // ona, yoksa (ayar kapalıysa) bu belgede kalınan yere git.
             paneRead.scrollTop = 0;
-            inlineEditor.scrollTop = 0;
+            if (isEditMode) LiveEditor.scroller().scrollTop = 0;
             const saved = scrollPositions.get(data.path);
             if (anchor) scrollToAnchor(anchor);
             else if (saved && !prefs.alwaysStartAtTop) restoreScrollPosition(saved);
@@ -349,7 +349,7 @@ function findHeadingByAnchor(anchor) {
     try { wanted = decodeURIComponent(anchor); } catch (e) { /* ham hali */ }
     wanted = wanted.toLowerCase().trim();
     if (!wanted) return null;
-    const byId = document.getElementById(wanted);
+    const byId = isEditMode ? null : document.getElementById(wanted);
     if (byId) return byId;
     return headingElements.find((h) => {
         const idSlug = h.id.replace(/^h-\d+-/, '');
@@ -359,45 +359,75 @@ function findHeadingByAnchor(anchor) {
 
 // ============================================================
 // BELGE BAŞINA KAYDIRMA KONUMU
-// Konum piksel yerine "en üstteki blok + blok içi kayma" olarak tutulur:
-// okuma/düzenleme modunda bloklar birebir eşleştiği için mod değişse de
-// aynı yere dönülür. Yalnız bu oturum için bellekte saklanır.
+// Konum piksel yerine kaynaktaki (kesirli) satır numarasıdır: okuma ve
+// düzenleme aynı yere döner. Yalnız bu oturum için bellekte saklanır.
 // ============================================================
-const scrollPositions = new Map(); // yol -> { index, offset }
+const scrollPositions = new Map(); // yol -> satır
 let scrollRestoreToken = 0;
 
-function captureScrollPosition() {
-    const scroller = isEditMode ? inlineEditor : paneRead;
-    const blocks = isEditMode ? editBlocks() : readBlocks();
-    const index = topBlockIndex(scroller, blocks);
-    const el = blocks[index];
-    const offset = el ? scroller.getBoundingClientRect().top - el.getBoundingClientRect().top : 0;
-    return { index, offset };
+// Okuma görünümündeki blokların kaynak satırları: [{el, from, to}].
+function readBlocks() {
+    const els = Array.from(markdownViewer.children);
+    const total = currentContent.split('\n').length;
+    const spans = [];
+    let line = 1;
+    for (const t of marked.lexer(currentContent)) {
+        const n = (t.raw.match(/\n/g) || []).length;
+        if (t.type !== 'space' && t.type !== 'def') spans.push([line, line + Math.max(1, n)]);
+        line += n;
+    }
+    // HTML blokları birden çok öğe üretebilir: o belgede oranla yetin
+    return els.map((el, i) => {
+        const s = spans.length === els.length ? spans[i]
+            : [1 + total * i / els.length, 1 + total * (i + 1) / els.length];
+        return { el, from: s[0], to: s[1] };
+    });
 }
 
-function restoreScrollPosition(pos) {
+function readTopLine() {
+    if (paneRead.scrollTop < 4) return 1;
+    const top = paneRead.getBoundingClientRect().top;
+    const blocks = readBlocks();
+    const b = blocks.find((x) => x.el.getBoundingClientRect().bottom > top + 4);
+    if (!b) return 1;
+    const r = b.el.getBoundingClientRect();
+    return b.from + Math.max(0, (top - r.top) / Math.max(1, r.height)) * (b.to - b.from);
+}
+
+function readScrollToLine(line) {
+    if (line <= 1.01) { paneRead.scrollTop = 0; return; }
+    const blocks = readBlocks();
+    const b = blocks.find((x) => line < x.to) || blocks[blocks.length - 1];
+    if (!b) return;
+    const r = b.el.getBoundingClientRect();
+    const inside = Math.max(0, (line - b.from) / (b.to - b.from)) * r.height;
+    paneRead.scrollTo({ top: paneRead.scrollTop + r.top - paneRead.getBoundingClientRect().top + inside, behavior: 'instant' });
+}
+
+function captureScrollPosition() { return isEditMode ? LiveEditor.topLine() : readTopLine(); }
+
+function restoreScrollPosition(line) {
     const token = ++scrollRestoreToken;
-    const scroller = isEditMode ? inlineEditor : paneRead;
+    const scroller = isEditMode ? LiveEditor.scroller() : paneRead;
     let userScrolled = false;
     const onUser = () => { userScrolled = true; };
     const userEvents = ['wheel', 'pointerdown', 'keydown', 'touchstart'];
     userEvents.forEach((ev) => scroller.addEventListener(ev, onUser, { passive: true, once: true }));
     const apply = () => {
         if (token !== scrollRestoreToken || userScrolled) return;
-        const blocks = isEditMode ? editBlocks() : readBlocks();
-        const el = blocks[Math.min(pos.index, blocks.length - 1)];
-        if (!el) return;
-        const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollTop += delta + pos.offset;
+        if (isEditMode) LiveEditor.scrollToLine(line);
+        else readScrollToLine(line);
     };
     apply();
     // Görseller / mermaid / hljs yerleşimi değiştirebilir: kısa süre yeniden uygula.
     requestAnimationFrame(apply);
     setTimeout(apply, 160);
-    setTimeout(apply, 600);
-    (isEditMode ? inlineEditor : markdownViewer).querySelectorAll('img').forEach((img) => {
-        if (!img.complete) img.addEventListener('load', apply, { once: true });
-    });
+    if (!isEditMode) {
+        setTimeout(apply, 600);
+        markdownViewer.querySelectorAll('img').forEach((img) => {
+            if (!img.complete) img.addEventListener('load', apply, { once: true });
+        });
+    }
     setTimeout(() => {
         userEvents.forEach((ev) => scroller.removeEventListener(ev, onUser));
     }, 3000);
@@ -405,9 +435,7 @@ function restoreScrollPosition(pos) {
 
 function scrollToAnchor(anchor) {
     const heading = findHeadingByAnchor(anchor);
-    if (!heading) return;
-    const target = isEditMode ? (heading.closest('.inline-block-wrapper') || heading) : heading;
-    scrollElementIntoView(target);
+    if (heading) scrollToHeading(heading);
 }
 
 // ============================================================
@@ -420,15 +448,18 @@ function scrollToAnchor(anchor) {
 async function handleDocumentLinkClick(e) {
     const link = e.target.closest('a[href]');
     if (!link || !markdownViewer.contains(link)) return;
+    e.preventDefault();
+    await openDocumentLink(link, e.ctrlKey);
+}
+
+async function openDocumentLink(link, ctrlKey) {
     if (link.dataset.wiki !== undefined) {
-        e.preventDefault();
         await openWikilink(link.dataset.wiki, link.dataset.wikiAnchor || '');
         return;
     }
     const href = link.getAttribute('href');
     if (typeof AssetUrl === 'undefined') return;
     const info = AssetUrl.classifyLink(href, currentFilePath);
-    e.preventDefault();
 
     switch (info.kind) {
         case 'anchor':
@@ -449,7 +480,7 @@ async function handleDocumentLinkClick(e) {
             await loadFile(info.target, { anchor: info.anchor || '' });
             return;
         case 'file':
-            await openLocalTarget(info.target, e.ctrlKey);
+            await openLocalTarget(info.target, ctrlKey);
             return;
         default:
             UiDialog.alert('Bağlantı çözülemedi: ' + info.target);
@@ -502,15 +533,19 @@ function highlightActiveFile() {
     });
 }
 
-// Düzenleme modunda kaydedilmemiş değişiklik varsa kullanıcıya sorar.
-// true = devam edilebilir.
+// Otomatik kayıt açıksa bekleyen yazıyı hemen diske indirir. true = temiz.
+async function flushAutosave() {
+    commitCell();
+    if (!hasUnsavedChanges) return true;
+    if (!chkAutosave.checked || diskConflict) return false;
+    clearTimeout(autosaveTimer);
+    await saveFile();
+    return !hasUnsavedChanges;
+}
+
+// Kaydedilmemiş değişiklik varsa kullanıcıya sorar. true = devam edilebilir.
 async function confirmLeaveUnsaved() {
-    let blocksChanged = false;
-    if (isEditMode) {
-        closeAllBlockEditors();
-        blocksChanged = reconstructMarkdownFromBlocks() !== currentContent;
-    }
-    if (!LeaveGuard.mustAsk({ isEditMode, blocksChanged, hasUnsavedChanges })) return true;
+    if (await flushAutosave()) return true;
     const leave = await UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
         { okText: 'Geç', cancelText: 'Vazgeç' });
     if (leave) {
@@ -527,6 +562,8 @@ async function confirmLeaveUnsaved() {
 let activeSidebarTab = 'toc';
 
 function setSidebarTab(name, persist = true) {
+    // Telefonda bu panel not listesidir; başlıklar ⋮ menüsündedir
+    if (window.MDFlowMobile) name = 'explorer';
     if (!['toc', 'explorer'].includes(name)) name = 'toc';
     activeSidebarTab = name;
     sidebarTabs.querySelectorAll('.sidebar-tab').forEach((btn) => {
@@ -953,15 +990,18 @@ async function setupFileWatcher(filePath) {
         console.log('Dosya değişti bildirimi alındı:', data.file);
 
         if (isEditMode) {
-            // Warn edit mode users to prevent overwriting
-            saveStatus.innerHTML = `<span style="color: var(--warning); font-weight: 700;">Uyarı: Dosya diskte değiştirildi! <a href="#" id="link-reload-disk" style="color: var(--accent-secondary); text-decoration: underline;">Güncelle</a></span>`;
-            document.getElementById('link-reload-disk').addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (await UiDialog.confirm('Diskteki yeni değişiklikleri yüklemek istiyor musunuz? Yerel düzenlemeleriniz kaybolacaktır.',
-                    { okText: 'Yükle', cancelText: 'Vazgeç' })) {
-                    loadFile(currentFilePath);
-                }
-            });
+            // Yazılmamış değişiklik yoksa yeni hâli imleci bozmadan al; varsa sor.
+            if (hasUnsavedChanges) {
+                setDiskConflict(true);
+                return;
+            }
+            const fresh = await native.content(filePath);
+            if (!fresh.success || filePath !== currentFilePath || !isEditMode) return;
+            if (hasUnsavedChanges) { setDiskConflict(true); return; }
+            currentContent = fresh.content;
+            LiveEditor.replaceAll(currentContent);
+            buildTableOfContents();
+            Reader.refresh();
         } else {
             // Automatically reload in read mode
             setSyncStatus('syncing', 'Diskteki değişiklikler güncelleniyor...');
@@ -1078,391 +1118,85 @@ function renderMarkdown(markdownText) {
     refreshFind();
 }
 
-// INLINE WYSIWYG BLOCK EDITOR RENDERING (Edit Mode)
-function renderInlineEditor(markdownText) {
-    // Parse Markdown text into top-level token blocks
-    currentTokens = marked.lexer(markdownText);
-    inlineEditor.innerHTML = '';
+// CANLI DÜZENLEYİCİ (public/live-editor.js): belge tek parça yazılır.
+let editTimer = null;       // başlıklar, istatistik, arama: yazma durunca
+let diskConflict = false;   // dosya dışarıda değişti, kaydedilmemiş yazı var
+let lastTyped = 0;
 
-    // Her token'ın kaynak başlangıç satırı (space dahil ilerleyerek).
-    const tokenLineStarts = [];
-    let _ln = 1;
-    for (const t of currentTokens) {
-        tokenLineStarts.push(_ln);
-        _ln += (t.raw.match(/\n/g) || []).length;
-    }
+/** Tek bir bloğu okuma görünümündeki gibi çizer (tablo, kutu, diyagram, görsel). */
+function renderFragment(el, markdownText) {
+    el.innerHTML = preprocessRenderedHTML(marked.parse(markdownText));
+    resolveLocalAssets(el);
+    el.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+    const diagrams = el.querySelectorAll('.mermaid');
+    // Mermaid ölçüm yapar: öğe sayfaya eklendikten sonra çizilir
+    if (diagrams.length) requestAnimationFrame(() => runMermaid(diagrams));
+}
 
-    currentTokens.forEach((token, index) => {
-        // Skip spaces but keep them in token array for file reconstructions
-        if (token.type === 'space') return;
-
-        const blockWrapper = document.createElement('div');
-        blockWrapper.className = 'inline-block-wrapper md-block';
-        blockWrapper.setAttribute('data-index', index);
-        blockWrapper.dataset.ln = tokenLineStarts[index];
-        
-        // 1. Rendered representation of the block
-        const renderedDiv = document.createElement('div');
-        renderedDiv.className = 'block-rendered';
-        
-        let blockHtml = '';
-        if (token.type === 'table') {
-            // Render table wrapped with a raw-edit action overlay
-            blockHtml = `
-                <div class="table-block-container" style="position: relative; margin: 1rem 0;">
-                    <div class="table-edit-actions" style="margin-bottom: 0.5rem; display: flex; justify-content: flex-end;">
-                        <button class="secondary-btn btn-table-edit-raw" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.25rem; font-family: var(--font-ui);">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 20h9"></path>
-                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                            </svg>
-                            <span>Tabloyu Düzenle (MD)</span>
-                        </button>
-                    </div>
-                    ${marked.parser([token])}
-                </div>
-            `;
-        } else if (token.type === 'list') {
-            blockHtml = marked.parser([token]);
-        } else {
-            blockHtml = marked.parse(token.raw);
-        }
-        
-        renderedDiv.innerHTML = preprocessRenderedHTML(blockHtml);
-        resolveLocalAssets(renderedDiv);
-        
-        // 2. Raw Markdown Editor for the block (hidden by default)
-        const editorDiv = document.createElement('div');
-        editorDiv.className = 'block-editor hidden';
-        
-        const textarea = document.createElement('textarea');
-        textarea.className = 'block-textarea';
-        textarea.value = token.raw;
-        textarea.spellcheck = false;
-        
-        // Auto-grow textarea height initially
-        textarea.style.height = 'auto';
-        
-        editorDiv.appendChild(textarea);
-        blockWrapper.appendChild(renderedDiv);
-        blockWrapper.appendChild(editorDiv);
-        
-        // Block interaction events
-        renderedDiv.addEventListener('click', (e) => {
-            if (!isEditMode) return;
-            
-            // If it's a table block, only enter raw edit mode when the button is clicked
-            if (token.type === 'table') {
-                const editBtn = e.target.closest('.btn-table-edit-raw');
-                if (editBtn) {
-                    closeAllBlockEditors();
-                    // Inline cell edits don't re-render, so refresh the raw editor
-                    // from the current token to avoid showing stale markdown.
-                    textarea.value = currentTokens[index].raw;
-                    renderedDiv.classList.add('hidden');
-                    editorDiv.classList.remove('hidden');
-                    textarea.focus();
-                    textarea.style.height = 'auto';
-                    textarea.style.height = (textarea.scrollHeight + 5) + 'px';
-                }
-                return;
-            }
-            
-            // Standard block click-to-edit behavior
-            closeAllBlockEditors();
-            renderedDiv.classList.add('hidden');
-            editorDiv.classList.remove('hidden');
-            textarea.focus();
-            
-            // Dynamically resize height
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight + 5) + 'px';
-        });
-        
-        // Auto-saving on blur
-        textarea.addEventListener('blur', () => {
-            saveBlockEdit(index, textarea.value);
-        });
-
-        // Make table cells inline-editable (Excel-style)
-        if (token.type === 'table') {
-            const tableDom = blockWrapper.querySelector('table');
-            if (tableDom) {
-                makeTableCellsEditable(tableDom, index);
-            }
-        }
-        
-        // Auto-grow textarea on typing
-        textarea.addEventListener('input', () => {
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight + 5) + 'px';
+function setupLiveEditor() {
+    LiveEditor.init(liveHost, {
+        render: renderFragment,
+        openLink: openDocumentLink,
+        openWiki: openWikilink,
+        save: () => saveFile(),
+        onCursor: () => {},
+        onFocus: (on) => { document.documentElement.classList.toggle('editor-focus', on); },
+        onChange: () => {
+            currentContent = LiveEditor.text();
+            lastTyped = Date.now();
             markUnsaved();
-            if (!chkAutosave.checked) {
-                saveStatus.textContent = 'Kaydedilmemiş değişiklikler var';
-            }
-        });
-        
-        // Key events inside block editor
-        textarea.addEventListener('keydown', (e) => {
-            // Tab key support inside blocks
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
-                textarea.selectionStart = textarea.selectionEnd = start + 4;
-            }
-            
-            // Ctrl + Enter to finish editing and save
-            if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault();
-                textarea.blur();
-            }
-            
-            // Escape to cancel editing
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                textarea.value = token.raw; // Reset
-                textarea.blur();
-            }
-        });
-        
-        inlineEditor.appendChild(blockWrapper);
+            scheduleAutosave();
+            clearTimeout(editTimer);
+            editTimer = setTimeout(() => {
+                if (!isEditMode) return;
+                buildTableOfContents();
+                Reader.refresh();
+                refreshFind();
+            }, 350);
+        }
     });
-    
-    // Add Notion-style dynamic "Add New Block" helper at the bottom
-    renderAddBlockBtn();
-    
-    // Run Code Highlighting
-    inlineEditor.querySelectorAll('pre code').forEach((block) => {
-        hljs.highlightElement(block);
-    });
+    LiveEditor.scroller().addEventListener('scroll', handleScrollSpy, { passive: true });
+}
 
-    // Run Mermaid Diagrams inside inline editor
-    const mermaidElements = inlineEditor.querySelectorAll('.mermaid');
-    if (mermaidElements.length > 0) {
-        runMermaid(mermaidElements);
+function scheduleAutosave() {
+    clearTimeout(autosaveTimer);
+    if (!chkAutosave.checked) {
+        saveStatus.textContent = 'Kaydedilmedi';
+        return;
     }
+    if (diskConflict) return;
+    saveStatus.textContent = 'Yazılıyor…';
+    autosaveTimer = setTimeout(() => saveFile(), 1200);
+}
 
-    // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
+function loadIntoEditor(text) {
+    setDiskConflict(false);
+    LiveEditor.load(text);
+    saveStatus.textContent = '';
+    buildTableOfContents();
     refreshFind();
 }
 
-// NOTION-STYLE NEW BLOCK ADDITION
-function renderAddBlockBtn() {
-    const addWrapper = document.createElement('div');
-    addWrapper.className = 'inline-block-wrapper add-block-wrapper';
-    
-    const placeholder = document.createElement('div');
-    placeholder.className = 'add-block-placeholder';
-    placeholder.textContent = '+ Yeni paragraf veya markdown bloğu ekle...';
-    
-    addWrapper.appendChild(placeholder);
-    
-    addWrapper.addEventListener('click', () => {
-        // Replace helper text with a typing editor immediately
-        addWrapper.innerHTML = '';
-        addWrapper.classList.remove('add-block-wrapper');
-        
-        const textarea = document.createElement('textarea');
-        textarea.className = 'block-textarea';
-        textarea.placeholder = "Yeni markdown içeriğini buraya girin (Kaydetmek için dışarı tıklayın veya Ctrl+Enter)...";
-        textarea.spellcheck = false;
-        
-        addWrapper.appendChild(textarea);
-        textarea.focus();
-        
-        textarea.addEventListener('blur', () => {
-            const val = textarea.value.trim();
-            if (val) {
-                // Construct and append new content to document
-                const separator = currentContent.endsWith('\n') ? '\n' : '\n\n';
-                const updatedContent = currentContent + separator + val;
-                
-                // Immediately update memory and save
-                currentContent = updatedContent;
-                markUnsaved();
-                saveFile(updatedContent);
-                renderInlineEditor(updatedContent);
-            } else {
-                // Reset placeholder
-                inlineEditor.removeChild(addWrapper);
-                renderAddBlockBtn();
-            }
-        });
-        
-        textarea.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault();
-                textarea.blur();
-            }
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                textarea.value = '';
-                textarea.blur();
-            }
-        });
-    });
-    
-    inlineEditor.appendChild(addWrapper);
+/** Açık tablo hücresi varsa yazılanı belgeye işler. */
+function commitCell() {
+    const el = document.activeElement;
+    if (el && el.classList && el.classList.contains('lp-cell')) el.blur();
 }
 
-// INLINE EDITOR UTILITIES
-function closeAllBlockEditors() {
-    // Finds any active block editor and blurs its textarea, which triggers saving it
-    const activeTextareas = inlineEditor.querySelectorAll('.block-editor:not(.hidden) .block-textarea');
-    activeTextareas.forEach(ta => {
-        ta.blur();
-    });
-}
-
-function saveBlockEdit(index, newValue) {
-    const originalValue = currentTokens[index].raw;
-    
-    // If nothing changed, restore block state and exit
-    if (originalValue === newValue) {
-        const wrapper = inlineEditor.querySelector(`.inline-block-wrapper[data-index="${index}"]`);
-        if (wrapper) {
-            wrapper.querySelector('.block-rendered').classList.remove('hidden');
-            wrapper.querySelector('.block-editor').classList.add('hidden');
-        }
-        return;
-    }
-    
-    // Persist the change, then re-render blocks so HTML, Mermaid and TOC refresh
-    const updatedContent = applyTokenEdit(index, newValue);
-    renderInlineEditor(updatedContent);
-}
-
-// Persist a single block's new raw markdown into the token array and schedule
-// a save. Returns the reconstructed document. Does NOT re-render — callers that
-// need a visual refresh (e.g. paragraph edits) call renderInlineEditor themselves.
-// Table cell edits intentionally skip the re-render so the viewer stays put.
-function applyTokenEdit(index, newRaw) {
-    currentTokens[index].raw = newRaw;
-    const updatedContent = reconstructMarkdownFromBlocks();
-    currentContent = updatedContent; // keep memory in sync
-    markUnsaved();
-
-    if (chkAutosave.checked) {
-        saveStatus.textContent = 'Değişiklikler yapılıyor...';
-        clearTimeout(autosaveTimer);
-        autosaveTimer = setTimeout(() => {
-            saveFile(updatedContent);
-        }, 1500);
-    } else {
-        saveStatus.textContent = 'Kaydedilmemiş değişiklikler var';
-    }
-    return updatedContent;
-}
-
-function reconstructMarkdownFromBlocks() {
-    return currentTokens.map(token => token.raw).join('');
-}
-
-// TABLE WYSIWYG EDITOR HELPERS
-function convertHTMLTableToMarkdown(table, align = []) {
-    let markdown = '';
-
-    // Get headers
-    const headers = [];
-    const headerRow = table.querySelector('thead tr');
-    if (headerRow) {
-        headerRow.querySelectorAll('th').forEach(th => {
-            const input = th.querySelector('input');
-            headers.push(input ? input.value : th.textContent.trim());
-        });
-    }
-
-    if (headers.length > 0) {
-        markdown += '| ' + headers.join(' | ') + ' |\n';
-        // Preserve original column alignment from the parsed token
-        markdown += '| ' + headers.map((_, i) => {
-            switch (align[i]) {
-                case 'center': return ':---:';
-                case 'left': return ':---';
-                case 'right': return '---:';
-                default: return '---';
-            }
-        }).join(' | ') + ' |\n';
-    }
-    
-    // Get rows
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        const cells = [];
-        row.querySelectorAll('td').forEach(td => {
-            const input = td.querySelector('input');
-            cells.push(input ? input.value : td.textContent.trim());
-        });
-        markdown += '| ' + cells.join(' | ') + ' |\n';
-    });
-    
-    return markdown;
-}
-
-function makeTableCellsEditable(tableElement, tokenIndex) {
-    const cells = tableElement.querySelectorAll('th, td');
-    cells.forEach(cell => {
-        cell.addEventListener('click', (e) => {
-            if (!isEditMode) return;
-            if (cell.querySelector('input')) return; // Already editing
-            
-            // Stop propagation to prevent launching block raw markdown editor
-            e.stopPropagation();
-            
-            const originalText = cell.textContent.trim();
-            cell.innerHTML = `<input type="text" class="table-cell-input" value="">`;
-            const input = cell.querySelector('input');
-            input.value = originalText;
-            input.focus();
-            
-            // Style input
-            input.style.width = '100%';
-            input.style.background = 'var(--bg-control)';
-            input.style.border = '1px solid var(--accent-primary)';
-            input.style.color = 'var(--text-primary)';
-            input.style.padding = '4px 8px';
-            input.style.outline = 'none';
-            input.style.fontFamily = 'var(--font-ui)';
-            input.style.fontSize = '0.9rem';
-            input.style.borderRadius = '4px';
-            
-            const finishCellEdit = () => {
-                const newText = input.value.trim();
-                cell.textContent = newText;
-
-                // Rebuild the table markdown from the live DOM, preserving the
-                // original column alignment, and persist WITHOUT re-rendering so
-                // the table viewer stays exactly where it is.
-                const token = currentTokens[tokenIndex];
-                const tableMarkdown = convertHTMLTableToMarkdown(tableElement, token.align || []);
-                applyTokenEdit(tokenIndex, tableMarkdown);
-            };
-            
-            input.addEventListener('blur', finishCellEdit);
-            input.addEventListener('keydown', (ke) => {
-                if (ke.key === 'Enter') {
-                    ke.preventDefault();
-                    input.blur();
-                }
-                if (ke.key === 'Escape') {
-                    ke.preventDefault();
-                    cell.textContent = originalText; // Revert
-                }
-            });
-        });
-    });
+function setDiskConflict(on) {
+    diskConflict = on;
+    document.getElementById('disk-banner').hidden = !on;
+    if (on) clearTimeout(autosaveTimer);
 }
 
 // TABLE OF CONTENTS GENERATION
 function buildTableOfContents() {
     tocList.innerHTML = '';
     
-    // Select all heading tags inside active view container (reader vs editor)
-    const activeContainer = isEditMode ? inlineEditor : markdownViewer;
-    const headings = activeContainer.querySelectorAll('h1, h2, h3, h4');
-    headingElements = Array.from(headings);
+    // Düzenlemede başlıklar DOM'dan değil metinden gelir (görünmeyen satır çizilmez)
+    headingElements = isEditMode
+        ? LiveEditor.headings().map((h) => ({ textContent: h.text, tagName: 'H' + h.level, pos: h.pos, id: '' }))
+        : Array.from(markdownViewer.querySelectorAll('h1, h2, h3, h4'));
     
     if (headingElements.length === 0) {
         tocList.innerHTML = `<span class="empty-state">Başlık bulunamadı</span>`;
@@ -1491,11 +1225,7 @@ function buildTableOfContents() {
 
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            // In edit mode scroll the parent block wrapper; in read mode the heading.
-            const target = isEditMode
-                ? (heading.closest('.inline-block-wrapper') || heading)
-                : heading;
-            scrollElementIntoView(target);
+            scrollToHeading(heading);
 
             document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
             link.classList.add('active');
@@ -1507,36 +1237,28 @@ function buildTableOfContents() {
     handleScrollSpy();
 }
 
-// Robust scroll-to-element within the active scroll container.
-// Uses bounding-rect deltas so it works regardless of offsetParent quirks
-// (flex centering, positioned panes) in both read and edit modes.
-function scrollElementIntoView(target) {
-    if (!target) return;
-    const container = isEditMode ? inlineEditor : paneRead;
-    const containerRect = container.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const delta = targetRect.top - containerRect.top;
-    container.scrollTo({
-        top: Math.max(0, container.scrollTop + delta - 16),
-        behavior: 'smooth'
-    });
+function scrollToHeading(heading) {
+    if (isEditMode) {
+        LiveEditor.scrollToPos(heading.pos);
+        return;
+    }
+    const delta = heading.getBoundingClientRect().top - paneRead.getBoundingClientRect().top;
+    paneRead.scrollTo({ top: Math.max(0, paneRead.scrollTop + delta - 16), behavior: 'smooth' });
 }
 
 // SCROLL SPY MECHANISM
 function handleScrollSpy() {
     if (headingElements.length === 0) return;
-    
-    const scrollContainer = isEditMode ? inlineEditor : paneRead;
-    const containerScrollTop = scrollContainer.scrollTop;
-    
+    const paneTop = (isEditMode ? LiveEditor.scroller() : paneRead).getBoundingClientRect().top;
+
     let activeHeadingId = '';
     const triggerOffset = 120; 
 
     for (let i = 0; i < headingElements.length; i++) {
         const heading = headingElements[i];
-        const headingTop = heading.offsetTop;
+        const top = isEditMode ? LiveEditor.posTop(heading.pos) : heading.getBoundingClientRect().top;
 
-        if (headingTop - containerScrollTop <= triggerOffset) {
+        if (top - paneTop <= triggerOffset) {
             activeHeadingId = heading.id;
         } else {
             break;
@@ -1561,28 +1283,25 @@ async function saveFile(contentToSave = null) {
     if (!currentFilePath) return;
     
     try {
-        setSyncStatus('syncing', 'Kaydediliyor...');
-        saveStatus.textContent = 'Kaydediliyor...';
-        
-        if (contentToSave === null) {
-            contentToSave = isEditMode ? reconstructMarkdownFromBlocks() : currentContent;
-        }
-        
-        const data = await nativeApi().save(currentFilePath, contentToSave);
-        if (data.success) {
-            currentContent = contentToSave;
-            markSaved();
-            SyncUi.saved();
-            Reader.refresh();
-            setSyncStatus('connected', 'Kaydedildi');
-            saveStatus.textContent = 'Tüm değişiklikler kaydedildi';
-        } else {
-            throw new Error(data.error);
-        }
+        commitCell();
+        const path = currentFilePath;
+        const text = contentToSave === null ? currentContent : contentToSave;
+        saveStatus.textContent = 'Kaydediliyor…';
+        const data = await nativeApi().save(path, text);
+        if (!data.success) throw new Error(data.error);
+        if (path !== currentFilePath) return;
+        setDiskConflict(false);
+        // Kayıt sürerken yazılan varsa belge hâlâ kirli: sıradaki kayıt onu alır.
+        if (!isEditMode || currentContent === text) markSaved();
+        else scheduleAutosave();
+        if (!isEditMode) currentContent = text;
+        SyncUi.saved();
+        Reader.refresh();
+        if (!hasUnsavedChanges) saveStatus.textContent = 'Kaydedildi';
     } catch (error) {
         console.error('Kaydetme hatası:', error);
-        setSyncStatus('error', 'Kaydetme Hatası');
-        saveStatus.innerHTML = `<span style="color: var(--error)">Kayıt başarısız: ${error.message}</span>`;
+        saveStatus.textContent = 'Kaydedilemedi';
+        showToast('Kaydedilemedi: ' + error.message);
     }
 }
 
@@ -1607,62 +1326,56 @@ function setSyncStatus(state, text) {
 
 // SETUP DOM EVENTS
 function setupEventListeners() {
+    setupLiveEditor();
+
     // 1. Oku / Düzenle toggling
     btnReadMode.addEventListener('click', () => {
         if (!isEditMode) return;
 
-        // Kaydırma senkronu: düzenleme panelinde en üstteki blok indeksini yakala.
-        const anchorIndex = topBlockIndex(inlineEditor, editBlocks());
-
-        // First close any open block textareas to save their content
-        closeAllBlockEditors();
-
+        commitCell();
+        const line = LiveEditor.topLine();
+        LiveEditor.blur();
+        clearTimeout(editTimer);
         isEditMode = false;
-
-        btnReadMode.classList.add('active');
-        btnEditMode.classList.remove('active');
-
-        paneRead.classList.remove('hidden');
-        paneEdit.classList.add('hidden');
-        btnSave.classList.add('hidden');
-
-        // Reconstruct content and render read viewer
-        currentContent = reconstructMarkdownFromBlocks();
+        showMode();
         renderMarkdown(currentContent);
-
-        // Hedefte aynı bloğu tepeye getir (layout + mermaid/hljs için rAF + kısa gecikme).
-        const restore = () => scrollToBlock(paneRead, readBlocks(), anchorIndex);
-        requestAnimationFrame(restore);
-        setTimeout(restore, 160);
+        restoreScrollPosition(line);
+        flushAutosave();
     });
 
     btnEditMode.addEventListener('click', () => {
         if (isEditMode) return;
-
-        // Kaydırma senkronu: okuma panelinde en üstteki blok indeksini yakala.
-        const anchorIndex = topBlockIndex(paneRead, readBlocks());
-
+        const line = readTopLine();
         isEditMode = true;
+        showMode();
+        loadIntoEditor(currentContent);
+        Reader.refresh();
+        // Telefonda klavye kendiliğinden açılmasın; boş notta hemen yazılsın.
+        const fresh = currentContent.split('\n').filter((l) => l.trim()).length <= 1;
+        if (fresh) LiveEditor.setCursorLine(Infinity);
+        else LiveEditor.setCursorLine(line);
+        if (fresh || !window.MDFlowMobile) LiveEditor.focus();
+        restoreScrollPosition(line);
+    });
 
-        btnEditMode.classList.add('active');
-        btnReadMode.classList.remove('active');
-
-        paneEdit.classList.remove('hidden');
-        paneRead.classList.add('hidden');
-        btnSave.classList.remove('hidden');
-
-        // Render block inline editor
-        renderInlineEditor(currentContent);
-
-        // Hedefte aynı bloğu tepeye getir.
-        const restore = () => scrollToBlock(inlineEditor, editBlocks(), anchorIndex);
-        requestAnimationFrame(restore);
-        setTimeout(restore, 160);
+    document.getElementById('disk-load').addEventListener('click', async () => {
+        const data = await nativeApi().content(currentFilePath);
+        if (!data.success) return;
+        setDiskConflict(false);
+        currentContent = data.content;
+        LiveEditor.replaceAll(currentContent);
+        markSaved();
+        buildTableOfContents();
+        Reader.refresh();
+    });
+    document.getElementById('disk-keep').addEventListener('click', () => {
+        setDiskConflict(false);
+        saveFile();
     });
 
     // 2. Manual Save Button click
     btnSave.addEventListener('click', () => {
-        closeAllBlockEditors();
+        commitCell();
         saveFile();
     });
 
@@ -1703,7 +1416,7 @@ function setupEventListeners() {
         // Support Ctrl + S hotkey to save
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            closeAllBlockEditors();
+            commitCell();
             saveFile();
         }
         
@@ -1752,7 +1465,6 @@ function setupEventListeners() {
 
     // 7. Scroll Spy scroll listener on read pane & inline editor scrollable area
     paneRead.addEventListener('scroll', handleScrollSpy);
-    inlineEditor.addEventListener('scroll', handleScrollSpy);
 
     // 8. Sidebar grip toggle
     sidebarGrip.addEventListener('click', () => {
@@ -1761,10 +1473,6 @@ function setupEventListeners() {
 
     // 10. Belge içi bağlantılar + geri/ileri
     markdownViewer.addEventListener('click', handleDocumentLinkClick);
-    // Düzenleme modunda tıklama bloğu düzenlemeye açar; bağlantı sayfayı terk etmesin.
-    inlineEditor.addEventListener('click', (e) => {
-        if (e.target.closest('a[href]')) e.preventDefault();
-    });
     window.addEventListener('popstate', onPopState);
     if (btnNavBack) btnNavBack.addEventListener('click', () => navigateHistory(-1));
     if (btnNavForward) btnNavForward.addEventListener('click', () => navigateHistory(1));
@@ -1790,7 +1498,7 @@ function setupEventListeners() {
 
     window.addEventListener('beforeunload', (event) => {
         if (!hasUnsavedChanges) return;
-        closeAllBlockEditors();
+        commitCell();
         event.preventDefault();
         event.returnValue = '';
     });
@@ -1809,39 +1517,26 @@ function markSaved() {
     hasUnsavedChanges = false;
 }
 
-// STORAGE STORAGE PERSISTENCE
-// Satır numarası oluğunu aç/kapat (hem okuma hem düzenleme paneli).
-// Satır numaraları YALNIZCA düzenleme modunda. Toggle butonunu da günceller.
-function applyLineNumbers(on) {
-    lineNumbersOn = on;
-    paneEdit.classList.toggle('md-linenums', on);
-    paneRead.classList.remove('md-linenums');
-    if (btnLineNumbers) btnLineNumbers.classList.toggle('active', on);
+function showMode() {
+    btnReadMode.classList.toggle('active', !isEditMode);
+    btnEditMode.classList.toggle('active', isEditMode);
+    paneRead.classList.toggle('hidden', isEditMode);
+    paneEdit.classList.toggle('hidden', !isEditMode);
+    showSaveButton();
 }
 
-// --- Okuma <-> Düzenleme kaydırma senkronu ---
-// İki panel de aynı belge bloklarını AYNI SIRADA içerir (read: render öğeleri,
-// edit: .inline-block-wrapper). Bloklar birebir eşleştiği için, kaynaktaki en
-// üstteki bloğun indeksini bulup hedefte o bloğu tepeye getiriyoruz.
-function readBlocks() {
-    return Array.from(markdownViewer.children);
+// Otomatik kayıt açıkken düğme gerekmez; üst bar mod değişince kıpırdamasın.
+function showSaveButton() {
+    btnSave.classList.toggle('hidden', !isEditMode || chkAutosave.checked);
+    saveStatus.hidden = !isEditMode;
 }
-function editBlocks() {
-    return Array.from(inlineEditor.querySelectorAll(':scope > .inline-block-wrapper:not(.add-block-wrapper)'));
-}
-function topBlockIndex(scroller, blocks) {
-    if (!blocks.length) return 0;
-    const cTop = scroller.getBoundingClientRect().top;
-    for (let i = 0; i < blocks.length; i++) {
-        if (blocks[i].getBoundingClientRect().bottom > cTop + 4) return i;
-    }
-    return blocks.length - 1;
-}
-function scrollToBlock(scroller, blocks, index) {
-    const el = blocks[index];
-    if (!el) return;
-    const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-    scroller.scrollTop += delta;
+
+// Satır numaraları yalnız düzenlemede (Ayarlar ve üst bar).
+function applyLineNumbers(on) {
+    lineNumbersOn = on;
+    LiveEditor.setLineNumbers(on);
+    paneEdit.classList.toggle('lp-numbers', on);
+    if (btnLineNumbers) btnLineNumbers.classList.toggle('active', on);
 }
 
 function collectSettings() {
@@ -1884,8 +1579,8 @@ async function loadSettings() {
     // Tema — varsayılan AÇIK (minimal-light); sistem takibi açıksa o seçer
     setTheme(prefs.followSystem ? systemTheme() : (settings.theme || 'minimal-light'));
 
-    // Satır numarası — varsayılan AÇIK (yalnızca düzenleme modu)
-    applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
+    // Satır numarası — varsayılan kapalı (yalnızca düzenleme)
+    applyLineNumbers(settings.lineNumbers === true);
 
     Notes.setPinned(settings.pinnedNotes);
 
@@ -1912,10 +1607,22 @@ const findHighlightSupported =
 
 // Arama hangi panelde yapılacak: aktif moda göre içerik kökü ve kaydırıcı.
 function findScope() {
-    return isEditMode ? inlineEditor : markdownViewer;
+    return markdownViewer;
 }
 function findScroller() {
-    return isEditMode ? inlineEditor : paneRead;
+    return paneRead;
+}
+
+// Düzenlemede arama metnin kendisinde yapılır: [[başlangıç, bitiş]].
+function computeEditorMatches(query) {
+    const out = [];
+    const needle = findFold(query);
+    if (!needle) return out;
+    const folded = findFoldChars(LiveEditor.text());
+    for (let hit = folded.text.indexOf(needle); hit !== -1; hit = folded.text.indexOf(needle, hit + needle.length)) {
+        out.push([folded.starts[hit], folded.ends[hit + needle.length - 1]]);
+    }
+    return out;
 }
 
 // Aramayı normalize eder: küçük harf + tüm boşluk türlerini tek boşluğa
@@ -2107,7 +1814,7 @@ function runFind(delta = 0, jump = true) {
         findIndex = -1;
     }
 
-    findMatches = computeFindMatches(query);
+    findMatches = isEditMode ? computeEditorMatches(query) : computeFindMatches(query);
 
     if (!findMatches.length) {
         findIndex = -1;
@@ -2118,8 +1825,12 @@ function runFind(delta = 0, jump = true) {
         findIndex = (base + delta + findMatches.length) % findMatches.length;
     }
 
-    applyFindHighlights();
-    if (jump) scrollToFindMatch();
+    if (isEditMode) {
+        LiveEditor.find(findMatches, findIndex, jump);
+    } else {
+        applyFindHighlights();
+        if (jump) scrollToFindMatch();
+    }
     updateFindUI();
 }
 
@@ -2128,6 +1839,7 @@ function clearFind(resetInput = true) {
     findLastQuery = findInput.value;
     findMatches = [];
     findIndex = -1;
+    if (isEditMode) LiveEditor.find([], -1, false);
 
     if (findHighlightSupported) {
         CSS.highlights.delete(FIND_HL_ALL);

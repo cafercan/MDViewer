@@ -29,7 +29,7 @@ fn main() {
 
 | Tuş | İşlev | Not |
 | :--- | :---: | ---: |
-| Menü | Gezgin | sol kenardan kaydır |
+| Liste | Notlar | sağa kaydır |
 | Kalem | Düzenle | otomatik kayıt |
 | Büyüteç | Sayfada ara | Türkçe harf duyarsız |
 
