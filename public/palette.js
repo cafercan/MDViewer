@@ -31,7 +31,7 @@
                 ['Bu notu yeniden adlandır…', '', function () { Notes.rename(path); }],
                 ['Bu notu sil…', '', function () { Notes.trash(path); }],
                 ['Markdown kaynağını kopyala', '', async function () {
-                    if (isEditMode) closeAllBlockEditors();
+                    commitCell();
                     showToast((await copyToClipboard(currentContent)) ? 'Markdown kopyalandı' : 'Panoya kopyalanamadı');
                 }]
             );

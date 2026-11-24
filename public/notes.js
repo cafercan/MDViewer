@@ -94,7 +94,7 @@
     // Açık not düzenleniyorsa bekleyen yazı önce diske insin.
     async function settle(path) {
         if (path !== currentFilePath) return true;
-        if (isEditMode) closeAllBlockEditors();
+        commitCell();
         if (!hasUnsavedChanges) return true;
         clearTimeout(autosaveTimer);
         await saveFile();

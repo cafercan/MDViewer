@@ -14,7 +14,7 @@ const PREF_DEFAULTS = {
     // kod
     codeWrap: false, codeTheme: 'auto', codeSize: 'm',
     // düzenleme
-    editorFont: 'mono', editorSize: 'm', spellcheck: false,
+    editorSize: 'm', spellcheck: false,
     // davranış
     openMode: 'read', reopenLast: false, alwaysStartAtTop: false, imageZoom: true,
     // tema
@@ -50,14 +50,13 @@ const PREF_CHOICES = {
     imageStyle: { default: 1, rounded: 1, frame: 1, shadow: 1 },
     codeTheme: { auto: 1, light: 1, dark: 1 },
     codeSize: { s: 0.86, m: 1, l: 1.14 },
-    editorFont: { mono: 1, reading: 1 },
     editorSize: { s: 0.88, m: 1, l: 1.15, xl: 1.3 },
     openMode: { read: 1, edit: 1 },
 };
 const ACCENTS = ['#e5484d', '#f76b15', '#e5a000', '#46a758', '#12a594', '#0090ff', '#3e63dd', '#8e4ec6', '#d6409f', '#a18072'];
 /** <html data-…> olarak yazılan tercihler; varsayılan değerde öznitelik konmaz. */
 const DATA_PREFS = ['density', 'corners', 'background', 'lineHeight', 'paragraphGap', 'textAlign', 'headingStyle',
-    'linkStyle', 'tableStyle', 'imageStyle', 'codeTheme', 'editorFont'];
+    'linkStyle', 'tableStyle', 'imageStyle', 'codeTheme'];
 
 let prefs = { ...PREF_DEFAULTS };
 
@@ -114,6 +113,7 @@ function applyPrefs() {
     set('--border-radius', PREF_CHOICES.corners[prefs.corners]);
     set('--sidebar-width', mobile ? '' : PREF_CHOICES.sidebarWidth[prefs.sidebarWidth]);
     set('--code-scale', String(PREF_CHOICES.codeSize[prefs.codeSize]));
+    LiveEditor.setSpellcheck(prefs.spellcheck);
     set('--editor-scale', String(PREF_CHOICES.editorSize[prefs.editorSize]));
     const name = cleanFontName(prefs.customFont);
     const font = prefs.readingFont === 'custom'
@@ -448,11 +448,10 @@ const SETTING_ROWS = {
     ],
     edit: [
         { title: 'Düzenleyici' },
-        seg('editorFont', 'Yazı tipi', { mono: 'Mono', reading: 'Okuma tipi' }),
         seg('editorSize', 'Yazı boyutu', { s: 'Küçük', m: 'Normal', l: 'Büyük', xl: 'Çok büyük' }),
         { kind: 'switch', label: 'Satır numaraları', key: 'lines', get: () => lineNumbersOn, set: (v) => { applyLineNumbers(v); saveSettings(); } },
         { kind: 'switch', label: 'Otomatik kaydet', key: 'autosave', hint: 'Yazdıkça dosyaya kaydeder', get: () => chkAutosave.checked,
-            set: (v) => { chkAutosave.checked = v; chkAutosave.dispatchEvent(new Event('change')); saveSettings(); } },
+            set: (v) => { chkAutosave.checked = v; showSaveButton(); if (v) flushAutosave(); saveSettings(); } },
         sw('spellcheck', 'Yazım denetimi', 'Sistemin sözlüğü varsa hatalı sözcüklerin altını çizer'),
     ],
     behave: [
@@ -687,11 +686,6 @@ function setupSettingsPanel() {
         setTheme(prefs.followSystem ? systemTheme() : data.theme);
         saveSettings();
         showToast('Ayarlar uygulandı');
-    });
-
-    // Yazım denetimi her düzenleme kutusu odaklanınca uygulanır
-    document.addEventListener('focusin', (e) => {
-        if (e.target.classList && e.target.classList.contains('block-textarea')) e.target.spellcheck = prefs.spellcheck;
     });
 
     document.getElementById('btn-settings-back').addEventListener('click', () => SettingsNav.back());

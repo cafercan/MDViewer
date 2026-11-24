@@ -1,0 +1,173 @@
+/* ============================================================
+   CANLI DÜZENLEYİCİ (live-editor.js): ölçüler okuma görünümüyle aynıdır,
+   mod değişince metin yerinden oynamaz.
+   Satırlarda margin kullanılmaz (CodeMirror yüksekliği padding ile ölçer).
+   ============================================================ */
+.viewport-pane.edit-pane { padding: 0; overflow: hidden; flex-direction: column; justify-content: flex-start; }
+#live-editor { flex: 1 1 0; min-height: 0; width: 100%; }
+html #live-editor .cm-editor { height: 100%; outline: none; }
+html #live-editor .cm-scroller {
+    justify-content: center;
+    padding: 2.5rem;
+    overflow: auto;
+    font-family: inherit;
+    line-height: inherit;
+}
+html #live-editor .cm-content {
+    flex: 0 1 auto;
+    width: 95%;
+    max-width: var(--md-width);
+    min-height: 100%;
+    padding: 0 0 40vh;
+    font-family: var(--font-reading);
+    font-size: calc(1.05rem * var(--md-scale) * var(--editor-scale, 1));
+    line-height: 1.7;
+    color: var(--text-secondary);
+    caret-color: var(--accent-primary);
+}
+#live-editor .cm-line { padding: 0; }
+html #live-editor .cm-cursor { border-left: 2px solid var(--accent-primary); }
+html #live-editor .cm-selectionBackground { background: color-mix(in srgb, var(--accent-primary) 28%, transparent) !important; }
+#live-editor .cm-content ::selection, #live-editor .cm-line::selection { background: transparent; color: inherit; }
+#live-editor input::selection { background: color-mix(in srgb, var(--accent-primary) 35%, transparent); }
+html #live-editor .cm-placeholder { color: var(--text-muted); }
+
+/* Satır numaraları metnin soluna asılır; metin kaymaz */
+html #live-editor .cm-gutters {
+    position: relative !important;
+    width: 3.4rem;
+    margin-left: -3.4rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font: 0.72rem/1.7 var(--font-mono);
+}
+html #live-editor .cm-lineNumbers { width: 100%; }
+html #live-editor .cm-lineNumbers .cm-gutterElement { padding: 0 1rem 0 0; display: flex; align-items: center; justify-content: flex-end; opacity: 0.6; }
+
+/* --- satırlar --- */
+#live-editor .lp-gap { line-height: 1.25rem; }
+#live-editor .lp-gap-h { line-height: 0.85rem; }
+#live-editor .lp-h { font-family: var(--font-heading); font-weight: 700; line-height: 1.35; color: var(--text-primary); padding-top: 0.55rem; }
+#live-editor .lp-h.lp-first { padding-top: 1rem; }
+#live-editor .lp-h-tight { padding-bottom: 0.8rem; }
+#live-editor .lp-h1 { font-size: calc(2.2rem * var(--md-scale)); letter-spacing: -0.022em; }
+#live-editor .lp-h2 { font-size: calc(1.6rem * var(--md-scale)); letter-spacing: -0.012em; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line, var(--border-color)); }
+#live-editor .lp-h3 { font-size: calc(1.25rem * var(--md-scale)); }
+#live-editor .lp-h4 { font-size: calc(1.05rem * var(--md-scale)); }
+html[data-heading-style] #live-editor .lp-h { border: none; }
+html[data-heading-style="accent"] #live-editor .lp-h { color: var(--accent-primary); }
+html[data-heading-style="bar"] #live-editor :is(.lp-h1, .lp-h2, .lp-h3) { border-left: 4px solid var(--accent-primary); padding-left: 0.7rem; padding-bottom: 0; }
+html[data-heading-style="center"] #live-editor :is(.lp-h1, .lp-h2, .lp-h3) { text-align: center; }
+
+html #live-editor .lp-li {
+    padding-left: calc(var(--lp-depth, 1) * 1.5rem);
+    padding-bottom: 0.4rem;
+}
+html #live-editor .lp-li-first { text-indent: -1.5rem; }
+html #live-editor .lp-li-last { padding-bottom: 0; }
+#live-editor .lp-li-first > * { text-indent: 0; }
+#live-editor .lp-bullet, #live-editor .lp-marker { display: inline-block; min-width: 1.5rem; text-indent: 0; }
+#live-editor .lp-bullet { padding-left: 0.4rem; line-height: 1; font-weight: 700; box-sizing: border-box; }
+#live-editor .lp-marker { color: var(--text-muted); white-space: pre; }
+#live-editor .lp-task { width: 1.05em; height: 1.05em; margin: 0 calc(1.5rem - 1.05em) 0 4px; vertical-align: -0.14em; accent-color: var(--accent-primary); cursor: pointer; }
+
+html #live-editor .lp-quote {
+    padding: 0 1.25rem;
+    border-left: 4px solid var(--accent-primary);
+    background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+html #live-editor .lp-quote-a { padding-top: 0.75rem; border-top-right-radius: var(--border-radius); }
+html #live-editor .lp-quote-b { padding-bottom: 0.75rem; border-bottom-right-radius: var(--border-radius); }
+
+html #live-editor .lp-pre {
+    position: relative;
+    padding: 0 1.25rem;
+    border: solid var(--line, var(--border-color));
+    border-width: 0 1px;
+    background: color-mix(in srgb, var(--text-primary) 4%, var(--bg-base));
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: calc(0.9rem * var(--md-scale) * var(--code-scale, 1));
+}
+html #live-editor .lp-pre-a { border-top-width: 1px; border-radius: var(--border-radius) var(--border-radius) 0 0; }
+html #live-editor .lp-pre-b { border-bottom-width: 1px; border-radius: 0 0 var(--border-radius) var(--border-radius); }
+html #live-editor .lp-pre-a.lp-pre-b { border-radius: var(--border-radius); }
+#live-editor .lp-pre[data-lang]::after { content: attr(data-lang); position: absolute; right: 1rem; top: 0.25rem; font: 0.72rem var(--font-ui); color: var(--text-muted); pointer-events: none; }
+html[data-code-theme="dark"] #live-editor .lp-pre { background: #1a1b26; color: #c0caf5; }
+html[data-code-theme="light"] #live-editor .lp-pre { background: #f6f8fa; color: #24292e; }
+#live-editor .lp-raw { font-family: var(--font-mono); font-size: calc(0.9rem * var(--md-scale)); color: var(--text-secondary); }
+
+/* --- satır içi --- */
+#live-editor .lp-syntax, #live-editor .lp-syntax * { color: var(--text-muted) !important; font-weight: 400; }
+#live-editor .lp-strong { font-weight: 700; color: var(--text-primary); }
+#live-editor .lp-em { font-style: italic; }
+#live-editor .lp-strike { text-decoration: line-through; }
+#live-editor .lp-code { padding: 0.2rem 0.4rem; border-radius: 4px; background: var(--hover, var(--bg-control)); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.85em; }
+#live-editor .lp-mark { padding: 0 0.15em; border-radius: 3px; background: color-mix(in srgb, var(--warning) 38%, transparent); color: var(--text-primary); }
+#live-editor .lp-link { color: var(--accent-secondary); border-bottom: 1px solid color-mix(in srgb, var(--accent-secondary) 40%, transparent); }
+#live-editor .lp-hr { display: inline-block; width: 100%; height: 0; border-top: 1px solid var(--border-color); vertical-align: middle; }
+#live-editor .lp-image p { display: inline; margin: 0; }
+#live-editor .lp-find { border-radius: 2px; background: color-mix(in srgb, var(--warning) 40%, transparent); }
+#live-editor .lp-find-now { background: var(--warning); color: #111; }
+
+/* --- çizilmiş bloklar --- */
+#live-editor .lp-block { position: relative; display: flow-root; padding: 0.25rem 0; white-space: normal; cursor: text; }
+#live-editor .lp-block > :not(.lp-source) { margin-top: 0; margin-bottom: 0; }
+#live-editor .lp-source {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.4rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-base);
+    color: var(--text-secondary);
+    font: 0.75rem var(--font-ui);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+#live-editor .lp-block:hover .lp-source, #live-editor .lp-source:focus-visible { opacity: 1; }
+#live-editor .lp-cell {
+    width: 100%;
+    min-width: 5rem;
+    margin: -0.25rem -0.35rem;
+    padding: 0.25rem 0.35rem;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    box-shadow: 0 0 0 2px var(--accent-primary);
+    color: inherit;
+    font: inherit;
+    outline: none;
+}
+
+.disk-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; width: 100%; padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--border-color); background: color-mix(in srgb, var(--warning) 12%, var(--bg-base)); color: var(--text-primary); font-size: 0.88rem; }
+.disk-banner[hidden], .status-save[hidden] { display: none; }
+.disk-banner > span { flex: 1 1 12rem; }
+
+/* --- telefon --- */
+html.mobile #live-editor .cm-scroller { padding: 0.5rem 1.35rem 0; overscroll-behavior: contain; }
+html.mobile #live-editor .cm-content { width: 100%; color: var(--m-ink-2); }
+html.mobile #live-editor .cm-gutters { display: none; }
+html.mobile #live-editor .lp-task { width: 20px; height: 20px; margin: 0 12px 0 0; vertical-align: -4px; }
+html.mobile #live-editor .lp-li-first:has(.lp-task) { text-indent: -32px; padding-left: calc((var(--lp-depth, 1) - 1) * 1.5rem + 32px); }
+html.mobile #live-editor .lp-source { display: none; opacity: 1; padding: 0.45rem 0.7rem; }
+html.mobile #live-editor .lp-table .lp-source { position: static; display: block; margin: 0.4rem 0 0 auto; }
+html.mobile #live-editor .cm-content { font-size: calc(1.0625rem * var(--md-scale) * var(--editor-scale, 1)); }
+html.mobile #live-editor .lp-gap { line-height: 1.05rem; }
+html.mobile #live-editor .lp-gap-h { line-height: 0.8rem; }
+html.mobile #live-editor .lp-h { color: var(--m-ink); line-height: 1.25; letter-spacing: -0.015em; }
+html.mobile #live-editor .lp-h1 { font-size: calc(1.85rem * var(--md-scale)); font-weight: 750; letter-spacing: -0.025em; line-height: 1.18; }
+html.mobile #live-editor .lp-h1.lp-first { padding-top: 0.6rem; }
+html.mobile #live-editor .lp-h2 { font-size: calc(1.32rem * var(--md-scale)); padding: 1.05rem 0 0; border: none; }
+html.mobile #live-editor .lp-h3 { font-size: calc(1.1rem * var(--md-scale)); font-weight: 650; }
+html.mobile #live-editor .lp-h4 { font-size: calc(0.8rem * var(--md-scale)); letter-spacing: 0.06em; text-transform: uppercase; color: var(--m-ink-3); }
+html.mobile:not([data-heading-style]) #live-editor .lp-h1::after { content: ''; display: block; width: 40px; height: 4px; margin-top: 0.7rem; border-radius: 2px; background: var(--accent-gradient); }
+html.mobile #live-editor .lp-strong { color: var(--m-ink); font-weight: 650; }
+html.mobile #live-editor .lp-link { color: var(--accent-primary); border-bottom-color: color-mix(in srgb, var(--accent-primary) 35%, transparent); }
+html.mobile #live-editor .lp-code { padding: 0.12em 0.36em; border-radius: 5px; background: var(--m-sunken); color: var(--m-ink); }
+html.mobile .viewport-pane.edit-pane { display: flex; padding: 0; }
+html.mobile .disk-banner { padding: 0.6rem 1.35rem; }
+html.zen:not(.mobile) #live-editor .cm-scroller { padding-top: 4rem; }

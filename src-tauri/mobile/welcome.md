@@ -9,20 +9,18 @@ Markdown notlarınız artık cebinizde. Bu not uygulamanın kendi **Notlar**
 klasöründe duruyor; dilediğiniz gibi düzenleyin ya da silin.
 
 :::info
-Telefonunuzdaki bir klasörü açmak için sol üstteki menüden **Klasör aç**'a
-dokunun. İlk seferde Android "tüm dosyalara erişim" iznini sorar.
+Telefonunuzdaki bir klasörü açmak için listenin üstündeki klasör adına, sonra
+**Klasör aç**'a dokunun. İlk seferde Android "tüm dosyalara erişim" iznini sorar.
 :::
 
 ## Nasıl kullanılır
 
-- **☰ Menü** — dosya gezgini ve içindekiler. Sayfayı sağa kaydırarak da
-  açılır.
-- **Başlığa dokun** — klasördeki bütün notlar arasında ada göre hızlı geçiş.
-- **Kalem** — düzenleme modu. Bir paragrafa dokunun, yazın; değişiklikler
-  kendiliğinden kaydedilir.
-- **＋** — bulunduğunuz klasörde yeni not.
-- **Klasöre uzun bas** — o klasörü kök yap ya da içine not ekle.
-- **Geri tuşu** — açık paneli kapatır, sonra önceki nota döner.
+- **Liste** — bütün notlarınız. Nottan listeye geri tuşuyla ya da sayfayı sağa
+  kaydırarak dönersiniz.
+- **Kalem** — yazmaya başlar; değişiklikler kendiliğinden kaydedilir. **✓** bitirir.
+- **＋** — yeni not.
+- **⋮** — notta ara, başlıklar, paylaş, sil.
+- **Nota ya da klasöre uzun bas** — o satırın işlemleri.
 
 ## Neler var
 
@@ -31,7 +29,7 @@ dokunun. İlk seferde Android "tüm dosyalara erişim" iznini sorar.
 | Wikilink | [[Markdown örnekleri]] |
 | Kod vurgulama | `fn main() {}` |
 | Diyagram | Mermaid |
-| Tema | 10 tema, sistemle birlikte koyu/açık |
+| Tema | 60 tema, sistemle birlikte koyu/açık |
 
 ```mermaid
 flowchart LR

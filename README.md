@@ -34,7 +34,7 @@ Notlarınız diskinizde düz `.md` dosyaları olarak kalır. Hesap ve sunucu ger
 | | |
 |---|---|
 | **Okuma** | Canlı yenileme, içindekiler, Mermaid, kod vurgulama, bilgi kutuları (`> [!NOTE]`), `==vurgu==`, odak modu |
-| **Yazma** | Blok blok düzenleme, otomatik kayıt, biçim kısayolları, okurken işaretlenen görev kutuları |
+| **Yazma** | Okuma görünümünde yazma (canlı düzenleyici), otomatik kayıt, biçim kısayolları, okurken işaretlenen görev kutuları |
 | **Notlar** | Klasör gezgini, sabitlenen notlar, günün notu, `[[wikilink]]` ve nota bağlananlar |
 | **Bulma** | Komut paleti, bütün notların içinde arama, sayfa içi arama, son açılanlar |
 | **Görünüm** | 60 tema, kendi temanı yapma, vurgu rengi, yazı ve aralık ayarları, özel CSS |

@@ -94,7 +94,7 @@
     function updateProgress() {
         var el = doc.getElementById('status-progress');
         if (!el) return;
-        var pane = isEditMode ? inlineEditor : paneRead;
+        var pane = isEditMode ? LiveEditor.scroller() : paneRead;
         var max = pane.scrollHeight - pane.clientHeight;
         el.textContent = max > 40 ? '%' + Math.round(Math.min(1, pane.scrollTop / max) * 100) : '';
     }
@@ -164,7 +164,7 @@
 
     function init() {
         markdownViewer.addEventListener('change', onTask);
-        [paneRead, inlineEditor].forEach(function (p) {
+        [paneRead, LiveEditor.scroller()].forEach(function (p) {
             p.addEventListener('scroll', updateProgress, { passive: true });
         });
         root.addEventListener('resize', updateProgress);
@@ -173,7 +173,6 @@
         ['btn-zen', 'btn-zen-exit'].forEach(function (id) {
             doc.getElementById(id).addEventListener('click', function () { setZen(!isZen()); });
         });
-        EditorKeys.init(inlineEditor);
     }
 
     root.Reader = {

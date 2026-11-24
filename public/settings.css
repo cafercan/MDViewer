@@ -235,8 +235,6 @@ html[data-code-theme="dark"]:root .markdown-body pre { background: #1a1b26 !impo
 html[data-code-theme="dark"]:root .markdown-body pre code { color: #c0caf5; }
 html[data-code-theme="light"]:root .markdown-body pre { background: #f6f8fa !important; }
 html[data-code-theme="light"]:root .markdown-body pre code { color: #24292e; }
-html:root .block-textarea { font-size: calc(0.92rem * var(--md-scale) * var(--editor-scale, 1)); }
-html[data-editor-font="reading"]:root .block-textarea { font-family: var(--font-reading); }
 
 html[data-density="compact"]:not(.mobile) :is(.toc-link, .tree-row, .context-menu-item) { padding-top: 0.14rem; padding-bottom: 0.14rem; }
 html[data-density="roomy"]:not(.mobile) :is(.toc-link, .tree-row, .context-menu-item) { padding-top: 0.55rem; padding-bottom: 0.55rem; }

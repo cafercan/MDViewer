@@ -292,7 +292,8 @@ const SyncUi = (function () {
     // Düzenlenen not bildirilir; eşitleme onun üzerine yazmaz.
     let sentBusy;
     function markBusy() {
-        const path = isEditMode && currentFilePath ? currentFilePath : null;
+        const typing = hasUnsavedChanges || Date.now() - lastTyped < 8000;
+        const path = isEditMode && typing && currentFilePath ? currentFilePath : null;
         if (path === sentBusy || !api() || !api().sync_busy) return;
         sentBusy = path;
         api().sync_busy(path);

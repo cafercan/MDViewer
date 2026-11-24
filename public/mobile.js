@@ -1,10 +1,9 @@
 /**
- * Telefon arayüzü (Android).
+ * Telefon arayüzü (Android): not listesi (ana ekran) → not → düzenleme.
  *
  * Masaüstü arayüzünün (app.js) üstüne oturur; yalnız Android'de çalışır.
- * <html class="mobile"> koyar (görünüm: mobile.css), üst bara menü/mod/⋮
- * düğmelerini, alta gezinme çubuğunu ekler, kenar çubuğunu soldan kayan
- * çekmeceye çevirir. app.js'e dokunmaz: onun fonksiyonlarını çağırır.
+ * <html class="mobile"> koyar (görünüm: mobile.css), kenar çubuğunu tam ekran
+ * not listesine çevirir; notta üst bar (geri, ad, ⋮) ve kalem düğmesi durur. app.js'e dokunmaz: onun fonksiyonlarını çağırır.
  *
  * Android'e özgü işler (klasör/dosya seçici, depolama izni, bağlantı açma,
  * yazdırma, sistem çubuğu rengi, geri tuşu) MainActivity'nin verdiği
@@ -66,6 +65,7 @@
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
     }
     var ICON = {
+        up: '<polyline points="6 11 12 5 18 11"/><line x1="12" y1="5" x2="12" y2="20"/>',
         menu: '<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>',
         more: '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
         edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
@@ -225,7 +225,7 @@
             var opened = takeIntentFile();
             if (opened) {
                 var path = await invoke('open_file_path', { path: opened });
-                if (path) return path;
+                if (path) { closeHome(); return path; }
             }
             return initialFile();
         };
@@ -259,65 +259,84 @@
     }
 
     // ------------------------------------------------------------------
-    // Çekmece (kenar çubuğu): açık ⇔ .collapsed yok. app.js klasör açınca ya
-    // da klasör bağlantısına gidince sınıfı kendisi kaldırır; çekmece açılır.
+    // Not listesi (ana ekran): açık ⇔ kenar çubuğunda .collapsed yok. app.js
+    // klasör açınca sınıfı kendisi kaldırır; liste öne gelir.
     // ------------------------------------------------------------------
-    var drawerPlace = null;     // çekmece başlığının altındaki klasör adı
+    var homeTitle = null;
+    var fromHome = false;
+    var depth = 0;              // listeden açılan nottan bağlantıyla kaç not ileri gidildi
 
-    function drawerOpen() { return !sidebar.classList.contains('collapsed'); }
-    function openDrawer(tab) {
-        if (tab) setSidebarTab(tab, false);
-        if (doc.activeElement && doc.activeElement.blur) doc.activeElement.blur();
-        if (drawerPlace) drawerPlace.textContent = placeName(explorerState && explorerState.root);
+    function homeOpen() { return !sidebar.classList.contains('collapsed'); }
+    function syncHome() {
+        if (homeTitle) homeTitle.textContent = placeName(explorerState && explorerState.root) || 'Notlar';
+    }
+    async function openHome() {
+        if (isEditMode) {
+            LiveEditor.blur();
+            if (!(await flushAutosave()) && !(await confirmLeaveUnsaved())) return;
+            btnReadMode.click();
+        }
+        setFindOpen(false);
+        setSidebarTab('explorer', false);
+        syncHome();
         sidebar.classList.remove('collapsed');
     }
-    function closeDrawer() { sidebar.classList.add('collapsed'); }
+    function closeHome() {
+        if (homeOpen()) {
+            depth = 0;
+            fromHome = true;        // ardından açılan not listeden açılmış sayılır
+            setTimeout(function () { fromHome = false; }, 1500);
+        }
+        sidebar.classList.add('collapsed');
+    }
 
-    function buildDrawer() {
-        closeDrawer();
+    function openPlaces() {
+        var here = explorerState && explorerState.root;
+        var items = [];
+        if (notesDir && (!here || normPath(here) !== normPath(notesDir))) {
+            items.push({ label: 'Notlarım', icon: 'home', hint: 'Uygulamanın klasörü', action: function () { openWorkspacePath(notesDir); } });
+        }
+        if (explorerState && explorerState.canUp) items.push({ label: 'Üst klasöre çık', icon: 'up', action: explorerGoUp });
+        items.push(
+            { label: 'Klasör aç', icon: 'folder', action: openFolderDialog },
+            { label: 'Dosya aç', icon: 'file', action: openFileDialog },
+            { label: 'Son klasörler', icon: 'recentFolder', action: function () { showRecentMenu('folder', doc.getElementById('m-place')); } },
+            { label: 'Son notlar', icon: 'clock', action: function () { showRecentMenu('file', doc.getElementById('m-place')); } }
+        );
+        if (here) items.push({ label: explorerState.locked ? 'Sabitlemeyi kaldır' : 'Bu klasörü sabitle', icon: 'pin', hint: 'Not açınca klasör değişmez', action: explorerToggleLock });
+        sheet(here ? placeName(here) : 'Klasör', items);
+    }
+
+    function buildHome() {
+        sidebar.classList.remove('collapsed');
 
         var head = doc.createElement('div');
-        head.className = 'm-drawer-head';
-        var brand = doc.createElement('div');
-        brand.className = 'm-brand';
-        brand.innerHTML = '<img src="logo-mobile.png" alt=""><span><b>MD Flow</b><small></small></span>';
-        drawerPlace = brand.querySelector('small');
-        head.appendChild(brand);
-        head.appendChild(button('m-settings', 'gear', 'Ayarlar', function () {
-            closeDrawer();
-            openSettingsPanel();
-        }, 20));
+        head.className = 'm-home-head';
+        var place = doc.createElement('button');
+        place.type = 'button';
+        place.id = 'm-place';
+        place.innerHTML = '<span>Notlar</span>' + icon(ICON.chevron, 20);
+        place.addEventListener('click', openPlaces);
+        homeTitle = place.firstChild;
+        head.appendChild(place);
+        head.appendChild(button('m-today', 'day', 'Bugünün notu', Notes.today));
+        head.appendChild(button('m-sync', 'sync', 'Bilgisayarla eşitle', function () {
+            if (SyncUi.linked()) SyncUi.syncNow(true); else openSettingsPanel('sync');
+        }));
+        head.appendChild(button('m-settings', 'gear', 'Ayarlar', function () { openSettingsPanel(); }));
         sidebar.insertBefore(head, sidebar.firstChild);
 
         var find = doc.createElement('button');
         find.type = 'button';
-        find.className = 'm-drawer-find';
-        find.innerHTML = icon(ICON.search, 18) + '<span>Notlarda ara</span>';
-        find.addEventListener('click', function () { closeDrawer(); openSwitcher(); });
+        find.className = 'm-home-find';
+        find.innerHTML = icon(ICON.search, 20) + '<span>Notlarda ara</span>';
+        find.addEventListener('click', openSwitcher);
         head.insertAdjacentElement('afterend', find);
 
-        var foot = doc.createElement('div');
-        foot.className = 'm-drawer-foot';
-        [
-            ['folder', 'Klasör aç', openFolderDialog],
-            ['file', 'Dosya aç', openFileDialog],
-            ['home', 'Notlarım', function () { if (notesDir) openWorkspacePath(notesDir); }]
-        ].forEach(function (item) {
-            var b = doc.createElement('button');
-            b.type = 'button';
-            b.innerHTML = icon(ICON[item[0]], 20) + '<span>' + item[1] + '</span>';
-            b.addEventListener('click', function () {
-                closeDrawer();
-                item[2]();
-            });
-            foot.appendChild(b);
-        });
-        sidebar.appendChild(foot);
-
-        var scrim = doc.createElement('div');
-        scrim.id = 'm-scrim';
-        scrim.addEventListener('click', closeDrawer);
-        sidebar.parentNode.insertBefore(scrim, sidebar.nextSibling);
+        var add = button('m-new', 'plus', 'Yeni not', function () { Notes.create(explorerState && explorerState.root); }, 26);
+        sidebar.appendChild(add);
+        new MutationObserver(syncHome).observe(explorerRootLabel, { childList: true });
+        setSidebarTab('explorer', false);
 
         // Ağaçta not adları uzantısız görünür.
         function trimNames() {
@@ -329,16 +348,13 @@
         new MutationObserver(trimNames).observe(explorerTree, { childList: true, subtree: true });
         trimNames();
 
-        // Not ya da başlık seçilince çekmece kapanır.
+        // Not seçilince liste yerini nota bırakır.
         explorerTree.addEventListener('click', function (e) {
-            if (e.target.closest('.tree-file')) closeDrawer();
+            if (e.target.closest('.tree-file')) closeHome();
         });
         var pinnedList = doc.getElementById('pinned-list');
         pinnedList.addEventListener('click', function (e) {
-            if (e.target.closest('.tree-file')) closeDrawer();
-        });
-        tocList.addEventListener('click', function (e) {
-            if (e.target.closest('.toc-link')) closeDrawer();
+            if (e.target.closest('.tree-file')) closeHome();
         });
 
         // Nota uzun basış: not menüsü (app.js'in masaüstü menüsünün yerine)
@@ -366,11 +382,11 @@
             sheet(basename(path), items);
         }, true);
 
-        // Okuma alanında sağa kaydır: çekmece açılır; çekmecede sola kaydır: kapanır.
+        // Okurken sağa kaydır: listeye dön.
         var start = null;
         doc.addEventListener('touchstart', function (e) {
             start = null;
-            if (e.touches.length !== 1 || doc.querySelector('.m-sheet, .img-zoom, .ui-dialog-backdrop, .context-menu')) return;
+            if (isEditMode || homeOpen() || e.touches.length !== 1 || doc.querySelector('.m-sheet, .img-zoom, .ui-dialog-backdrop, .context-menu')) return;
             if (!settingsPanel.classList.contains('hidden')) return;
             var t = e.touches[0];
             start = { x: t.clientX, y: t.clientY, at: Date.now(), free: !scrollsSideways(e.target) };
@@ -385,8 +401,7 @@
             start = null;
             if (!quick) return;
             var selecting = root.getSelection && String(root.getSelection()).length > 0;
-            if (dx < 0 && drawerOpen()) closeDrawer();
-            else if (dx > 0 && !drawerOpen() && s.free && !selecting) openDrawer();
+            if (dx > 0 && s.free && !selecting) openHome();
         }, { passive: true });
     }
 
@@ -405,14 +420,7 @@
     // ------------------------------------------------------------------
     // Üst bar ve alt bar
     // ------------------------------------------------------------------
-    var modeBtn = null;
-
     function syncMode() {
-        modeBtn.innerHTML = icon(ICON[isEditMode ? 'read' : 'edit']);
-        var label = isEditMode ? 'Okuma moduna geç' : 'Düzenle';
-        modeBtn.title = label;
-        modeBtn.setAttribute('aria-label', label);
-        modeBtn.classList.toggle('active', isEditMode);
         html.classList.toggle('m-editing', isEditMode);
     }
 
@@ -428,7 +436,14 @@
     // #file-name-display'i yazmaya devam eder; burada ondan türetilir.
     var titleEl = null;
     var crumbEl = null;
+    var stepping = false;
+    var shownPath = '';
     function syncTitle() {
+        if (shownPath && currentFilePath !== shownPath) {
+            if (!stepping && !fromHome && !homeOpen()) depth++;
+            stepping = fromHome = false;
+        }
+        shownPath = currentFilePath;
         var name = fileNameDisplay.textContent || '';
         titleEl.textContent = name.replace(/\.(md|markdown)$/i, '');
         crumbEl.textContent = currentFilePath ? placeName(dirname(currentFilePath)) : '';
@@ -441,7 +456,6 @@
         title.className = 'm-title';
         titleEl = doc.createElement('span');
         title.appendChild(titleEl);
-        title.insertAdjacentHTML('beforeend', icon(ICON.chevron, 16));
         currentFileBadge.appendChild(crumbEl);
         currentFileBadge.appendChild(title);
         new MutationObserver(syncTitle).observe(fileNameDisplay, { childList: true, characterData: true, subtree: true });
@@ -495,16 +509,13 @@
         var center = doc.querySelector('.header-center');
         var right = doc.querySelector('.header-right');
 
-        left.appendChild(button('m-menu', 'menu', 'Menü', function () { openDrawer(); }));
+        left.appendChild(button('m-home', 'back', 'Not listesi', openHome));
         center.insertBefore(button('m-find-close', 'back', 'Aramayı kapat', function () { setFindOpen(false); }), center.firstChild);
-        currentFileBadge.addEventListener('click', openSwitcher);
+        currentFileBadge.addEventListener('click', function () { openNoteMenu(currentFilePath); });
         buildTitle();
         trackScroll();
 
-        modeBtn = button('m-mode', 'edit', 'Düzenle', function () {
-            (isEditMode ? btnReadMode : btnEditMode).click();
-        });
-        right.appendChild(modeBtn);
+        right.appendChild(button('m-done', 'done', 'Düzenlemeyi bitir', function () { btnReadMode.click(); }));
         right.appendChild(button('m-more', 'more', 'Diğer', openMoreMenu));
         // Mod başka yoldan da değişir (geri tuşu, yazdırma): düğmeyi app.js'in
         // tıklama işleyicisi bittikten sonra eşitle.
@@ -513,14 +524,11 @@
         });
         syncMode();
 
-        var bar = doc.createElement('nav');
-        bar.id = 'm-bar';
-        bar.appendChild(button('m-back', 'back', 'Geri', function () { navigateHistory(-1); }));
-        bar.appendChild(button('m-forward', 'forward', 'İleri', function () { navigateHistory(1); }));
-        bar.appendChild(button('m-new', 'plus', 'Yeni not', function () { Notes.create(); }, 26));
-        bar.appendChild(button('m-find', 'search', 'Sayfada ara', function () { setFindOpen(true); }));
-        bar.appendChild(button('m-toc', 'toc', 'İçindekiler', function () { openDrawer('toc'); }));
-        doc.querySelector('.app-container').appendChild(bar);
+        doc.querySelector('.workspace-viewport').appendChild(
+            button('m-edit', 'edit', 'Düzenle', function () { btnEditMode.click(); LiveEditor.focus(); }, 24));
+
+        // Kelime/süre notun sonunda: okuma ve yazma aynı yerden başlasın
+        markdownViewer.insertAdjacentElement('afterend', doc.getElementById('doc-meta'));
 
         // Klavye açılınca görünüm kısalır: alt bar yerini yazıya bırakır.
         var full = root.innerHeight;
@@ -533,51 +541,58 @@
     }
 
     function openMoreMenu() {
-        var recentAnchor = doc.getElementById('m-more');
         sheet(null, [
-            { label: 'Yeni not', icon: 'newNote', tile: true, action: function () { Notes.create(); } },
-            { label: 'Not ara', icon: 'search', tile: true, action: openSwitcher },
-            { label: 'Bugün', icon: 'day', tile: true, action: Notes.today },
-            { label: 'Tema', icon: 'palette', tile: true, action: openThemeMenu },
-            { separator: true },
-            { label: 'Bu not', icon: 'note', hint: 'Paylaş, sabitle, yeniden adlandır, sil', action: function () { openNoteMenu(currentFilePath); } },
-            { label: 'Klasör aç', icon: 'folder', action: openFolderDialog },
-            { label: 'Dosya aç', icon: 'file', action: openFileDialog },
-            { label: 'Son açılan dosyalar', icon: 'clock', action: function () { showRecentMenu('file', recentAnchor); } },
-            { label: 'Son açılan klasörler', icon: 'recentFolder', action: function () { showRecentMenu('folder', recentAnchor); } },
-            { separator: true },
-            { label: 'Odak modu', icon: 'focus', hint: 'Çubukları gizler', action: function () { Reader.setZen(true); } },
+            { label: 'Notta ara', icon: 'search', tile: true, action: function () { setFindOpen(true); } },
+            { label: 'Başlıklar', icon: 'toc', tile: true, action: openHeadings },
+            { label: 'Paylaş', icon: 'share', tile: true, action: function () { if (currentFilePath) shareNote(currentFilePath, false); } },
+            { label: Notes.isPinned(currentFilePath) ? 'Bırak' : 'Sabitle', icon: 'pin', tile: true, action: function () { if (currentFilePath) Notes.togglePin(currentFilePath); } },
+            { separator: true }
+        ].concat(noteItems(currentFilePath), [
             { label: 'Yazdır / PDF', icon: 'print', action: exportToPdf },
-            { label: 'Eşitle', icon: 'sync', hint: 'Bilgisayarla', action: function () { if (SyncUi.linked()) SyncUi.syncNow(true); else openSettingsPanel('sync'); } },
-            { label: 'Ayarlar', icon: 'gear', action: function () { openSettingsPanel(); } }
-        ]);
+            { label: 'Odak modu', icon: 'focus', action: function () { Reader.setZen(true); } }
+        ], deleteItem(currentFilePath)));
     }
 
-    function openThemeMenu() { openSettingsPanel('theme'); }
+    function openHeadings() {
+        if (!headingElements.length) { showToast('Bu notta başlık yok'); return; }
+        sheet('Başlıklar', headingElements.map(function (h) {
+            return { label: '\u2003'.repeat(Number(h.tagName.slice(1)) - 1) + h.textContent, action: function () { scrollToHeading(h); } };
+        }));
+    }
 
     // ------------------------------------------------------------------
     // Not menüsü: paylaş, yeniden adlandır, sil
     // ------------------------------------------------------------------
+    function noteItems(path) {
+        if (!path) return [];
+        var items = [];
+        if (android) items.push({ label: 'Dosya olarak paylaş', icon: 'file', action: function () { shareNote(path, true); } });
+        items.push(
+            { label: 'Yeniden adlandır', icon: 'edit', action: function () { Notes.rename(path); } },
+            { label: 'Tam yolu kopyala', icon: 'copy', action: async function () {
+                showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
+            } }
+        );
+        return items;
+    }
+    function deleteItem(path) {
+        return path ? [{ separator: true }, { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: async function () {
+            var current = path === currentFilePath;
+            await Notes.trash(path);
+            if (current && path !== currentFilePath) openHome();
+        } }] : [];
+    }
+
     function openNoteMenu(path) {
         if (!path) {
             showToast('Açık not yok');
             return;
         }
-        var items = [];
-        if (android) {
-            items.push({ label: 'Metin olarak paylaş', icon: 'share', action: function () { shareNote(path, false); } });
-            items.push({ label: 'Dosya olarak paylaş', icon: 'file', action: function () { shareNote(path, true); } });
-        }
-        items.push(
-            { label: Notes.isPinned(path) ? 'Sabitlemeyi kaldır' : 'Sabitle', icon: 'pin', action: function () { Notes.togglePin(path); } },
-            { label: 'Yeniden adlandır', icon: 'edit', action: function () { Notes.rename(path); } },
-            { label: 'Tam yolu kopyala', icon: 'copy', hint: path, action: async function () {
-                showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
-            } },
-            { separator: true },
-            { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: function () { Notes.trash(path); } }
-        );
-        sheet(Notes.noteName(path), items);
+        var items = [
+            { label: Notes.isPinned(path) ? 'Sabitlemeyi kaldır' : 'Sabitle', icon: 'pin', action: function () { Notes.togglePin(path); } }
+        ];
+        if (android) items.push({ label: 'Metin olarak paylaş', icon: 'share', action: function () { shareNote(path, false); } });
+        sheet(Notes.noteName(path), items.concat(noteItems(path), deleteItem(path)));
     }
 
     async function shareNote(path, asFile) {
@@ -599,39 +614,25 @@
         bar.id = 'm-format';
         bar.setAttribute('role', 'toolbar');
         bar.setAttribute('aria-label', 'Biçim');
-        var target = null;
 
         [
+            ['task', 'Görev'], ['bullet', 'Madde'], ['heading', 'Başlık'], ['bold', 'Kalın'], ['italic', 'İtalik'],
             ['undo', 'Geri al'], ['redo', 'Yinele'],
-            ['heading', 'Başlık'], ['bold', 'Kalın'], ['italic', 'İtalik'], ['strike', 'Üstü çizili'],
-            ['bullet', 'Madde'], ['number', 'Numaralı liste'], ['task', 'Görev'], ['quote', 'Alıntı'],
             ['indent', 'Girinti artır'], ['outdent', 'Girinti azalt'],
+            ['number', 'Numaralı liste'], ['quote', 'Alıntı'], ['strike', 'Üstü çizili'],
             ['link', 'Bağlantı'], ['wikilink', 'Not bağlantısı'], ['code', 'Kod']
         ].forEach(function (item) {
             var name = item[0];
             bar.appendChild(button('m-fmt-' + name, name, item[1], function () {
-                if (!target) return;
-                target.focus();
-                if (name === 'undo' || name === 'redo') doc.execCommand(name);
-                else EditorKeys.replaceText(target, MdFormat.apply(name, target.value, target.selectionStart, target.selectionEnd));
+                LiveEditor.focus();
+                if (name === 'undo' || name === 'redo') LiveEditor[name]();
+                else LiveEditor.format(name);
             }, 20));
         });
-        bar.appendChild(button('m-fmt-done', 'done', 'Bitti', function () { if (target) target.blur(); }, 20));
-        // Dokunuş odağı yazıdan almasın (odak giderse blok kapanır, klavye iner).
-        // click yine gelir; touchstart'a dokunulmaz ki çubuk yatay kaydırılabilsin.
+        // Dokunuş odağı yazıdan almasın (odak giderse klavye iner). click yine
+        // gelir; touchstart'a dokunulmaz ki çubuk yatay kaydırılabilsin.
         bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
         doc.querySelector('.app-container').appendChild(bar);
-
-        inlineEditor.addEventListener('focusin', function (e) {
-            if (!e.target.classList.contains('block-textarea')) return;
-            target = e.target;
-            html.classList.add('m-format');
-        });
-        inlineEditor.addEventListener('focusout', function (e) {
-            if (e.target !== target) return;
-            target = null;
-            html.classList.remove('m-format');
-        });
     }
 
     // ------------------------------------------------------------------
@@ -704,6 +705,7 @@
             }
             b.addEventListener('click', async function () {
                 closeSwitcher();
+                closeHome();
                 if (note.pin) {
                     Notes.open(note.path);
                 } else if (note.recent) {
@@ -799,7 +801,7 @@
     function runAction(a) {
         if (!a || !a.action) return;
         closeSwitcher();
-        closeDrawer();
+        closeHome();
         if (a.action === 'new') Notes.create();
         else if (a.action === 'today') Notes.today();
         else if (a.action === 'search') openSwitcher();
@@ -851,10 +853,12 @@
         if (switcher) { closeSwitcher(); return true; }
         if (!settingsPanel.classList.contains('hidden')) { if (!SettingsNav.back()) closeSettingsPanel(); return true; }
         if (html.classList.contains('m-find')) { setFindOpen(false); return true; }
-        if (drawerOpen()) { closeDrawer(); return true; }
-        if (isEditMode) { btnReadMode.click(); return true; }
+        if (homeOpen()) return false;
         if (Reader.isZen()) { Reader.setZen(false); return true; }
-        return false;
+        if (isEditMode) { btnReadMode.click(); return true; }
+        if (depth > 0) { depth--; stepping = true; navigateHistory(-1); return true; }
+        openHome();
+        return true;
     };
 
     // Durum ve gezinme çubuğu sayfa zeminiyle aynı renkte olsun.
@@ -889,8 +893,8 @@
     function init() {
         patchBridge();
         Notes.hooks.placeName = placeName;
-        Notes.hooks.beforeOpen = closeDrawer;
-        buildDrawer();
+        Notes.hooks.beforeOpen = closeHome;
+        buildHome();
         buildBars();
         buildFormatBar();
         guardMenus();
@@ -903,8 +907,7 @@
         // Geri tuşu: önce açık panel, sonra önceki not, en son uygulama arka plana.
         root.__TAURI__.app.onBackButtonPress(function (e) {
             if (api.back()) return;
-            if (e && e.canGoBack) root.history.back();
-            else if (android) android.moveToBack();
+            if (android) android.moveToBack();
         });
 
         // Uygulama açıkken "Birlikte aç" ile gelen dosya
@@ -913,7 +916,7 @@
             var path = parseOpened(JSON.stringify(data || {}));
             if (!path) return;
             closeSwitcher();
-            closeDrawer();
+            closeHome();
             openRecentFile(path);
         };
     }

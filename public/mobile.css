@@ -3,9 +3,9 @@
    Yalnız <html class="mobile"> altında geçerlidir; sınıfı mobile.js koyar.
    Masaüstü görünümüne dokunmaz: style.css aynı kalır, buradaki kurallar onu
    telefonda ezer. Düzen:
-     üst bar   : menü · klasör/not adı (dokun: hızlı geçiş) · kaydet · oku/düzenle · ⋮
-     çekmece   : mevcut kenar çubuğu (İçindekiler / Gezgin), soldan kayar
-     alt bar   : geri · ileri · yeni not · sayfada ara · içindekiler
+     ana ekran : klasör adı (dokun: klasör değiştir) · eşitle · ayarlar, arama, liste, +
+     not       : geri · not adı · (düzenlerken ✓) · ⋮, sağ altta kalem
+     yazarken  : klavyenin üstünde biçim çubuğu
    Sistem çubukları ve klavye payını MainActivity verir; burada env() yok.
 
    Görsel dil: düz yüzeyler, ince çizgiler, tek vurgu rengi. Masaüstündeki
@@ -177,7 +177,7 @@ html.mobile.m-find .find-bar {
 }
 html.mobile.m-find .current-file-badge,
 html.mobile.m-find .header-right,
-html.mobile.m-find #m-menu { display: none; }
+html.mobile.m-find #m-home { display: none; }
 html.mobile #m-find-close { display: none; }
 html.mobile.m-find #m-find-close { display: flex; }
 html.mobile #find-input { font-size: 1rem; }
@@ -259,10 +259,10 @@ html.mobile .markdown-body li::marker { color: var(--m-ink-3); }
 /* Görev listesi: madde işareti yerine yalnız kutu */
 html.mobile .markdown-body li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.3rem; }
 html.mobile .markdown-body li > input[type="checkbox"] {
-    width: 1.05em;
-    height: 1.05em;
-    margin: 0 0.55em 0 0;
-    vertical-align: -0.12em;
+    width: 20px;
+    height: 20px;
+    margin: 0 12px 0 0;
+    vertical-align: -4px;
     accent-color: var(--accent-primary);
 }
 html.mobile .markdown-body hr {
@@ -393,209 +393,100 @@ html.mobile .mermaid {
     background: var(--m-raised);
 }
 
-/* --- gövde: düzenleme ------------------------------------------------------ */
-/* Çerçevesiz, tam genişlik; satır numarası oluğu dar ekranda yok */
-html.mobile .edit-pane { padding: 0; overflow: hidden; }
-html.mobile .editor-container {
-    width: 100%;
-    max-width: none;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    background: transparent;
-}
-html.mobile .editor-header {
-    padding: 0.4rem 1.25rem;
-    border-bottom: 1px solid var(--m-line);
-    background: transparent;
-    font-size: 0.78rem;
-    color: var(--m-ink-3);
-}
-html.mobile .editor-indicator { display: none; }
-html.mobile .editor-save-type { margin: 0; padding: 0; border: none; }
-html.mobile .inline-editor { padding: 0.75rem 0.75rem 4rem; overscroll-behavior: contain; }
-html.mobile .md-linenums .markdown-body { padding-left: 0; }
-html.mobile .md-linenums .md-block[data-ln]::before { display: none; }
-html.mobile .block-textarea {
-    font-size: calc(0.92rem * var(--md-scale));
-    padding: 0.75rem 0.85rem;
-    border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
-    border-radius: 10px;
-    background: var(--m-raised);
-    box-shadow: none;
-}
-html.mobile .inline-block-wrapper { border-radius: 8px; }
-html.mobile .inline-block-wrapper:hover { background: transparent; border-left-color: transparent; }
-html.mobile .inline-block-wrapper:active { background: var(--m-press); border-left-color: var(--accent-primary); }
-
-/* --- çekmece (kenar çubuğu) ------------------------------------------------ */
-html.mobile .sidebar-toggle-grip { display: none; }
+/* --- not listesi (ana ekran) ----------------------------------------------- */
+html.mobile .sidebar-toggle-grip,
+html.mobile .sidebar-tabs,
+html.mobile .explorer-toolbar { display: none; }
 html.mobile .app-sidebar,
 html.mobile .app-sidebar.collapsed {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
+    width: 100%;
     height: 100%;
-    width: min(84vw, 336px);
     z-index: 300;
-    background: var(--m-raised);
+    border: none;
+    background: var(--bg-base);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    border-right: none;
-    border-radius: 0 20px 20px 0;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
-    transition: transform 0.3s var(--m-ease), visibility 0.3s;
+    box-shadow: none;
+    transition: transform 0.22s var(--m-ease), visibility 0.22s;
     user-select: none;
     -webkit-user-select: none;
 }
-html.mobile .app-sidebar.collapsed {
-    transform: translateX(-105%);
-    visibility: hidden;
-    box-shadow: none;
-    transition-duration: 0.22s;
-}
-/* Açılışta (mobile.js hazır olana kadar) çekmece kapalı dursun, kayarak kapanmasın */
-html.mobile:not(.m-ready) .app-sidebar {
-    transform: translateX(-105%);
-    visibility: hidden;
-    transition: none;
-}
-#m-scrim { display: none; }
-html.mobile #m-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 290;
-    background: rgba(0, 0, 0, 0.4);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s;
-}
-html.mobile .app-sidebar:not(.collapsed) ~ #m-scrim {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.m-drawer-head,
-.m-drawer-foot { display: none; }
-html.mobile .m-drawer-head {
+html.mobile .app-sidebar.collapsed { transform: translateX(-28%); visibility: hidden; opacity: 0; }
+html.mobile:not(.m-ready) .app-sidebar { transition: none; }
+.m-home-head, .m-home-find { display: none; }
+html.mobile .m-home-head { display: flex; align-items: center; flex-shrink: 0; padding: 0.75rem 0.5rem 0.25rem 0.5rem; }
+html.mobile #m-place {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.9rem 0.35rem 0.4rem 1.25rem;
-    flex-shrink: 0;
-}
-html.mobile .m-brand {
-    display: flex;
-    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1 1 auto;
     min-width: 0;
-}
-html.mobile .m-brand b {
-    font-size: 1.15rem;
-    font-weight: 750;
-    letter-spacing: -0.02em;
-    color: var(--m-ink);
-}
-html.mobile .m-brand small {
-    font-size: 0.75rem;
-    color: var(--m-ink-3);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-html.mobile .m-drawer-foot {
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    border-top: 1px solid var(--m-line);
-    padding: 0.4rem 0.6rem 0.6rem;
-}
-html.mobile .m-drawer-foot button {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    height: 46px;
-    padding: 0 0.75rem;
+    height: 48px;
+    padding: 0 0.85rem;
     border: none;
-    border-radius: 23px;
+    border-radius: 12px;
     background: transparent;
-    color: var(--m-ink-2);
+    color: var(--m-ink);
     font: inherit;
-    font-size: 0.92rem;
-    font-weight: 550;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     text-align: left;
 }
-html.mobile .m-drawer-foot button svg { color: var(--m-ink-3); }
-html.mobile .m-drawer-foot button:active { background: var(--m-press); color: var(--m-ink); }
-
-/* Sekmeler: çizgili sekme yerine iki parçalı seçici */
-html.mobile .sidebar-tabs {
-    margin: 0.5rem 1rem 0.35rem;
-    padding: 3px;
-    gap: 3px;
+html.mobile #m-place span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.mobile #m-place svg { flex-shrink: 0; color: var(--m-ink-3); }
+html.mobile #m-place:active { background: var(--m-press); }
+html.mobile .m-home-find {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    height: 48px;
+    margin: 0.25rem 1rem 0.5rem;
+    padding: 0 1rem;
     border: none;
     border-radius: 12px;
     background: var(--m-sunken);
-}
-html.mobile .sidebar-tab {
-    padding: 0.55rem 0.25rem;
-    border: none;
-    border-radius: 9px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
     color: var(--m-ink-3);
-    transition: background 0.2s, color 0.2s;
+    font: inherit;
+    font-size: 1rem;
 }
-html.mobile .sidebar-tab:hover { background: transparent; color: var(--m-ink-3); }
-html.mobile .sidebar-tab.active,
-html.mobile .sidebar-tab.active:hover {
-    background: var(--bg-base);
-    color: var(--m-ink);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+/* Tek başparmakla: kalem (notta) ve artı (listede) aynı yerde */
+html.mobile #m-new, html.mobile #m-edit {
+    position: absolute;
+    right: 1.25rem;
+    bottom: 1.5rem;
+    z-index: 20;
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    background: var(--accent-primary);
+    color: var(--bg-base);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
 }
-html.mobile[data-theme$="-dark"] .sidebar-tab.active,
-html.mobile:not([data-theme]) .sidebar-tab.active {
-    background: color-mix(in srgb, var(--text-primary) 14%, var(--bg-base));
-    box-shadow: none;
-}
+html.mobile.m-editing #m-edit, html.mobile.zen #m-edit { display: none; }
+html.mobile:not(.m-editing) #m-done { display: none; }
+html.mobile #m-done { color: var(--accent-primary); }
 
-html.mobile .explorer-toolbar {
-    padding: 0.25rem 0.6rem 0.25rem 1rem;
-    border-bottom: none;
-}
-html.mobile .explorer-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-}
-html.mobile .explorer-btn:active { background: var(--m-press); }
-html.mobile .explorer-btn svg { width: 18px; height: 18px; }
-html.mobile .explorer-root {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--m-ink-3);
-}
 html.mobile .explorer-container,
 html.mobile .toc-container {
     padding: 0 0.6rem 0.75rem;
     overscroll-behavior: contain;
 }
 html.mobile .tree-row {
-    padding-top: 0.66rem;
-    padding-bottom: 0.66rem;
-    padding-left: calc(0.75rem + var(--depth, 0) * 1rem);
-    gap: 0.6rem;
-    font-size: 0.94rem;
-    color: var(--m-ink-2);
+    min-height: 54px;
+    padding: 0.5rem 0.75rem 0.5rem calc(0.75rem + var(--depth, 0) * 1.1rem);
+    gap: 0.85rem;
+    font-size: 1.02rem;
+    color: var(--m-ink);
     border: none;
-    border-radius: 23px;
+    border-radius: 12px;
 }
+html.mobile .explorer-container { padding-bottom: 6.5rem; }
+html.mobile .tree-dir { font-weight: 600; }
+html.mobile .pinned-list { padding: 0 0.6rem 0.25rem; }
 html.mobile .tree-row svg.tree-folder-icon,
 html.mobile .tree-row svg.tree-file-icon { width: 18px; height: 18px; color: var(--m-ink-3); }
 html.mobile .tree-row:hover { background: transparent; color: var(--m-ink-2); }
@@ -627,36 +518,9 @@ html.mobile .toc-link.active {
     font-weight: 600;
 }
 
-/* --- alt bar -------------------------------------------------------------- */
-#m-bar { display: none; }
-html.mobile #m-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    flex-shrink: 0;
-    height: var(--m-bar-height);
-    padding: 0 0.5rem;
-    background: var(--m-raised);
-    border-top: 1px solid var(--m-line);
-    user-select: none;
-    -webkit-user-select: none;
-}
-/* Yeni not: gradyanlı yuvarlak yerine temanın renginde dolu bir hap */
-html.mobile #m-new {
-    width: 60px;
-    height: 40px;
-    border-radius: 20px;
-    background: var(--m-tint);
-    color: var(--m-tint-ink);
-    box-shadow: none;
-}
-html.mobile #m-new:active {
-    background: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-base));
-}
 /* Biçim çubuğu: blok yazılırken alt barın yerine geçer, yatay kayar */
 #m-format { display: none; }
-html.mobile.m-format #m-bar { display: none; }
-html.mobile.m-format #m-format {
+html.mobile.m-editing.editor-focus #m-format {
     display: flex;
     align-items: center;
     flex-shrink: 0;
@@ -671,18 +535,6 @@ html.mobile.m-format #m-format {
 }
 html.mobile #m-format::-webkit-scrollbar { display: none; }
 html.mobile #m-format .m-btn { width: 44px; height: 44px; }
-html.mobile #m-format #m-fmt-done {
-    width: 52px;
-    height: 38px;
-    border-radius: 19px;
-    position: sticky;
-    right: 0;
-    margin-left: auto;
-    color: var(--m-tint-ink);
-    background: var(--m-tint);
-}
-/* Klavye açıkken yer yazıya kalsın */
-html.mobile.m-kbd #m-bar { display: none; }
 
 /* --- alttan açılan menü (bağlam menüsü, ⋮, son açılanlar, tema) ------------- */
 html.mobile .context-menu {
@@ -1004,20 +856,19 @@ html.mobile .img-zoom { touch-action: none; }
 
 @media (prefers-reduced-motion: reduce) {
     html.mobile .app-sidebar,
-    html.mobile #m-scrim,
     html.mobile .context-menu,
     .m-sheet { transition: none; animation: none; }
 }
 
 @media print {
-    #m-bar, #m-format, #m-scrim, #m-progress, .m-sheet { display: none !important; }
+    #m-edit, #m-format, #m-progress, .m-sheet { display: none !important; }
 }
 
 /* ============================================================
    SICAK GÖRÜNÜM: yüzen alt bar, kart yüzeyler, renkli ikon rozetleri
    ============================================================ */
 html.mobile {
-    --m-bar-height: 76px;
+    --m-bar-height: 84px;
     --m-card: color-mix(in srgb, var(--text-primary) 3%, var(--bg-base));
     --m-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.08);
 }
@@ -1028,24 +879,6 @@ html.mobile[data-theme$="-dark"] {
     --m-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-/* --- alt bar: kenarlardan ayrık, yuvarlak --- */
-html.mobile #m-bar {
-    height: 60px;
-    margin: 4px 14px 12px;
-    padding: 0 0.4rem;
-    border: 1px solid var(--m-line);
-    border-radius: 30px;
-    background: var(--m-card);
-    box-shadow: var(--m-shadow);
-}
-html.mobile #m-new {
-    width: 56px;
-    height: 46px;
-    border-radius: 23px;
-    background: var(--accent-primary);
-    color: var(--bg-base);
-}
-html.mobile #m-new:active { background: color-mix(in srgb, var(--accent-primary) 82%, var(--text-primary)); }
 html.mobile .m-btn:active { transform: scale(0.94); }
 html.mobile #m-format { background: var(--m-card); }
 
@@ -1087,59 +920,6 @@ html.mobile .markdown-body .warning-box,
 html.mobile .markdown-body .danger-box { border-radius: 6px 16px 16px 6px; }
 html.mobile .markdown-body li::marker { color: var(--accent-primary); }
 
-/* --- çekmece --- */
-html.mobile .app-sidebar,
-html.mobile .app-sidebar.collapsed {
-    background: var(--bg-base);
-    border-radius: 0 28px 28px 0;
-}
-html.mobile .m-drawer-head { padding: 1rem 0.5rem 0.5rem 1.1rem; }
-html.mobile .m-brand { flex-direction: row; align-items: center; gap: 0.8rem; }
-html.mobile .m-brand img {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
-}
-html.mobile .m-brand span { display: flex; flex-direction: column; min-width: 0; }
-.m-drawer-find { display: none; }
-html.mobile .m-drawer-find {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    flex-shrink: 0;
-    height: 46px;
-    margin: 0.5rem 1rem 0.25rem;
-    padding: 0 1rem;
-    border: 1px solid var(--m-line);
-    border-radius: 23px;
-    background: var(--m-card);
-    color: var(--m-ink-3);
-    font: inherit;
-    font-size: 0.92rem;
-}
-html.mobile .sidebar-tabs { border-radius: 16px; }
-html.mobile .sidebar-tab { border-radius: 13px; }
-html.mobile .m-drawer-foot {
-    flex-direction: row;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem 1rem;
-}
-html.mobile .m-drawer-foot button {
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.35rem;
-    height: 66px;
-    padding: 0 0.2rem;
-    border: 1px solid var(--m-line);
-    border-radius: 18px;
-    background: var(--m-card);
-    font-size: 0.76rem;
-    white-space: nowrap;
-}
-html.mobile .m-drawer-foot button svg { color: var(--accent-primary); }
-
 /* --- alttan açılan menü: hızlı işlem kutuları + rozetli satırlar --- */
 html.mobile .context-menu {
     display: grid;
@@ -1157,13 +937,10 @@ html.mobile .context-menu-item { padding: 0.45rem 0.5rem; }
 html.mobile .m-ico {
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 13px;
-    background: var(--m-tint);
-    color: var(--m-tint-ink);
+    width: 32px;
+    height: 32px;
+    color: var(--m-ink-2);
 }
-html.mobile .m-ico svg { width: 20px; height: 20px; }
 html.mobile .m-swatch { margin: 0 7px; }
 html.mobile .context-menu-item.m-tile {
     grid-column: auto;
@@ -1172,41 +949,20 @@ html.mobile .context-menu-item.m-tile {
     justify-content: center;
     gap: 0.45rem;
     min-width: 0;
-    min-height: 86px;
-    padding: 0.5rem 0.1rem;
-    border: 1px solid var(--m-line);
-    border-radius: 20px;
-    background: var(--m-card);
+    gap: 0.2rem;
+    min-height: 72px;
+    padding: 0.4rem 0.1rem;
+    border-radius: 14px;
+    background: var(--m-sunken);
     font-size: 0.8rem;
     font-weight: 550;
     text-align: center;
 }
-html.mobile .context-menu-item.m-tile:hover:not(:disabled) { background: var(--m-card); }
+html.mobile .context-menu-item.m-tile:hover:not(:disabled) { background: var(--m-sunken); }
 html.mobile .context-menu-item.m-tile:active:not(:disabled) { background: var(--m-press); }
 html.mobile .context-menu-item.m-danger .context-menu-label { color: var(--error); }
-html.mobile .m-danger .m-ico { color: var(--error); background: color-mix(in srgb, var(--error) 13%, var(--bg-base)); }
+html.mobile .m-danger .m-ico { color: var(--error); }
 html.mobile .context-menu-sep { margin: 0.5rem; }
-
-/* --- not listesi --- */
-.m-sheet-list { padding: 0.25rem 1rem 2rem; }
-.m-sheet-label { padding: 1.1rem 0.3rem 0.5rem; }
-.m-note {
-    min-height: 62px;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--m-line);
-    border-radius: 18px;
-    background: var(--m-card);
-}
-.m-note > svg {
-    width: 40px;
-    height: 40px;
-    padding: 10px;
-    border-radius: 13px;
-    background: var(--m-tint);
-    color: var(--m-tint-ink);
-}
-.m-note.current { border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent); }
-.m-note.current > svg { background: var(--accent-primary); color: var(--bg-base); }
 
 /* --- kutular ve ayarlar --- */
 html.mobile .ui-dialog { border-radius: 28px; background: var(--bg-base); }
