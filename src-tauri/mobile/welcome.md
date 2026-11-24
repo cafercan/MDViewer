@@ -15,8 +15,8 @@ Telefonunuzdaki bir klasörü açmak için listenin üstündeki klasör adına, 
 
 ## Nasıl kullanılır
 
-- **Liste** — bütün notlarınız. Nottan listeye geri tuşuyla ya da sayfayı sağa
-  kaydırarak dönersiniz.
+- **☰** — bütün notlarınız. Sayfayı sağa kaydırarak da açılır; açık not sağda
+  görünmeye devam eder.
 - **Kalem** — yazmaya başlar; değişiklikler kendiliğinden kaydedilir. **✓** bitirir.
 - **＋** — yeni not.
 - **⋮** — notta ara, başlıklar, paylaş, sil.

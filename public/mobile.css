@@ -3,8 +3,8 @@
    Yalnız <html class="mobile"> altında geçerlidir; sınıfı mobile.js koyar.
    Masaüstü görünümüne dokunmaz: style.css aynı kalır, buradaki kurallar onu
    telefonda ezer. Düzen:
-     ana ekran : klasör adı (dokun: klasör değiştir) · eşitle · ayarlar, arama, liste, +
-     not       : geri · not adı · (düzenlerken ✓) · ⋮, sağ altta kalem
+     panel     : klasör adı (dokun: klasör değiştir) · eşitle · ayarlar, arama, liste, +
+     not       : menü · not adı · (düzenlerken ✓) · + · ⋮, sağ altta kalem
      yazarken  : klavyenin üstünde biçim çubuğu
    Sistem çubukları ve klavye payını MainActivity verir; burada env() yok.
 
@@ -393,18 +393,19 @@ html.mobile .mermaid {
     background: var(--m-raised);
 }
 
-/* --- not listesi (ana ekran) ----------------------------------------------- */
+/* --- not paneli (soldan açılır, not sağda görünür) ----------------------------------------------- */
 html.mobile .sidebar-toggle-grip,
 html.mobile .sidebar-tabs,
 html.mobile .explorer-toolbar { display: none; }
 html.mobile .app-sidebar,
 html.mobile .app-sidebar.collapsed {
     position: fixed;
-    inset: 0;
-    width: 100%;
+    inset: 0 auto 0 0;
+    width: min(80vw, 340px);
     height: 100%;
     z-index: 300;
     border: none;
+    border-right: 1px solid var(--m-line);
     background: var(--bg-base);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -413,10 +414,28 @@ html.mobile .app-sidebar.collapsed {
     user-select: none;
     -webkit-user-select: none;
 }
-html.mobile .app-sidebar.collapsed { transform: translateX(-28%); visibility: hidden; opacity: 0; }
+html.mobile .app-sidebar.collapsed { transform: translateX(-102%); visibility: hidden; }
+#m-scrim { display: none; }
+html.mobile #m-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 290;
+    background: rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+html.mobile .app-sidebar:not(.collapsed) ~ #m-scrim { opacity: 1; pointer-events: auto; }
+/* Tablet ve yatay ekran: liste ile not yan yana */
+@media (min-width: 700px) {
+    html.mobile .app-sidebar:not(.collapsed) ~ .workspace-viewport { margin-left: 340px; width: auto; }
+    html.mobile .app-sidebar:not(.collapsed) ~ #m-scrim { display: none; }
+    html.mobile .app-sidebar { top: var(--header-height); height: auto; }
+}
 html.mobile:not(.m-ready) .app-sidebar { transition: none; }
 .m-home-head, .m-home-find { display: none; }
-html.mobile .m-home-head { display: flex; align-items: center; flex-shrink: 0; padding: 0.75rem 0.5rem 0.25rem 0.5rem; }
+html.mobile .m-home-head { display: flex; align-items: center; flex-shrink: 0; padding: 0.5rem 0.25rem 0.25rem 0.5rem; }
 html.mobile #m-place {
     display: flex;
     align-items: center;
@@ -430,7 +449,7 @@ html.mobile #m-place {
     background: transparent;
     color: var(--m-ink);
     font: inherit;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     text-align: left;
@@ -984,3 +1003,17 @@ html.mobile .seg button { border-radius: 11px; }
 html.mobile .seg button.active { color: var(--bg-base); }
 /* app.js girintiyi satır içi padding ile verir; hapın kenarına yapışmasın */
 html.mobile .toc-link { border-left: 0.5rem solid transparent; }
+html.mobile .m-home-head .m-btn { width: 42px; }
+/* Panel açılınca not sağa kayar: yanında adı ve satır başları görünür */
+@media (max-width: 699px) {
+    html.mobile { --m-panel: 64vw; }
+    html.mobile .app-sidebar, html.mobile .app-sidebar.collapsed { width: var(--m-panel); }
+    html.mobile, html.mobile body, html.mobile .app-container { overflow: hidden; }
+    html.mobile .app-header, html.mobile .workspace-viewport { transition: transform 0.22s var(--m-ease); }
+    html.mobile:has(.app-sidebar:not(.collapsed)) .app-header,
+    html.mobile .app-sidebar:not(.collapsed) ~ .workspace-viewport { transform: translateX(var(--m-panel)); }
+    html.mobile .app-sidebar:not(.collapsed) ~ #m-scrim { background: rgba(0, 0, 0, 0.06); }
+    html.mobile:has(.app-sidebar:not(.collapsed)) #m-home { display: none; }
+    html.mobile .m-home-head { flex-wrap: wrap; }
+    html.mobile #m-place { flex-basis: 100%; }
+}

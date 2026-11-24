@@ -1,9 +1,10 @@
 /**
- * Telefon arayüzü (Android): not listesi (ana ekran) → not → düzenleme.
+ * Telefon arayüzü (Android): not paneli → not → düzenleme.
  *
  * Masaüstü arayüzünün (app.js) üstüne oturur; yalnız Android'de çalışır.
- * <html class="mobile"> koyar (görünüm: mobile.css), kenar çubuğunu tam ekran
- * not listesine çevirir; notta üst bar (geri, ad, ⋮) ve kalem düğmesi durur. app.js'e dokunmaz: onun fonksiyonlarını çağırır.
+ * <html class="mobile"> koyar (görünüm: mobile.css), kenar çubuğunu soldan
+ * açılan not paneline çevirir (açık not sağda görünür); notta üst bar (menü,
+ * ad, +, ⋮) ve kalem düğmesi durur. app.js'e dokunmaz: onun fonksiyonlarını çağırır.
  *
  * Android'e özgü işler (klasör/dosya seçici, depolama izni, bağlantı açma,
  * yazdırma, sistem çubuğu rengi, geri tuşu) MainActivity'nin verdiği
@@ -259,8 +260,8 @@
     }
 
     // ------------------------------------------------------------------
-    // Not listesi (ana ekran): açık ⇔ kenar çubuğunda .collapsed yok. app.js
-    // klasör açınca sınıfı kendisi kaldırır; liste öne gelir.
+    // Not paneli: açık ⇔ kenar çubuğunda .collapsed yok. app.js
+    // klasör açınca sınıfı kendisi kaldırır; panel açılır.
     // ------------------------------------------------------------------
     var homeTitle = null;
     var fromHome = false;
@@ -270,13 +271,9 @@
     function syncHome() {
         if (homeTitle) homeTitle.textContent = placeName(explorerState && explorerState.root) || 'Notlar';
     }
-    async function openHome() {
-        if (isEditMode) {
-            LiveEditor.blur();
-            if (!(await flushAutosave()) && !(await confirmLeaveUnsaved())) return;
-            btnReadMode.click();
-        }
-        setFindOpen(false);
+    function openHome() {
+        LiveEditor.blur();          // klavye insin; not düzenlemede kalabilir
+        if (html.classList.contains('m-find')) setFindOpen(false);
         setSidebarTab('explorer', false);
         syncHome();
         sidebar.classList.remove('collapsed');
@@ -333,6 +330,11 @@
         find.addEventListener('click', openSwitcher);
         head.insertAdjacentElement('afterend', find);
 
+        var scrim = doc.createElement('div');
+        scrim.id = 'm-scrim';
+        scrim.addEventListener('click', closeHome);
+        sidebar.parentNode.insertBefore(scrim, sidebar.nextSibling);
+
         var add = button('m-new', 'plus', 'Yeni not', function () { Notes.create(explorerState && explorerState.root); }, 26);
         sidebar.appendChild(add);
         new MutationObserver(syncHome).observe(explorerRootLabel, { childList: true });
@@ -382,11 +384,11 @@
             sheet(basename(path), items);
         }, true);
 
-        // Okurken sağa kaydır: listeye dön.
+        // Okurken sağa kaydır: panel açılır; panelde sola kaydır: kapanır.
         var start = null;
         doc.addEventListener('touchstart', function (e) {
             start = null;
-            if (isEditMode || homeOpen() || e.touches.length !== 1 || doc.querySelector('.m-sheet, .img-zoom, .ui-dialog-backdrop, .context-menu')) return;
+            if ((isEditMode && !homeOpen()) || e.touches.length !== 1 || doc.querySelector('.m-sheet, .img-zoom, .ui-dialog-backdrop, .context-menu')) return;
             if (!settingsPanel.classList.contains('hidden')) return;
             var t = e.touches[0];
             start = { x: t.clientX, y: t.clientY, at: Date.now(), free: !scrollsSideways(e.target) };
@@ -401,7 +403,8 @@
             start = null;
             if (!quick) return;
             var selecting = root.getSelection && String(root.getSelection()).length > 0;
-            if (dx > 0 && s.free && !selecting) openHome();
+            if (dx < 0 && homeOpen()) closeHome();
+            else if (dx > 0 && !homeOpen() && s.free && !selecting) openHome();
         }, { passive: true });
     }
 
@@ -509,13 +512,14 @@
         var center = doc.querySelector('.header-center');
         var right = doc.querySelector('.header-right');
 
-        left.appendChild(button('m-home', 'back', 'Not listesi', openHome));
+        left.appendChild(button('m-home', 'menu', 'Notlar', openHome));
         center.insertBefore(button('m-find-close', 'back', 'Aramayı kapat', function () { setFindOpen(false); }), center.firstChild);
         currentFileBadge.addEventListener('click', function () { openNoteMenu(currentFilePath); });
         buildTitle();
         trackScroll();
 
         right.appendChild(button('m-done', 'done', 'Düzenlemeyi bitir', function () { btnReadMode.click(); }));
+        right.appendChild(button('m-add', 'plus', 'Yeni not', function () { Notes.create(); }, 24));
         right.appendChild(button('m-more', 'more', 'Diğer', openMoreMenu));
         // Mod başka yoldan da değişir (geri tuşu, yazdırma): düğmeyi app.js'in
         // tıklama işleyicisi bittikten sonra eşitle.
@@ -853,12 +857,11 @@
         if (switcher) { closeSwitcher(); return true; }
         if (!settingsPanel.classList.contains('hidden')) { if (!SettingsNav.back()) closeSettingsPanel(); return true; }
         if (html.classList.contains('m-find')) { setFindOpen(false); return true; }
-        if (homeOpen()) return false;
+        if (homeOpen()) { closeHome(); return true; }
         if (Reader.isZen()) { Reader.setZen(false); return true; }
         if (isEditMode) { btnReadMode.click(); return true; }
         if (depth > 0) { depth--; stepping = true; navigateHistory(-1); return true; }
-        openHome();
-        return true;
+        return false;
     };
 
     // Durum ve gezinme çubuğu sayfa zeminiyle aynı renkte olsun.
