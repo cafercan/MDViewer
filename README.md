@@ -1,226 +1,139 @@
-# MD Flow Viewer
+<p align="center">
+  <img src="public/favicon.svg" alt="" width="88">
+</p>
 
-Windows, macOS ve Linux için hızlı, yerel bir **Markdown görüntüleyici ve düzenleyici**.
-Dosyayı diskte değiştirdiğinizde otomatik yenilenir (canlı takip), Mermaid
-diyagramlarını ve kod vurgulamasını yerleşik olarak çizer, blok blok düzenlemeye
-izin verir.
-
-`.md` / `.markdown` dosyalarına çift tıklayınca **kendi penceresinde** açılır —
-kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
+<h1 align="center">MD Flow Viewer</h1>
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="MD Flow Viewer — Gezgin sekmesi ve canlı önizleme" width="900">
+  Hızlı, yerel bir Markdown görüntüleyici ve düzenleyici.<br>
+  Windows, macOS, Linux ve Android.
 </p>
+
+<p align="center">
+  <a href="https://github.com/cafercan/MDViewer/releases/latest"><img src="https://img.shields.io/github/v/release/cafercan/MDViewer?label=s%C3%BCr%C3%BCm&color=4f46e5" alt="Son sürüm"></a>
+  <a href="https://github.com/cafercan/MDViewer/actions/workflows/test.yml"><img src="https://github.com/cafercan/MDViewer/actions/workflows/test.yml/badge.svg?branch=main" alt="Testler"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/lisans-MIT-0891b2" alt="MIT lisansı"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/cafercan/MDViewer/releases/latest"><b>İndir</b></a> ·
+  <a href="#özellikler">Özellikler</a> ·
+  <a href="#kurulum">Kurulum</a> ·
+  <a href="#telefonla-eşitleme">Eşitleme</a> ·
+  <a href="docs/GELISTIRME.md">Geliştirme</a>
+</p>
+
+<p align="center">
+  <img src="docs/img/okuma.webp" alt="Okuma görünümü: solda gezgin, ortada görevler, bilgi kutusu ve Mermaid diyagramı" width="900">
+</p>
+
+Notlarınız diskinizde düz `.md` dosyaları olarak kalır. Hesap ve sunucu gerekmez.
 
 ## Özellikler
 
-- 📄 Canlı önizleme; sol kenar çubuğu 2 sekme: **İçindekiler** (TOC) ve **Gezgin**
-- 🗂️ **Gezgin**: Obsidian tarzı klasör ağacı (yalnız `.md`), ↑ ile üst klasöre çık, klasöre üç tık ile içine in; kilit ile klasörü **vault** olarak sabitle (kalıcı)
-- ✏️ Blok bazlı satır içi düzenleyici, otomatik kaydetme
-- 🔄 Dosya diskte değişince otomatik yenileme (SSE)
-- 🧜 Mermaid diyagramları, `highlight.js` kod vurgulama
-- 🎨 `:::info` `:::warning` `:::danger` kutuları
-- 🖼️ Belgeye göreli yerel görselleri servis eder
-- 🪟 **Kendi penceresi** (Tauri; Windows'ta WebView2, macOS'ta WebKit, Linux'ta WebKitGTK) — kendi ikonu, konumu ve boyutu hatırlanır
-- 📂 Üst bardan **dosya aç** (Ctrl+O) — native seçici son açılan klasörde başlar
-- 🗃️ Üst bardan **klasör (çalışma alanı) aç** (Ctrl+Shift+O) — seçilen klasör hem belge kökü hem gezgin kökü olur; vault kilidi açıksa kilit de o klasöre taşınır
-- 🕘 Aç düğmelerinin yanındaki oklardan **son açılan 10 dosya / 10 klasör** listesi (ayar dosyasında kalıcı, silinmiş yollar elenir, "Listeyi temizle")
-- 📋 Gezginde dosyaya **sağ tık → Tam yolu kopyala**
-- 🔗 Belge içi bağlantılar: göreli `.md` bağlantıları uygulama içinde açılır, `#başlık` kaydırır, http(s) sistem tarayıcısına, diğer yerel dosyalar varsayılan uygulamaya gider; klasör bağlantısı (`[planning/](planning/)`) klasör notunu (README/index/_index/<ad>.md) açar, yoksa Gezgin'de gösterir, Ctrl+tık sistemin dosya yöneticisi (Windows Gezgini / Nautilus vb.); üst barda Geri/İleri (Alt+←/→)
-- 🧭 Obsidian tarzı `[[wikilink]]`: `[[not]]`, `[[not|takma ad]]`, `[[not#başlık]]`, `[[klasör/not]]`, `![[görsel.png]]`; hedef belgenin klasöründe, sonra gezgin kökünde (vault) dosya adıyla aranır
-- 🏷️ Belge başındaki YAML frontmatter (`---` … `---`) anahtar/değer tablosu olarak gösterilir
-- 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
-- 🖨️ PDF olarak dışa aktarma (Ctrl+P) — çıktıda üst bar/kenar çubuğu yok
-- 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
-- 🎨 60 tema (galeri, arama, favoriler), vurgu rengi ve kendi temanı yapma
-- ⚙️ Bölümlü ve aranabilir ayarlar (`Ctrl+,`): yazı, aralık, başlık, kod, köşe, zemin…
-- 🔄 Telefon ↔ bilgisayar eşitleme: sunucusuz, hesapsız, yerel ağda şifreli (Ayarlar › Eşitleme)
-- 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
-- ⌨️ **Komut paleti** (Ctrl+K): not adı, not içi arama ve komutlar tek kutuda; `>` yalnız komutlar
-- 📝 Yeni not (Ctrl+N), günün notu; gezginde sağ tıkla sabitle, yeniden adlandır, sil (`.trash`)
-- 📌 **Sabitlenen notlar** gezginin ve paletin başında (masaüstü + Android)
-- ☑️ Okurken görev kutularına tıklama; kaynak dosyaya kaydedilir
-- 💡 GitHub/Obsidian kutuları (`> [!NOTE]`, `> [!TIP] Başlık`, katlanır `> [!WARNING]-`) ve `==vurgu==`
-- 📋 Kod bloklarında dil etiketi ve kopyala düğmesi
-- 🔙 Belge sonunda **Bu nota bağlananlar** (wikilink ve göreli bağlantılar)
-- 📊 Kelime sayısı, okuma süresi, görev ilerlemesi, okuma yüzdesi
-- 🧘 **Odak modu** (F9): yalnız metin; Esc ile çıkılır
-- ✍️ Düzenlerken Ctrl+B / Ctrl+I / Ctrl+K biçimleri, listede Enter ile devam
-- 📥 Pencereye `.md` dosyası sürükleyince açılır, klasör sürükleyince çalışma alanı olur
-- 💾 Kaydederken dosyanın satır sonu (CRLF/LF) ve BOM'u korunur; kayıt atomiktir (yarım dosya kalmaz)
-- ⬆️ **Kendi kendini günceller**: yeni release çıkınca paketi indirir, SHA-256 ile doğrular, tek tıkla kurup yeniden açılır (Ayarlar → Güncelleme'den kapatılabilir; AUR `mdflowviewer` ve kaynaktan derleme yalnız haber alır)
-- 🔒 Ağ portu açmaz; dosya erişimi belge klasörü + gezgin kökü ile sınırlı, kök yalnız uygulama penceresinden genişler
+| | |
+|---|---|
+| **Okuma** | Canlı yenileme, içindekiler, Mermaid, kod vurgulama, bilgi kutuları (`> [!NOTE]`), `==vurgu==`, odak modu |
+| **Yazma** | Blok blok düzenleme, otomatik kayıt, biçim kısayolları, okurken işaretlenen görev kutuları |
+| **Notlar** | Klasör gezgini, sabitlenen notlar, günün notu, `[[wikilink]]` ve nota bağlananlar |
+| **Bulma** | Komut paleti, bütün notların içinde arama, sayfa içi arama, son açılanlar |
+| **Görünüm** | 60 tema, kendi temanı yapma, vurgu rengi, yazı ve aralık ayarları, özel CSS |
+| **Diğer** | PDF'e aktarma, telefonla eşitleme, uygulama içinden güncelleme |
 
-## Kurulum — Windows
+### Komut paleti
 
-1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.4.0.exe`** kurulumunu indirin.
-2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
-3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
-   "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
+`Ctrl+K` ile not adı, not içeriği ve komutlar tek kutuda aranır.
 
-Kurulum **Ekle/Kaldır Programlar** listesinde **MDViewer** olarak görünür ve
-temiz kaldırılır (dosya ilişkilendirmeleri dahil).
+<p align="center">
+  <img src="docs/img/palet.webp" alt="Komut paleti: notlar, komutlar ve not içi sonuçlar" width="760">
+</p>
 
-### Gereksinim
+### Temalar ve ayarlar
 
-- **Windows x64**
-- **Microsoft Edge WebView2 Runtime** — Windows 11'de yerleşik gelir. Yoksa
-  kurulum uyarır: <https://developer.microsoft.com/microsoft-edge/webview2/>
-- Python veya Node.js **gerekmez** — uygulama tek exe olarak paketlidir (~4 MB kurulum).
-- 2.x kuruluysa 3.0 kurulumu onun üstüne yükseltme olarak kurulur; ayarlar,
-  son açılanlar ve vault korunur.
+Galeriden seçin, favorilerinizi işaretleyin ya da kendi temanızı yapın.
 
-## Kurulum — macOS (Apple Silicon)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/temalar.webp" alt="Ayarlar ekranındaki tema galerisi"></td>
+    <td width="50%"><img src="docs/img/koyu.webp" alt="Aynı not Orman temasıyla"></td>
+  </tr>
+</table>
 
-En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı indirip
-`Uygulamalar` klasörüne kurar, güncellemeleri de yapar; aşağıdaki güvenlik uyarısı çıkmaz.
+### Android
 
-Elle kurulum:
+Aynı notlar, telefona göre düzenlenmiş arayüz: biçim çubuğu, paylaşılan metinden not ve ana ekran kısayolları.
 
-1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.4.0-macos-arm64.dmg`** dosyasını indirin.
-2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
-3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
-   engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
-   düğmesine basın ya da Terminal'de bir kez şunu çalıştırın:
+<p align="center">
+  <img src="docs/img/telefon.webp" alt="Android: okuma, tema galerisi ve eşitleme ekranı" width="820">
+</p>
 
-   ```bash
-   xattr -dr com.apple.quarantine "/Applications/MD Flow Viewer.app"
-   ```
+## Kurulum
 
-4. Bir `.md` dosyasına sağ tık → **Birlikte Aç → MD Flow Viewer**.
+Paketler [son sürüm sayfasındadır](https://github.com/cafercan/MDViewer/releases/latest).
 
-Gereksinim: Apple Silicon (M1 ve sonrası), macOS 11 veya üzeri. Intel Mac için paket
-yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
+| Sistem | Dosya | Kurulum |
+|---|---|---|
+| **Windows** x64 | `.exe` | Çalıştırın. [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) gerekir; Windows 11'de hazır gelir |
+| **macOS** 11+, Apple Silicon | `.dmg` | Uygulamayı Applications klasörüne sürükleyin, [ilk açılış notuna](#macosta-ilk-açılış) bakın |
+| **Debian / Ubuntu** 22.04+ | `.deb` | `sudo apt install ./mdflowviewer_*_amd64.deb` |
+| **Fedora / RHEL** | `.rpm` | `sudo dnf install ./mdflowviewer-*.x86_64.rpm` |
+| **openSUSE** | `.rpm` | `sudo zypper install ./mdflowviewer-*.x86_64.rpm` |
+| **Arch / Manjaro** | `.pkg.tar.zst` | `sudo pacman -U mdflowviewer-bin-*.pkg.tar.zst` |
+| **Android** | `.apk` | Dosyayı telefonda açıp kurun |
 
-## Kurulum — Linux (Debian / Ubuntu)
+Arch için AUR'da `mdflowviewer` ve `mdflowviewer-bin` de var; AUR sürümü geriden gelebilir.
 
-1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_3.4.0_amd64.deb`** paketini indirin.
-2. Kurun (bağımlılıklar apt ile otomatik gelir):
+Bir `.md` dosyasına sağ tıklayıp **Birlikte Aç → MD Flow Viewer** ile açabilirsiniz.
 
-   ```bash
-   sudo apt install ./mdflowviewer_3.4.0_amd64.deb
-   ```
+### macOS'ta ilk açılış
 
-3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
-   **Birlikte Aç → MD Flow Viewer**; varsayılan yapmak için dosya özelliklerinden
-   ya da `xdg-mime default mdflowviewer.desktop text/markdown`.
-   Terminalden: `mdflowviewer dosya.md`.
-
-Kaldırma: `sudo apt remove mdflowviewer`. Ayarlar `~/.config/MDFlowViewer/`
-altında tutulur.
-
-Paket tek ikilidir (`/usr/bin/mdflowviewer`, `amd64`); WebKitGTK
-(`libwebkit2gtk-4.1-0`) ve GTK dağıtım paketlerinden gelir. 2.x'in Python
-paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
-
-## Kurulum — Linux (Fedora / openSUSE / RHEL)
-
-[Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-**`mdflowviewer-3.4.0-1.x86_64.rpm`** paketini indirip kurun:
+Uygulama Apple Developer kimliğiyle imzalı olmadığından macOS ilk açılışı engeller. **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** deyin ya da bir kez şunu çalıştırın:
 
 ```bash
-sudo dnf install ./mdflowviewer-3.4.0-1.x86_64.rpm      # Fedora / RHEL
-sudo zypper install ./mdflowviewer-3.4.0-1.x86_64.rpm   # openSUSE
+xattr -dr com.apple.quarantine "/Applications/MD Flow Viewer.app"
 ```
 
-Kütüphane bağımlılıkları (WebKitGTK 4.1, GTK 3) paket yöneticisiyle gelir.
+[C Launcher](https://github.com/cafercan/c-launcher) ile kurulumda bu uyarı çıkmaz.
 
-## Kurulum — Linux (Arch / Manjaro)
+## Telefonla eşitleme
 
-AUR'da iki paket var: `mdflowviewer` (kaynaktan derler) ve `mdflowviewer-bin`
-(Release'teki hazır ikili):
+<p align="center">
+  <img src="docs/img/esit.webp" alt="Bilgisayarda eşleştirme kodu" width="760">
+</p>
 
-```bash
-yay -S mdflowviewer-bin      # ya da: paru -S mdflowviewer
-```
+1. Bilgisayarda **Ayarlar › Eşitleme**'yi açın, klasörü seçin ve **Kod göster**'e basın.
+2. Telefonda **Ayarlar › Eşitleme**'de **Ara**'ya basıp kodu yazın.
 
-AUR'a gerek olmadan, depodaki PKGBUILD ile:
+İki cihaz aynı yerel ağda ya da aynı Tailscale ağında olmalı, iki uygulama da açık olmalıdır. Telefon 45 saniyede bir ve not kaydedince eşitler. Bir not iki tarafta da değişmişse ikisi de saklanır. Bağlanmıyorsa güvenlik duvarında 47823 (TCP ve UDP) kapısına izin verin.
 
-```bash
-cd packaging/arch/mdflowviewer && makepkg -si
-```
+## Kısayollar
 
-## Android
+| Kısayol | İş | Kısayol | İş |
+|---|---|---|---|
+| `Ctrl+K` | Komut paleti | `Ctrl+O` | Dosya aç |
+| `Ctrl+N` | Yeni not | `Ctrl+Shift+O` | Klasör aç |
+| `Ctrl+F` | Sayfada ara | `Ctrl+P` | PDF'e aktar |
+| `Ctrl+,` | Ayarlar | `F9` | Odak modu |
+| `Alt+←` / `Alt+→` | Geri / ileri | `Ctrl+B` / `Ctrl+I` | Kalın / italik (düzenlerken) |
 
-APK uygulama içinden güncellenir. Şu an yerelde derlenip imzalanır ve release
-oluşturulurken eklenir (`MDViewer-vX.Y.Z-android.apk`); iş akışı bunu
-`SHA256SUMS.txt`'e katar:
+## Güvenlik
 
-```bash
-npx tauri android build --apk --target aarch64 armv7
-gh release create vX.Y.Z dist/MDViewer-vX.Y.Z-android.apk
-```
+- Eşitleme varsayılan olarak kapalıdır; kapalıyken ağ portu açılmaz. Açıkken yalnız özel ağ adresleri kabul edilir ve bağlantı uçtan uca şifrelidir.
+- Belgeler DOMPurify ile temizlenir; dosya erişimi belge klasörü ve gezgin köküyle sınırlıdır.
+- Güncellemeler kurulmadan önce SHA-256 ile doğrulanır.
 
-Yayınlanan APK'lar hep **aynı anahtarla** imzalanmalıdır: farklı anahtarla imzalı
-APK kurulu uygulamanın üstüne kurulamaz. Derlemeyi iş akışına bırakmak için bu
-anahtar depoya Actions secret'ı olarak eklenir (yoksa APK adımı atlanır):
-`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
-
-Telefona özgü: biçim çubuğu, okurken dokunulabilir görev kutuları, notların
-içinde arama, günün notu, paylaşma / paylaşılan metinden not, yeniden adlandırma,
-çöpe taşıma (`.trash`), ana ekran kısayolları.
-
-## Mimari
-
-Arayüz saf web (HTML/CSS/JS), kabuk Rust (Tauri 2):
-
-- **Frontend** — `public/` (marked, mermaid, highlight.js, DOMPurify). Çizilen
-  HTML DOMPurify ile sanitize edilir, Mermaid `strict` modda ve yalnız diyagramlı
-  belgede (ya da pencere boştayken) yüklenir. `public/bridge.js` uygulama
-  komutlarına (`invoke`) köprüdür.
-- **Çekirdek** — `core/` (`mdflow-core`): Tauri'den bağımsız, birim testli
-  mantık — ayar dosyası, kök hapsi ve gezgin, wikilink çözümü, satır sonu/BOM
-  koruyan atomik belge okuma/yazma.
-- **Kabuk** — `src-tauri/`: pencere, IPC komutları, belgeye göreli görseller
-  için `mdasset://` protokolü, dosya izleyici (atomik kaydeden editörlere
-  dayanıklı), gezinme koruması. Ağ portu açılmaz; komutlar yalnız ana pencereye
-  izinlidir (`src-tauri/capabilities/default.json`).
+Ayrıntılar: [güvenlik modeli](docs/GELISTIRME.md#güvenlik-modeli).
 
 ## Geliştirme
 
-Gerekenler: Rust (stable), Node.js 22; Linux'ta `libwebkit2gtk-4.1-dev`,
-`libgtk-3-dev`, `librsvg2-dev`.
+Arayüz saf HTML/CSS/JS, kabuk Rust ve [Tauri 2](https://tauri.app).
 
 ```bash
 npm install
-npx tauri dev                    # pencereyi kaynaktan aç
-cargo test --workspace           # Rust testleri
-node --test tests/*.test.js      # arayüz yardımcılarının testleri
+npx tauri dev
 ```
 
-Komut satırından belgeyle açmak için derlenmiş ikiliye yolu verin:
-`mdflowviewer dosya.md`.
-
-## Kaynaktan derleme (kurulum)
-
-Sürüm tek yerden gelir: `src-tauri/tauri.conf.json` içindeki `version`.
-Betikler exe'yi cargo'nun hedef klasöründen alır (`cargo metadata`), bu klasör
-bir cargo ayarıyla repo dışına taşınmış olabilir.
-
-```powershell
-# Windows (Inno Setup 6 gerekir) -> dist\MDViewer-v<sürüm>.exe
-.\scripts\build-installer.ps1
-```
-
-```bash
-bash packaging/linux/build-deb.sh     # -> dist/mdflowviewer_<sürüm>_amd64.deb
-bash packaging/linux/build-rpm.sh     # -> dist/mdflowviewer-<sürüm>-1.x86_64.rpm
-bash packaging/macos/build-dmg.sh     # -> dist/MDViewer-v<sürüm>-macos-arm64.dmg
-```
-
-## Güvenlik modeli
-
-- Eşitleme varsayılan kapalıdır. Açılınca bilgisayar 47823 (TCP/UDP) kapısını dinler ve yalnız özel ağ
-  adreslerini (Tailscale'in 100.64/10 aralığı dahil) kabul eder. Eşleştirme kodu SPAKE2 ile doğrulanır (tek kullanım, 5 dk,
-  5 deneme); sonrası Noise NNpsk0 (ChaCha20-Poly1305) ile şifrelidir. Anahtarlar `sync.json` içindedir, arayüze verilmez.
-
-Yerel bir araç olsa da güvenilmeyen `.md` dosyalarına karşı sertleştirildi:
-DOMPurify sanitizasyonu + Mermaid strict, ağ portu yok, sıkı CSP, pencerenin
-uygulama dışına gezinmesi engelli (dış bağlantılar sistem tarayıcısında açılır)
-ve dosya komutlarında **kök hapsi** (belge klasörü dışına okuma/yazma reddedilir).
+Mimari, testler ve paketleme: [docs/GELISTIRME.md](docs/GELISTIRME.md).
 
 ## Lisans
 
