@@ -8,10 +8,11 @@ mod drop;
 mod mobile;
 mod nav;
 mod startup;
+mod sync;
 mod update;
 mod watch;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Paketlenmiş uygulamanın CI denemesi (`--selftest`): pencere açmadan
 /// arayüz dosyaları ikiliye gömülmüş mü bakar.
@@ -54,6 +55,17 @@ fn platform(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
 #[cfg(mobile)]
 fn platform(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.setup(|app| mobile::setup(app))
+}
+
+/// Eşitleme durumu ayar dosyasının yanında durur; açık bırakıldıysa dinleme başlar.
+fn start_sync(app: &tauri::AppHandle) {
+    let settings = app.state::<api::AppState>().settings.path().to_path_buf();
+    let handle = app.clone();
+    let state = sync::SyncState::new(settings.with_file_name("sync.json"), sync::PORT, move |kind| {
+        let _ = handle.emit("sync-event", serde_json::json!({"kind": kind}));
+    });
+    app.manage(state.clone());
+    std::thread::spawn(move || state.resume());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -116,9 +128,23 @@ pub fn run() {
             commands::update_check,
             commands::update_download,
             commands::update_install,
+            commands::sync_status,
+            commands::sync_host,
+            commands::sync_pick_folder,
+            commands::sync_pair_start,
+            commands::sync_pair_stop,
+            commands::sync_remove_peer,
+            commands::sync_discover,
+            commands::sync_pair,
+            commands::sync_set_link,
+            commands::sync_unlink,
+            commands::sync_now,
+            commands::sync_busy,
         ]);
 
     let app = platform(builder).build(context).expect("MD Flow Viewer başlatılamadı");
+    #[cfg(desktop)]
+    start_sync(app.handle());
 
     app.run(|_app, _event| {
         // macOS Finder "Birlikte Aç" dosyayı argüman değil olay olarak verir.

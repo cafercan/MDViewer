@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17+: yerel ağdaki bilgisayarla eşitleme (çalışma anında sorulur) -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <!-- Not klasörleri telefonun ortak depolamasında durur; çekirdek dosyalara
          gerçek yolla eriştiği için "tüm dosyalara erişim" gerekir (Android 11+). -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />

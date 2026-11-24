@@ -37,6 +37,18 @@ const COMMANDS: &[&str] = &[
     "update_check",
     "update_download",
     "update_install",
+    "sync_status",
+    "sync_host",
+    "sync_pick_folder",
+    "sync_pair_start",
+    "sync_pair_stop",
+    "sync_remove_peer",
+    "sync_discover",
+    "sync_pair",
+    "sync_set_link",
+    "sync_unlink",
+    "sync_now",
+    "sync_busy",
 ];
 
 fn main() {

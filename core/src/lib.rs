@@ -5,4 +5,5 @@ pub mod settings;
 pub mod textfile;
 pub mod workspace;
 pub mod links;
+pub mod sync;
 pub mod update;

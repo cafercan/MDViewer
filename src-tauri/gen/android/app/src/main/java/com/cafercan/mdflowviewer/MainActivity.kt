@@ -26,6 +26,8 @@ import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
 import java.io.File
 
+private const val LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"
+
 /**
  * Arayüzün (public/mobile.js) Android'e özgü işleri: klasör/dosya seçici,
  * depolama izni, "Birlikte aç" ile gelen dosya, bağlantı açma, yazdırma ve
@@ -60,6 +62,10 @@ class MainActivity : TauriActivity() {
 
   private val legacyPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
     emit("storage", granted)
+  }
+
+  private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    emit("local-network", granted)
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -213,6 +219,18 @@ class MainActivity : TauriActivity() {
         legacyPermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
       }
     }
+
+    /** Yerel ağ izni Android 17'de (API 37) geldi; öncesinde sorulmaz. */
+    @JavascriptInterface
+    fun hasLocalNetwork(): Boolean =
+      Build.VERSION.SDK_INT < 37 || checkSelfPermission(LOCAL_NETWORK) == PackageManager.PERMISSION_GRANTED
+
+    /** İzin kutusu; sonuç `local-network` olayıyla gelir. */
+    @JavascriptInterface
+    fun requestLocalNetwork() = runOnUiThread { localNetworkPermission.launch(LOCAL_NETWORK) }
+
+    @JavascriptInterface
+    fun deviceName(): String = Build.MODEL ?: "Telefon"
 
     /** Sistem klasör seçicisi; sonuç `picked` olayıyla gelir. */
     @JavascriptInterface

@@ -1,6 +1,6 @@
 [package]
 name = "mdflowviewer"
-version = "3.3.0"
+version = "3.4.0"
 edition = "2021"
 license = "MIT"
 description = "MD Flow Viewer: Markdown görüntüleyici ve düzenleyici"
@@ -25,6 +25,10 @@ notify = "8"
 # Güncelleme: indirme (rustls) ve özet doğrulama
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 sha2 = "0.10"
+snow = "0.10"
+spake2 = "0.4"
+if-addrs = "0.13"
+getrandom = "0.3"
 
 # Yalnız masaüstü: native dosya seçici, sistemde açma, pencere konumu.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

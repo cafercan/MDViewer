@@ -65,6 +65,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(state);
     app.manage(crate::startup::InitialFile::new(file.map(|p| p.to_string_lossy().into_owned())));
     app.manage(crate::startup::NotesDir(Some(notes)));
+    crate::start_sync(app.handle());
     Ok(())
 }
 

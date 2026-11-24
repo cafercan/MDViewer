@@ -47,7 +47,17 @@
             }
         },
         /** Geri tuşu: açık bir şey kapatıldıysa true (false → önceki not / uygulamadan çık). */
-        back: function () { return false; }
+        back: function () { return false; },
+        /** Eşitleme (sync.js): klasör seçtirir, çalışma alanını değiştirmez. */
+        pickFolderPath: function () { return pick('folder'); },
+        /** Android 17+ yerel ağ izni; gerekmiyorsa true. */
+        localNetwork: async function () {
+            if (!android || !android.hasLocalNetwork || android.hasLocalNetwork()) return true;
+            var granted = once('local-network');
+            android.requestLocalNetwork();
+            return !!(await granted);
+        },
+        deviceName: function () { return android && android.deviceName ? android.deviceName() : ''; }
     };
     root.MDFlowMobile = api;
 
@@ -96,6 +106,7 @@
         outdent: '<line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="12" x2="20" y2="12"/><line x1="11" y1="18" x2="20" y2="18"/><polyline points="7 9 4 12 7 15"/>',
         undo: '<polyline points="8 5 4 9 8 13"/><path d="M4 9h10a5.5 5.5 0 0 1 0 11h-3"/>',
         redo: '<polyline points="16 5 20 9 16 13"/><path d="M20 9H10a5.5 5.5 0 0 0 0 11h3"/>',
+        sync: '<path d="M20 11a8 8 0 0 0-14.3-4L3 10"/><polyline points="3 4 3 10 9 10"/><path d="M4 13a8 8 0 0 0 14.3 4L21 14"/><polyline points="21 20 21 14 15 14"/>',
         done: '<polyline points="5 12.5 10 17.5 19 7"/>',
         chevron: '<polyline points="6 9 12 15 18 9"/>',
         gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
@@ -537,20 +548,12 @@
             { separator: true },
             { label: 'Odak modu', icon: 'focus', hint: 'Çubukları gizler', action: function () { Reader.setZen(true); } },
             { label: 'Yazdır / PDF', icon: 'print', action: exportToPdf },
-            { label: 'Ayarlar', icon: 'gear', action: openSettingsPanel }
+            { label: 'Eşitle', icon: 'sync', hint: 'Bilgisayarla', action: function () { if (SyncUi.linked()) SyncUi.syncNow(true); else openSettingsPanel('sync'); } },
+            { label: 'Ayarlar', icon: 'gear', action: function () { openSettingsPanel(); } }
         ]);
     }
 
-    function openThemeMenu() {
-        sheet('Tema', THEMES.map(function (t) {
-            return {
-                label: t.name,
-                swatch: { bg: t.bg, ac: t.ac },
-                current: t.id === currentTheme,
-                action: function () { chooseTheme(t.id); }
-            };
-        }));
-    }
+    function openThemeMenu() { openSettingsPanel('theme'); }
 
     // ------------------------------------------------------------------
     // Not menüsü: paylaş, yeniden adlandır, sil
@@ -846,7 +849,7 @@
         if (doc.querySelector('.ui-dialog-backdrop, .img-zoom')) { pressEscape(); return true; }
         if (contextMenuEl) { hideContextMenu(); return true; }
         if (switcher) { closeSwitcher(); return true; }
-        if (!settingsPanel.classList.contains('hidden')) { closeSettingsPanel(); return true; }
+        if (!settingsPanel.classList.contains('hidden')) { if (!SettingsNav.back()) closeSettingsPanel(); return true; }
         if (html.classList.contains('m-find')) { setFindOpen(false); return true; }
         if (drawerOpen()) { closeDrawer(); return true; }
         if (isEditMode) { btnReadMode.click(); return true; }

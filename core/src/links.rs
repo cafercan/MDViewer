@@ -276,20 +276,8 @@ impl Workspace {
             Ok(p) => p,
             Err(e) => return e,
         };
-        let trash = abs.with_file_name(".trash");
-        if let Err(e) = std::fs::create_dir_all(&trash) {
-            return json!({"success": false, "error": e.to_string()});
-        }
-        let stem = abs.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-        let ext = abs.extension().unwrap_or_default().to_string_lossy().into_owned();
-        let target = (0..10_000)
-            .map(|n| trash.join(if n == 0 { format!("{stem}.{ext}") } else { format!("{stem} {n}.{ext}") }))
-            .find(|p| !p.exists());
-        let Some(target) = target else {
-            return json!({"success": false, "error": "Çöp klasörü dolu."});
-        };
-        match std::fs::rename(&abs, &target) {
-            Ok(()) => json!({"success": true, "path": target.to_string_lossy()}),
+        match move_to_trash(&abs) {
+            Ok(target) => json!({"success": true, "path": target.to_string_lossy()}),
             Err(e) => json!({"success": false, "error": e.to_string()}),
         }
     }
@@ -428,6 +416,20 @@ fn walk_find(dir: &Path, wanted: &[String]) -> Option<PathBuf> {
         }
     }
     subdirs.iter().find_map(|d| walk_find(d, wanted))
+}
+
+/// Dosyayı klasöründeki gizli `.trash` içine, boş bir adla taşır.
+pub(crate) fn move_to_trash(abs: &Path) -> std::io::Result<PathBuf> {
+    let trash = abs.with_file_name(".trash");
+    std::fs::create_dir_all(&trash)?;
+    let stem = abs.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+    let ext = abs.extension().unwrap_or_default().to_string_lossy().into_owned();
+    let target = (0..10_000)
+        .map(|n| trash.join(if n == 0 { format!("{stem}.{ext}") } else { format!("{stem} {n}.{ext}") }))
+        .find(|p| !p.exists())
+        .ok_or_else(|| std::io::Error::other("Çöp klasörü dolu."))?;
+    std::fs::rename(abs, &target)?;
+    Ok(target)
 }
 
 #[cfg(test)]

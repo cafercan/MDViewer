@@ -32,7 +32,9 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🔍 Üst barda sayfa içi arama: Enter/Shift+Enter veya mini oklarla sonraki/önceki (Ctrl+F)
 - 🖨️ PDF olarak dışa aktarma (Ctrl+P) — çıktıda üst bar/kenar çubuğu yok
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
-- 🎨 5 tema (3 açık + 2 koyu) üst barda renk swatch'leriyle; varsayılan açık
+- 🎨 60 tema (galeri, arama, favoriler), vurgu rengi ve kendi temanı yapma
+- ⚙️ Bölümlü ve aranabilir ayarlar (`Ctrl+,`): yazı, aralık, başlık, kod, köşe, zemin…
+- 🔄 Telefon ↔ bilgisayar eşitleme: sunucusuz, hesapsız, yerel ağda şifreli (Ayarlar › Eşitleme)
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
 - ⌨️ **Komut paleti** (Ctrl+K): not adı, not içi arama ve komutlar tek kutuda; `>` yalnız komutlar
 - 📝 Yeni not (Ctrl+N), günün notu; gezginde sağ tıkla sabitle, yeniden adlandır, sil (`.trash`)
@@ -52,7 +54,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.3.0.exe`** kurulumunu indirin.
+   **`MDViewer-v3.4.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -77,7 +79,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.3.0-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v3.4.0-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -95,11 +97,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_3.3.0_amd64.deb`** paketini indirin.
+   **`mdflowviewer_3.4.0_amd64.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_3.3.0_amd64.deb
+   sudo apt install ./mdflowviewer_3.4.0_amd64.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -117,11 +119,11 @@ paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
 ## Kurulum — Linux (Fedora / openSUSE / RHEL)
 
 [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-**`mdflowviewer-3.3.0-1.x86_64.rpm`** paketini indirip kurun:
+**`mdflowviewer-3.4.0-1.x86_64.rpm`** paketini indirip kurun:
 
 ```bash
-sudo dnf install ./mdflowviewer-3.3.0-1.x86_64.rpm      # Fedora / RHEL
-sudo zypper install ./mdflowviewer-3.3.0-1.x86_64.rpm   # openSUSE
+sudo dnf install ./mdflowviewer-3.4.0-1.x86_64.rpm      # Fedora / RHEL
+sudo zypper install ./mdflowviewer-3.4.0-1.x86_64.rpm   # openSUSE
 ```
 
 Kütüphane bağımlılıkları (WebKitGTK 4.1, GTK 3) paket yöneticisiyle gelir.
@@ -210,6 +212,10 @@ bash packaging/macos/build-dmg.sh     # -> dist/MDViewer-v<sürüm>-macos-arm64.
 ```
 
 ## Güvenlik modeli
+
+- Eşitleme varsayılan kapalıdır. Açılınca bilgisayar 47823 (TCP/UDP) kapısını dinler ve yalnız özel ağ
+  adreslerini (Tailscale'in 100.64/10 aralığı dahil) kabul eder. Eşleştirme kodu SPAKE2 ile doğrulanır (tek kullanım, 5 dk,
+  5 deneme); sonrası Noise NNpsk0 (ChaCha20-Poly1305) ile şifrelidir. Anahtarlar `sync.json` içindedir, arayüze verilmez.
 
 Yerel bir araç olsa da güvenilmeyen `.md` dosyalarına karşı sertleştirildi:
 DOMPurify sanitizasyonu + Mermaid strict, ağ portu yok, sıkı CSP, pencerenin
