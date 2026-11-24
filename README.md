@@ -34,6 +34,16 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 - 🔢 Satır numaraları (yalnızca düzenleme modu), üst bardan aç/kapa
 - 🎨 5 tema (3 açık + 2 koyu) üst barda renk swatch'leriyle; varsayılan açık
 - 🎚️ Tema ve satır no tercihi kalıcı (sonraki açılışlarda korunur)
+- ⌨️ **Komut paleti** (Ctrl+K): not adı, not içi arama ve komutlar tek kutuda; `>` yalnız komutlar
+- 📝 Yeni not (Ctrl+N), günün notu; gezginde sağ tıkla sabitle, yeniden adlandır, sil (`.trash`)
+- 📌 **Sabitlenen notlar** gezginin ve paletin başında (masaüstü + Android)
+- ☑️ Okurken görev kutularına tıklama; kaynak dosyaya kaydedilir
+- 💡 GitHub/Obsidian kutuları (`> [!NOTE]`, `> [!TIP] Başlık`, katlanır `> [!WARNING]-`) ve `==vurgu==`
+- 📋 Kod bloklarında dil etiketi ve kopyala düğmesi
+- 🔙 Belge sonunda **Bu nota bağlananlar** (wikilink ve göreli bağlantılar)
+- 📊 Kelime sayısı, okuma süresi, görev ilerlemesi, okuma yüzdesi
+- 🧘 **Odak modu** (F9): yalnız metin; Esc ile çıkılır
+- ✍️ Düzenlerken Ctrl+B / Ctrl+I / Ctrl+K biçimleri, listede Enter ile devam
 - 📥 Pencereye `.md` dosyası sürükleyince açılır, klasör sürükleyince çalışma alanı olur
 - 💾 Kaydederken dosyanın satır sonu (CRLF/LF) ve BOM'u korunur; kayıt atomiktir (yarım dosya kalmaz)
 - ⬆️ **Kendi kendini günceller**: yeni release çıkınca paketi indirir, SHA-256 ile doğrular, tek tıkla kurup yeniden açılır (Ayarlar → Güncelleme'den kapatılabilir; AUR `mdflowviewer` ve kaynaktan derleme yalnız haber alır)
@@ -42,7 +52,7 @@ kendi görev çubuğu ikonuyla, tarayıcı sekmesi gibi değil.
 ## Kurulum — Windows
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.2.0.exe`** kurulumunu indirin.
+   **`MDViewer-v3.3.0.exe`** kurulumunu indirin.
 2. Çalıştırın. Kurulum klasörünü seçebilir, `Program Files`'a kurabilirsiniz.
 3. Bir `.md` dosyasına **sağ tıklayın → Birlikte Aç → MD Flow Viewer**. İsterseniz
    "Her zaman bu uygulamayı kullan" ile varsayılan yapabilirsiniz.
@@ -67,7 +77,7 @@ En kolayı [C Launcher](https://github.com/cafercan/c-launcher): uygulamayı ind
 Elle kurulum:
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`MDViewer-v3.2.0-macos-arm64.dmg`** dosyasını indirin.
+   **`MDViewer-v3.3.0-macos-arm64.dmg`** dosyasını indirin.
 2. Açın ve **MD Flow Viewer**'ı **Applications** klasörüne sürükleyin.
 3. Uygulama Apple Developer kimliğiyle imzalı olmadığı için macOS ilk açılışta
    engeller. **Sistem Ayarları → Gizlilik ve Güvenlik** altındaki **Yine de Aç**
@@ -85,11 +95,11 @@ yok. Ayarlar `~/.config/MDFlowViewer/` altında tutulur.
 ## Kurulum — Linux (Debian / Ubuntu)
 
 1. [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-   **`mdflowviewer_3.2.0_amd64.deb`** paketini indirin.
+   **`mdflowviewer_3.3.0_amd64.deb`** paketini indirin.
 2. Kurun (bağımlılıklar apt ile otomatik gelir):
 
    ```bash
-   sudo apt install ./mdflowviewer_3.2.0_amd64.deb
+   sudo apt install ./mdflowviewer_3.3.0_amd64.deb
    ```
 
 3. Uygulama menüsünde **MD Flow Viewer** görünür. Bir `.md` dosyasına sağ tık →
@@ -107,11 +117,11 @@ paketini (`_all.deb`) yükseltir. Ubuntu 22.04 ve üzeri.
 ## Kurulum — Linux (Fedora / openSUSE / RHEL)
 
 [Releases](https://github.com/cafercan/MDViewer/releases) sayfasından
-**`mdflowviewer-3.2.0-1.x86_64.rpm`** paketini indirip kurun:
+**`mdflowviewer-3.3.0-1.x86_64.rpm`** paketini indirip kurun:
 
 ```bash
-sudo dnf install ./mdflowviewer-3.2.0-1.x86_64.rpm      # Fedora / RHEL
-sudo zypper install ./mdflowviewer-3.2.0-1.x86_64.rpm   # openSUSE
+sudo dnf install ./mdflowviewer-3.3.0-1.x86_64.rpm      # Fedora / RHEL
+sudo zypper install ./mdflowviewer-3.3.0-1.x86_64.rpm   # openSUSE
 ```
 
 Kütüphane bağımlılıkları (WebKitGTK 4.1, GTK 3) paket yöneticisiyle gelir.

@@ -109,6 +109,7 @@ pub fn run() {
             commands::initial_file,
             commands::notes_dir,
             commands::search_notes,
+            commands::backlinks,
             commands::rename_note,
             commands::trash_note,
             commands::update_info,

@@ -60,3 +60,18 @@ test('görüntüleyici hata verirse sıra kilitlenmez, confirm "hayır" sayılı
     assert.equal(await d.confirm('a'), false);
     assert.equal(await d.confirm('b'), true);
 });
+
+test('prompt metni, vazgeçilince null döndürür', async () => {
+    const { shown, show } = fakeShow();
+    const d = UiDialog.create(show);
+    const p = d.prompt('Ad?', { value: 'eski' });
+    await tick();
+    assert.equal(shown[0].spec.kind, 'prompt');
+    assert.equal(shown[0].spec.value, 'eski');
+    shown[0].answer('');
+    assert.equal(await p, '');
+    const q = d.prompt('Ad?');
+    await tick();
+    shown[1].answer(null);
+    assert.equal(await q, null);
+});

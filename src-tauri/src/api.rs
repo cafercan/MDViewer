@@ -228,6 +228,10 @@ pub fn search_notes(st: &AppState, query: &str) -> Value {
     st.snapshot().search_notes(query)
 }
 
+pub fn backlinks(st: &AppState, path: &str) -> Value {
+    st.snapshot().backlinks(path)
+}
+
 pub fn rename_note(st: &AppState, path: &str, name: &str) -> Value {
     st.snapshot().rename_note(path, name)
 }

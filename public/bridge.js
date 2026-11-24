@@ -102,6 +102,13 @@
         explorer_up: function () { return call('explorer_up'); },
         explorer_enter: function (path) { return call('explorer_enter', { path: path }); },
         set_vault: function (path) { return call('set_vault', { path: path === undefined ? null : path }); },
+        // --- notlar (notes.js, reader.js, palette.js) ------------------------------
+        list_notes: function () { return call('list_notes'); },
+        create_note: function (dir, name) { return call('create_note', { dir: dir, name: name }); },
+        rename_note: function (path, name) { return call('rename_note', { path: path, name: name }); },
+        trash_note: function (path) { return call('trash_note', { path: path }); },
+        search_notes: function (query) { return call('search_notes', { query: query }); },
+        backlinks: function (path) { return call('backlinks', { path: path }); },
         print_page: function () { return call('print_page'); },
         open_external: function (url) { return call('open_external', { url: url }); },
         resolve_wikilink: function (target, currentFile) {

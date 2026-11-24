@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-backlinks"
+description = "Enables the backlinks command without any pre-configured scope."
+commands.allow = ["backlinks"]
+
+[[permission]]
+identifier = "deny-backlinks"
+description = "Denies the backlinks command without any pre-configured scope."
+commands.deny = ["backlinks"]

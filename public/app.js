@@ -82,6 +82,11 @@ if (typeof Frontmatter !== 'undefined') {
     marked.use({ extensions: [Frontmatter.extension()] });
 }
 
+// > [!NOTE] kutuları ve ==vurgu== (public/callouts.js).
+if (typeof Callouts !== 'undefined') {
+    marked.use({ extensions: Callouts.extensions() });
+}
+
 // Oturum içi depolama. Private mode'daki WebKit (2.x'te pywebview/GTK)
 // localStorage'ı tamamen kapatır: değişken hiç tanımlı olmaz ve dokunmak
 // ReferenceError fırlatır. O durumda bellek içi Map'e düşülür; taslaklar yine
@@ -173,6 +178,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const settingsReady = loadSettings();
     initApp();
     setupEventListeners();
+    Reader.init();
+    if (!window.MDFlowMobile) Palette.init();
     settingsReady.then(startUpdater);
 });
 
@@ -290,6 +297,7 @@ async function loadFile(filePath, options = {}) {
             // Render Content based on active mode
             if (isEditMode) {
                 renderInlineEditor(currentContent);
+                Reader.refresh();
             } else {
                 renderMarkdown(currentContent);
             }
@@ -908,6 +916,14 @@ function buildDirNode(dir, depth) {
         }
     });
 
+    row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, [
+            { label: 'Buraya yeni not…', action: () => Notes.create(dir.path) },
+            { label: 'Dosya yöneticisinde aç', action: () => nativeApi().open_in_file_manager(dir.path) },
+        ]);
+    });
+
     node.appendChild(row);
     node.appendChild(children);
     return node;
@@ -1122,20 +1138,11 @@ function buildFileRow(file, depth) {
     const label = document.createElement('span');
     label.textContent = file.name;
     row.appendChild(label);
-    row.addEventListener('click', async () => {
-        if (!(await confirmLeaveUnsaved())) return;
-        loadFile(file.path);
-    });
-    // Sağ tık: dosyanın tam yolunu (dosya adı dahil) panoya kopyala.
+    row.addEventListener('click', () => Notes.open(file.path));
+    // Sağ tık: sabitle, yeniden adlandır, yolu kopyala, sil (public/notes.js)
     row.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        showContextMenu(e.clientX, e.clientY, [{
-            label: 'Tam yolu kopyala',
-            action: async () => {
-                const ok = await copyToClipboard(file.path);
-                showToast(ok ? 'Yol kopyalandı: ' + file.name : 'Panoya kopyalanamadı');
-            },
-        }]);
+        showContextMenu(e.clientX, e.clientY, Notes.menuItems(file.path));
     });
     return row;
 }
@@ -1285,6 +1292,7 @@ function renderMarkdown(markdownText) {
     const renderedHtml = marked.parse(markdownText);
     markdownViewer.innerHTML = preprocessRenderedHTML(renderedHtml);
     resolveLocalAssets(markdownViewer);
+    Reader.decorateCode();
 
     // Code Block Syntax Highlighting (Highlight.js)
     markdownViewer.querySelectorAll('pre code').forEach((block) => {
@@ -1301,6 +1309,9 @@ function renderMarkdown(markdownText) {
 
     // Generate Table of Contents (TOC) & register Scroll Spy
     buildTableOfContents();
+
+    // Görev kutuları, istatistik, geri bağlantılar (public/reader.js)
+    Reader.rendered();
 
     // İçerik değişti: aktif arama varsa eşleşmeleri yeniden hesapla.
     refreshFind();
@@ -1800,6 +1811,7 @@ async function saveFile(contentToSave = null) {
         if (data.success) {
             currentContent = contentToSave;
             markSaved();
+            Reader.refresh();
             setSyncStatus('connected', 'Kaydedildi');
             saveStatus.textContent = 'Tüm değişiklikler kaydedildi';
         } else {
@@ -2127,6 +2139,7 @@ function collectSettings() {
         autosave: chkAutosave.checked,
         lineNumbers: lineNumbersOn,
         sidebarTab: activeSidebarTab,
+        pinnedNotes: Notes.pins(),
         ...prefs
     };
 }
@@ -2162,6 +2175,8 @@ async function loadSettings() {
 
     // Satır numarası — varsayılan AÇIK (yalnızca düzenleme modu)
     applyLineNumbers(settings.lineNumbers !== undefined ? settings.lineNumbers : true);
+
+    Notes.setPinned(settings.pinnedNotes);
 
     if (settings.autosave !== undefined) chkAutosave.checked = settings.autosave;
 

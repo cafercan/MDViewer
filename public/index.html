@@ -32,6 +32,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- Telefon arayüzü (yalnız Android'de devreye girer; bkz. mobile.js) -->
     <link rel="stylesheet" href="mobile.css">
+    <!-- Komut paleti, durum çubuğu, kutular, odak modu -->
+    <link rel="stylesheet" href="features.css">
     <script src="md-format.js"></script>
     <script src="mobile.js"></script>
 </head>
@@ -212,6 +214,17 @@
         <main class="main-layout">
             <!-- LEFT SIDEBAR -->
             <aside class="app-sidebar" id="sidebar">
+                <!-- Ara / yeni not (masaüstü; telefonda çekmecenin kendi araması var) -->
+                <div class="sidebar-actions">
+                    <button class="sidebar-search" id="btn-palette" title="Not ara, komut çalıştır (Ctrl+K)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+                        <span>Ara ve git</span><kbd>Ctrl K</kbd>
+                    </button>
+                    <button class="sidebar-new" id="btn-new-note" title="Yeni not (Ctrl+N)" aria-label="Yeni not">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                </div>
+
                 <!-- Sekme şeridi: İçindekiler / Gezgin -->
                 <div class="sidebar-tabs" role="tablist" id="sidebar-tabs">
                     <button class="sidebar-tab active" role="tab" data-tab="toc" title="İçindekiler" aria-selected="true">
@@ -260,6 +273,7 @@
                             </svg>
                         </button>
                     </div>
+                    <div class="pinned-list" id="pinned-list" hidden></div>
                     <div class="explorer-container" id="explorer-tree">
                         <span class="empty-state">Yükleniyor...</span>
                     </div>
@@ -277,9 +291,16 @@
             <section class="workspace-viewport">
                 <!-- VIEW MODE: READ -->
                 <div class="viewport-pane read-pane" id="pane-read">
+                    <!-- Kelime / okuma süresi (telefon; masaüstünde durum çubuğunda) -->
+                    <div class="doc-meta" id="doc-meta"></div>
                     <div class="markdown-body" id="markdown-viewer">
                         <!-- Markdown HTML is injected here -->
                     </div>
+                    <!-- Bu nota bağlanan notlar: açılınca aranır -->
+                    <details class="backlinks" id="backlinks" hidden>
+                        <summary>Bu nota bağlananlar</summary>
+                        <div class="backlinks-list"></div>
+                    </details>
                 </div>
 
                 <!-- VIEW MODE: EDIT -->
@@ -306,6 +327,20 @@
                 </div>
             </section>
         </main>
+
+        <!-- DURUM ÇUBUĞU (masaüstü) -->
+        <footer class="status-bar" id="status-bar">
+            <span class="status-path" id="status-path"></span>
+            <span class="status-stats" id="status-stats"></span>
+            <span class="status-progress" id="status-progress"></span>
+            <button class="status-btn" id="btn-zen" title="Odak modu (F9)" aria-label="Odak modu">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"></path><path d="M15 4h5v5"></path><path d="M20 15v5h-5"></path><path d="M9 20H4v-5"></path></svg>
+                <span>Odak</span>
+            </button>
+        </footer>
+        <button class="zen-exit" id="btn-zen-exit" title="Odak modundan çık (Esc)" aria-label="Odak modundan çık">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4"></path><path d="M20 9h-5V4"></path><path d="M15 20v-5h5"></path><path d="M4 15h5v5"></path></svg>
+        </button>
         
     </div>
 
@@ -431,12 +466,18 @@
     <script src="asset-url.js"></script>
     <script src="wikilink.js"></script>
     <script src="frontmatter.js"></script>
+    <script src="callouts.js"></script>
+    <script src="doc-stats.js"></script>
     <script src="ui-dialog.js"></script>
     <script src="leave-guard.js"></script>
     <script src="drafts.js"></script>
     <script src="lazy-script.js"></script>
     <script src="image-zoom.js"></script>
     <script src="updater.js"></script>
+    <script src="editor-keys.js"></script>
+    <script src="notes.js"></script>
+    <script src="reader.js"></script>
+    <script src="palette.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

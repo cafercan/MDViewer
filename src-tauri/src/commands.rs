@@ -181,6 +181,11 @@ pub async fn search_notes(app: AppHandle, query: String) -> Value {
 }
 
 #[tauri::command]
+pub async fn backlinks(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::backlinks(st, &path)).await
+}
+
+#[tauri::command]
 pub async fn rename_note(app: AppHandle, path: String, name: String) -> Value {
     off_main(app, move |st| api::rename_note(st, &path, &name)).await
 }
