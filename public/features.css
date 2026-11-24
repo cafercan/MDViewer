@@ -355,7 +355,6 @@ html:not(.mobile) .app-header {
 }
 html:not(.mobile) .header-left { gap: 0.25rem; }
 html:not(.mobile) .logo { margin-right: 0.75rem; font-size: 1.1rem; }
-html:not(.mobile) .logo-icon { filter: none; }
 html:not(.mobile) .header-right { gap: 0.4rem; }
 html:not(.mobile) .open-group { gap: 0; }
 html:not(.mobile) .app-header .icon-btn {
