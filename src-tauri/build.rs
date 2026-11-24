@@ -30,6 +30,7 @@ const COMMANDS: &[&str] = &[
     "initial_file",
     "notes_dir",
     "search_notes",
+    "backlinks",
     "rename_note",
     "trash_note",
     "update_info",

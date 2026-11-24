@@ -62,6 +62,8 @@
         read: '<path d="M2 5.5A2.5 2.5 0 0 1 4.5 3H10a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H2z"/><path d="M22 5.5A2.5 2.5 0 0 0 19.5 3H14a2 2 0 0 0-2 2v15a2 2 0 0 1 2-2h8z"/>',
         back: '<polyline points="15 18 9 12 15 6"/>',
         forward: '<polyline points="9 18 15 12 9 6"/>',
+        pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 7 4 4v3H6v-3l4-4z"/>',
+        focus: '<path d="M4 9V4h5"/><path d="M15 4h5v5"/><path d="M20 15v5h-5"/><path d="M9 20H4v-5"/>',
         plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
         search: '<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>',
         toc: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><path d="M3.5 6h.01"/><path d="M3.5 12h.01"/><path d="M3.5 18h.01"/>',
@@ -109,11 +111,6 @@
         b.innerHTML = icon(ICON[name], size);
         b.addEventListener('click', onClick);
         return b;
-    }
-
-    // Türkçe harf duyarsız karşılaştırma (I/İ/ı/i tek harf sayılır).
-    function fold(s) {
-        return String(s).toLocaleLowerCase('tr').replace(/ı/g, 'i');
     }
 
     // Alttan açılan menü: app.js'in showContextMenu'sunu kullanır, sonra
@@ -202,8 +199,6 @@
             var path = await pick('file');
             return path ? invoke('open_file_path', { path: path }) : null;
         };
-        native.list_notes = function () { return invoke('list_notes'); };
-        native.create_note = function (dir, name) { return invoke('create_note', { dir: dir, name: name }); };
 
         if (!android) return;
         native.open_external = function (url) { return Promise.resolve(android.openUrl(String(url))); };
@@ -327,31 +322,38 @@
         explorerTree.addEventListener('click', function (e) {
             if (e.target.closest('.tree-file')) closeDrawer();
         });
+        var pinnedList = doc.getElementById('pinned-list');
+        pinnedList.addEventListener('click', function (e) {
+            if (e.target.closest('.tree-file')) closeDrawer();
+        });
         tocList.addEventListener('click', function (e) {
             if (e.target.closest('.toc-link')) closeDrawer();
         });
 
         // Nota uzun basış: not menüsü (app.js'in masaüstü menüsünün yerine)
-        explorerTree.addEventListener('contextmenu', function (e) {
+        function onHold(e) {
             var row = e.target.closest('.tree-file');
             if (!row) return;
             e.preventDefault();
             e.stopPropagation();
             openNoteMenu(row.getAttribute('data-path'));
-        }, true);
+        }
+        explorerTree.addEventListener('contextmenu', onHold, true);
+        pinnedList.addEventListener('contextmenu', onHold, true);
 
         // Klasöre uzun basış: masaüstündeki üçlü tıklamanın karşılığı.
         explorerTree.addEventListener('contextmenu', function (e) {
             var row = e.target.closest('.tree-dir');
             if (!row) return;
             e.preventDefault();
+            e.stopPropagation();
             var path = row.getAttribute('data-path');
-            var items = [{ label: 'Buraya yeni not', icon: 'newNote', action: function () { newNote(path); } }];
+            var items = [{ label: 'Buraya yeni not', icon: 'newNote', action: function () { Notes.create(path); } }];
             if (explorerState && !explorerState.locked) {
                 items.push({ label: 'Bu klasörü kök yap', icon: 'target', hint: path, action: function () { explorerEnter(path); } });
             }
             sheet(basename(path), items);
-        });
+        }, true);
 
         // Okuma alanında sağa kaydır: çekmece açılır; çekmecede sola kaydır: kapanır.
         var start = null;
@@ -407,7 +409,7 @@
     function placeName(dir) {
         if (!dir) return '';
         if (notesDir && normPath(dir) === normPath(notesDir)) return 'Notlarım';
-        if (notesDir && pathUnder(dir, notesDir)) return 'Notlarım' + normPath(dir).slice(normPath(notesDir).length);
+        if (notesDir && Notes.pathUnder(dir, notesDir)) return 'Notlarım' + normPath(dir).slice(normPath(notesDir).length);
         return basename(dir) || dir;
     }
 
@@ -504,7 +506,7 @@
         bar.id = 'm-bar';
         bar.appendChild(button('m-back', 'back', 'Geri', function () { navigateHistory(-1); }));
         bar.appendChild(button('m-forward', 'forward', 'İleri', function () { navigateHistory(1); }));
-        bar.appendChild(button('m-new', 'plus', 'Yeni not', function () { newNote(); }, 26));
+        bar.appendChild(button('m-new', 'plus', 'Yeni not', function () { Notes.create(); }, 26));
         bar.appendChild(button('m-find', 'search', 'Sayfada ara', function () { setFindOpen(true); }));
         bar.appendChild(button('m-toc', 'toc', 'İçindekiler', function () { openDrawer('toc'); }));
         doc.querySelector('.app-container').appendChild(bar);
@@ -522,17 +524,18 @@
     function openMoreMenu() {
         var recentAnchor = doc.getElementById('m-more');
         sheet(null, [
-            { label: 'Yeni not', icon: 'newNote', tile: true, action: function () { newNote(); } },
+            { label: 'Yeni not', icon: 'newNote', tile: true, action: function () { Notes.create(); } },
             { label: 'Not ara', icon: 'search', tile: true, action: openSwitcher },
-            { label: 'Bugün', icon: 'day', tile: true, action: openToday },
+            { label: 'Bugün', icon: 'day', tile: true, action: Notes.today },
             { label: 'Tema', icon: 'palette', tile: true, action: openThemeMenu },
             { separator: true },
-            { label: 'Bu not', icon: 'note', hint: 'Paylaş, yeniden adlandır, sil', action: function () { openNoteMenu(currentFilePath); } },
+            { label: 'Bu not', icon: 'note', hint: 'Paylaş, sabitle, yeniden adlandır, sil', action: function () { openNoteMenu(currentFilePath); } },
             { label: 'Klasör aç', icon: 'folder', action: openFolderDialog },
             { label: 'Dosya aç', icon: 'file', action: openFileDialog },
             { label: 'Son açılan dosyalar', icon: 'clock', action: function () { showRecentMenu('file', recentAnchor); } },
             { label: 'Son açılan klasörler', icon: 'recentFolder', action: function () { showRecentMenu('folder', recentAnchor); } },
             { separator: true },
+            { label: 'Odak modu', icon: 'focus', hint: 'Çubukları gizler', action: function () { Reader.setZen(true); } },
             { label: 'Yazdır / PDF', icon: 'print', action: exportToPdf },
             { label: 'Ayarlar', icon: 'gear', action: openSettingsPanel }
         ]);
@@ -550,128 +553,8 @@
     }
 
     // ------------------------------------------------------------------
-    // Yeni not
-    // ------------------------------------------------------------------
-    function promptText(message, placeholder, okText, value) {
-        return new Promise(function (resolve) {
-            var backdrop = doc.createElement('div');
-            backdrop.className = 'ui-dialog-backdrop m-prompt';
-            var box = doc.createElement('div');
-            box.className = 'ui-dialog';
-            box.setAttribute('role', 'dialog');
-            box.setAttribute('aria-modal', 'true');
-            var text = doc.createElement('p');
-            text.className = 'ui-dialog-message';
-            text.style.marginBottom = '0.75rem';
-            text.textContent = message;
-            var input = doc.createElement('input');
-            input.type = 'text';
-            input.className = 'm-prompt-input';
-            input.placeholder = placeholder || '';
-            input.value = value || '';
-            input.autocomplete = 'off';
-            input.enterKeyHint = 'done';
-            var actions = doc.createElement('div');
-            actions.className = 'ui-dialog-actions';
-            var cancel = doc.createElement('button');
-            cancel.type = 'button';
-            cancel.className = 'ui-dialog-btn';
-            cancel.textContent = 'Vazgeç';
-            var ok = doc.createElement('button');
-            ok.type = 'button';
-            ok.className = 'ui-dialog-btn primary';
-            ok.textContent = okText || 'Tamam';
-            actions.appendChild(cancel);
-            actions.appendChild(ok);
-            box.appendChild(text);
-            box.appendChild(input);
-            box.appendChild(actions);
-            backdrop.appendChild(box);
-
-            function finish(value) {
-                backdrop.remove();
-                resolve(value);
-            }
-            backdrop.cancel = function () { finish(null); };
-            cancel.addEventListener('click', backdrop.cancel);
-            ok.addEventListener('click', function () { finish(input.value); });
-            input.addEventListener('keydown', function (e) {
-                e.stopPropagation();
-                if (e.key === 'Enter') finish(input.value);
-                else if (e.key === 'Escape') finish(null);
-            });
-            doc.body.appendChild(backdrop);
-            input.focus();
-            input.select();
-        });
-    }
-
-    function pathUnder(path, dir) {
-        var p = normPath(path);
-        var d = normPath(dir);
-        return p === d || p.indexOf(d + '/') === 0;
-    }
-
-    // dir verilmezse: açık notun klasörü (gezgin kökünün altındaysa), yoksa gezgin kökü.
-    // text verilirse (paylaşılan metin) not onunla başlar.
-    async function newNote(dir, suggested, text) {
-        var native = nativeApi();
-        var rootDir = explorerState && explorerState.root;
-        if (!native || !rootDir) {
-            showToast('Önce bir klasör açın');
-            return;
-        }
-        if (!dir) {
-            var here = currentFilePath ? dirname(currentFilePath) : '';
-            dir = here && pathUnder(here, rootDir) ? here : rootDir;
-        }
-        var name = await promptText('Yeni not · ' + placeName(dir), 'Not adı', 'Oluştur', suggested);
-        if (name === null) return;
-        if (!(await confirmLeaveUnsaved())) return;
-        await createAndOpen(dir, name, text);
-    }
-
-    async function createAndOpen(dir, name, text) {
-        var native = nativeApi();
-        var result = await native.create_note(dir, name);
-        if (!result || !result.success) {
-            UiDialog.alert('Not oluşturulamadı: ' + ((result && result.error) || 'bilinmeyen hata'));
-            return;
-        }
-        if (text) {
-            var made = await native.content(result.path);
-            var saved = made && made.success && await native.save(result.path, made.content + text + '\n');
-            if (!saved || !saved.success) UiDialog.alert('Metin nota yazılamadı.');
-        }
-        closeDrawer();
-        applyExplorerState(explorerState);      // ağaç yeni notu göstersin
-        await loadFile(result.path);
-        if (!text && !isEditMode) btnEditMode.click();
-    }
-
-    // Günün notu: gezgin kökünde YYYY-AA-GG.md; yoksa oluşturulur.
-    async function openToday() {
-        var native = nativeApi();
-        var rootDir = explorerState && explorerState.root;
-        if (!native || !rootDir) {
-            showToast('Önce bir klasör açın');
-            return;
-        }
-        var d = new Date();
-        var name = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-        var path = rootDir + '/' + name + '.md';
-        if (path === currentFilePath || !(await confirmLeaveUnsaved())) return;
-        var there = await native.inspect_path(path);
-        closeDrawer();
-        if (there && there.type === 'file') await loadFile(path);
-        else await createAndOpen(rootDir, name);
-    }
-
-    // ------------------------------------------------------------------
     // Not menüsü: paylaş, yeniden adlandır, sil
     // ------------------------------------------------------------------
-    function noteName(path) { return basename(path).replace(/\.(md|markdown)$/i, ''); }
-
     function openNoteMenu(path) {
         if (!path) {
             showToast('Açık not yok');
@@ -683,29 +566,19 @@
             items.push({ label: 'Dosya olarak paylaş', icon: 'file', action: function () { shareNote(path, true); } });
         }
         items.push(
-            { label: 'Yeniden adlandır', icon: 'edit', action: function () { renameNote(path); } },
+            { label: Notes.isPinned(path) ? 'Sabitlemeyi kaldır' : 'Sabitle', icon: 'pin', action: function () { Notes.togglePin(path); } },
+            { label: 'Yeniden adlandır', icon: 'edit', action: function () { Notes.rename(path); } },
             { label: 'Tam yolu kopyala', icon: 'copy', hint: path, action: async function () {
                 showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
             } },
             { separator: true },
-            { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: function () { trashNote(path); } }
+            { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: function () { Notes.trash(path); } }
         );
-        sheet(noteName(path), items);
-    }
-
-    // Açık not düzenleniyorsa bekleyen yazı önce diske insin.
-    async function settle(path) {
-        if (path !== currentFilePath) return true;
-        if (isEditMode) closeAllBlockEditors();
-        if (!hasUnsavedChanges) return true;
-        clearTimeout(autosaveTimer);
-        await saveFile();
-        if (hasUnsavedChanges) showToast('Not kaydedilemedi');
-        return !hasUnsavedChanges;
+        sheet(Notes.noteName(path), items);
     }
 
     async function shareNote(path, asFile) {
-        if (!(await settle(path))) return;
+        if (!(await Notes.settle(path))) return;
         var data = await nativeApi().content(path);
         if (!data || !data.success) {
             UiDialog.alert((data && data.error) || 'Not okunamadı.');
@@ -715,61 +588,9 @@
         if (error) UiDialog.alert(error);
     }
 
-    async function renameNote(path) {
-        var name = await promptText('Yeniden adlandır', 'Not adı', 'Kaydet', noteName(path));
-        if (name === null || !name.trim() || name.trim() === noteName(path)) return;
-        if (!(await settle(path))) return;
-        var r = await invoke('rename_note', { path: path, name: name });
-        if (!r || !r.success) {
-            UiDialog.alert('Yeniden adlandırılamadı: ' + ((r && r.error) || 'bilinmeyen hata'));
-            return;
-        }
-        applyExplorerState(explorerState);
-        if (path === currentFilePath) await loadFile(r.path, { replaceHistory: true });
-        showToast('Yeni ad: ' + noteName(r.path));
-    }
-
-    async function trashNote(path) {
-        if (!(await UiDialog.confirm('"' + noteName(path) + '" silinsin mi? Not, bulunduğu klasördeki gizli .trash klasörüne taşınır.',
-            { okText: 'Sil', cancelText: 'Vazgeç' }))) return;
-        if (!(await settle(path))) return;
-        var r = await invoke('trash_note', { path: path });
-        if (!r || !r.success) {
-            UiDialog.alert('Silinemedi: ' + ((r && r.error) || 'bilinmeyen hata'));
-            return;
-        }
-        applyExplorerState(explorerState);
-        showToast('Not silindi');
-        if (path !== currentFilePath) return;
-        if (isEditMode) btnReadMode.click();
-        var recents = ((await nativeApi().recent_list()) || {}).files || [];
-        var next = recents.length ? await nativeApi().open_file_path(recents[0]) : null;
-        await loadFile(next || '', { replaceHistory: true });
-    }
-
     // ------------------------------------------------------------------
     // Biçim çubuğu: bir blok yazılırken klavyenin üstünde durur
     // ------------------------------------------------------------------
-    // Değişikliği tarayıcının geri alma yığınına giren tek bir ekleme yapar.
-    function replaceText(ta, next) {
-        var old = ta.value;
-        if (next.text !== old) {
-            var a = 0;
-            var max = Math.min(old.length, next.text.length);
-            while (a < max && old.charCodeAt(a) === next.text.charCodeAt(a)) a++;
-            var b = 0;
-            while (b < max - a && old.charCodeAt(old.length - 1 - b) === next.text.charCodeAt(next.text.length - 1 - b)) b++;
-            var ins = next.text.slice(a, next.text.length - b);
-            ta.setSelectionRange(a, old.length - b);
-            var ok = ins ? doc.execCommand('insertText', false, ins) : doc.execCommand('delete');
-            if (!ok) {
-                ta.setRangeText(ins, a, old.length - b, 'end');
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
-        ta.setSelectionRange(next.start, next.end);
-    }
-
     function buildFormatBar() {
         var bar = doc.createElement('div');
         bar.id = 'm-format';
@@ -789,7 +610,7 @@
                 if (!target) return;
                 target.focus();
                 if (name === 'undo' || name === 'redo') doc.execCommand(name);
-                else replaceText(target, MdFormat.apply(name, target.value, target.selectionStart, target.selectionEnd));
+                else EditorKeys.replaceText(target, MdFormat.apply(name, target.value, target.selectionStart, target.selectionEnd));
             }, 20));
         });
         bar.appendChild(button('m-fmt-done', 'done', 'Bitti', function () { if (target) target.blur(); }, 20));
@@ -808,58 +629,8 @@
             target = null;
             html.classList.remove('m-format');
         });
-        // Listede Enter: maddeyi sürdür
-        inlineEditor.addEventListener('beforeinput', function (e) {
-            var ta = e.target;
-            if (e.inputType !== 'insertLineBreak' || !ta.classList.contains('block-textarea')) return;
-            if (ta.selectionStart !== ta.selectionEnd) return;
-            var next = MdFormat.newline(ta.value, ta.selectionStart);
-            if (!next) return;
-            e.preventDefault();
-            replaceText(ta, next);
-        });
     }
 
-    // ------------------------------------------------------------------
-    // Okurken görev kutusuna dokun: kaynakta [ ] ⇔ [x] çevrilir ve kaydedilir
-    // ------------------------------------------------------------------
-    function enableTasks() {
-        var saving = Promise.resolve();
-        var selector = 'input[type="checkbox"]';
-        function unlock() {
-            markdownViewer.querySelectorAll(selector).forEach(function (c) { c.disabled = !currentFilePath; });
-        }
-        new MutationObserver(unlock).observe(markdownViewer, { childList: true, subtree: true });
-        unlock();
-
-        markdownViewer.addEventListener('change', function (e) {
-            var box = e.target;
-            if (!box.matches || !box.matches(selector)) return;
-            var boxes = Array.from(markdownViewer.querySelectorAll(selector));
-            var index = boxes.indexOf(box);
-            var shown = boxes.map(function (b) { return b === box ? !b.checked : b.checked; });
-            var next = MdFormat.toggleTask(currentContent, index, shown);
-            if (next === null) {
-                box.checked = !box.checked;
-                showToast('Bu kutu yalnız düzenleme modunda değiştirilebilir');
-                return;
-            }
-            // Bellek hemen, disk sırayla: hızlı dokunuşlar birbirini ezmesin.
-            var path = currentFilePath;
-            currentContent = next;
-            markUnsaved();
-            saving = saving.then(async function () {
-                if (path !== currentFilePath || !hasUnsavedChanges) return;
-                var content = currentContent;
-                await saveFile(content);
-                if (hasUnsavedChanges) {
-                    showToast('Kaydedilemedi');
-                    markSaved();
-                    await loadFile(path, { pushHistory: false });
-                }
-            });
-        });
-    }
     // ------------------------------------------------------------------
     // Hızlı geçiş: gezgin kökündeki bütün notlar arasında ada göre arama
     // ------------------------------------------------------------------
@@ -900,21 +671,26 @@
             var data = await Promise.all([native.list_notes(), native.recent_list()]);
             notes = (data[0] && data[0].files) || [];
             recents = ((data[1] && data[1].files) || []).map(function (p) {
-                var dir = dirname(p);
-                if (notesDir && pathUnder(dir, notesDir)) dir = 'Notlarım' + dir.slice(notesDir.length);
-                return { name: basename(p), path: p, dir: dir, recent: true };
+                return { name: basename(p), path: p, dir: place(dirname(p)), recent: true };
             });
         } catch (error) {
             console.error('Not listesi alınamadı:', error);
         }
         if (switcher !== sheet) return;
-        notes.forEach(function (n) { n.key = fold(n.name.replace(/\.(md|markdown)$/i, '')); });
+        notes.forEach(function (n) { n.key = Notes.fold(n.name.replace(/\.(md|markdown)$/i, '')); });
+
+        function place(dir) {
+            return notesDir && Notes.pathUnder(dir, notesDir) ? 'Notlarım' + dir.slice(notesDir.length) : dir;
+        }
+        var pins = Notes.pins().map(function (p) {
+            return { name: basename(p), path: p, dir: place(dirname(p)), pin: true };
+        });
 
         function row(note) {
             var b = doc.createElement('button');
             b.type = 'button';
             b.className = 'm-note' + (note.path === currentFilePath ? ' current' : '');
-            b.innerHTML = icon(note.recent ? ICON.clock : ICON.note, 20);
+            b.innerHTML = icon(note.pin ? ICON.pin : note.recent ? ICON.clock : ICON.note, 20);
             var name = doc.createElement('span');
             name.textContent = note.name.replace(/\.(md|markdown)$/i, '');
             b.appendChild(name);
@@ -925,7 +701,9 @@
             }
             b.addEventListener('click', async function () {
                 closeSwitcher();
-                if (note.recent) {
+                if (note.pin) {
+                    Notes.open(note.path);
+                } else if (note.recent) {
                     openRecentFile(note.path);
                 } else if (await confirmLeaveUnsaved()) {
                     await loadFile(note.path);
@@ -951,7 +729,7 @@
             if (query.length < 2) return;
             searchTimer = setTimeout(async function () {
                 var r = null;
-                try { r = await invoke('search_notes', { query: query }); } catch (e) { console.error('Arama:', e); }
+                try { r = await nativeApi().search_notes(query); } catch (e) { console.error('Arama:', e); }
                 if (gen !== searchGen || switcher !== sheet || !searchBox) return;
                 var files = (r && r.files) || [];
                 if (!files.length) return;
@@ -967,7 +745,7 @@
         }
 
         function render() {
-            var q = fold(input.value.trim());
+            var q = Notes.fold(input.value.trim());
             list.innerHTML = '';
             searchBox = null;
             searchInside(input.value.trim());
@@ -979,11 +757,13 @@
                 notes.forEach(function (n) {
                     var i = n.key.indexOf(q);
                     if (i === 0) starts.push(n);
-                    else if (i > 0 || fold(n.dir).indexOf(q) !== -1) contains.push(n);
+                    else if (i > 0 || Notes.fold(n.dir).indexOf(q) !== -1) contains.push(n);
                 });
                 shown = starts.concat(contains);
-            } else if (recents.length) {
-                list.appendChild(label('Son açılanlar'));
+            } else if (recents.length || pins.length) {
+                if (pins.length) list.appendChild(label('Sabitlenenler'));
+                pins.forEach(function (n) { list.appendChild(row(n)); });
+                if (recents.length) list.appendChild(label('Son açılanlar'));
                 recents.slice(0, 5).forEach(function (n) { list.appendChild(row(n)); });
                 list.appendChild(label('Bütün notlar'));
             }
@@ -1017,12 +797,12 @@
         if (!a || !a.action) return;
         closeSwitcher();
         closeDrawer();
-        if (a.action === 'new') newNote();
-        else if (a.action === 'today') openToday();
+        if (a.action === 'new') Notes.create();
+        else if (a.action === 'today') Notes.today();
         else if (a.action === 'search') openSwitcher();
         else if (a.action === 'share' && a.text) {
             var first = String(a.subject || a.text.split('\n')[0]).replace(/^#+\s*/, '').trim().slice(0, 60);
-            newNote(null, /^https?:/.test(first) ? 'Bağlantı' : first, a.text);
+            Notes.create(null, /^https?:/.test(first) ? 'Bağlantı' : first, a.text);
         }
     }
 
@@ -1063,8 +843,6 @@
     }
 
     api.back = function () {
-        var prompt = doc.querySelector('.m-prompt');
-        if (prompt) { prompt.cancel(); return true; }
         if (doc.querySelector('.ui-dialog-backdrop, .img-zoom')) { pressEscape(); return true; }
         if (contextMenuEl) { hideContextMenu(); return true; }
         if (switcher) { closeSwitcher(); return true; }
@@ -1072,6 +850,7 @@
         if (html.classList.contains('m-find')) { setFindOpen(false); return true; }
         if (drawerOpen()) { closeDrawer(); return true; }
         if (isEditMode) { btnReadMode.click(); return true; }
+        if (Reader.isZen()) { Reader.setZen(false); return true; }
         return false;
     };
 
@@ -1106,10 +885,11 @@
 
     function init() {
         patchBridge();
+        Notes.hooks.placeName = placeName;
+        Notes.hooks.beforeOpen = closeDrawer;
         buildDrawer();
         buildBars();
         buildFormatBar();
-        enableTasks();
         guardMenus();
         runPendingAction();
         root.requestAnimationFrame(function () { html.classList.add('m-ready'); });

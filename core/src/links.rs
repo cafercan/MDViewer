@@ -41,6 +41,47 @@ fn snippet(line: &str, want: &str) -> String {
     format!("{head}{}{tail}", body.trim())
 }
 
+/// `%20` gibi kaçışları çözer; geçersiz dizi olduğu gibi kalır.
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = (b[i] == b'%')
+            .then(|| s.get(i + 1..i + 3))
+            .flatten()
+            .filter(|h| h.bytes().all(|c| c.is_ascii_hexdigit()))
+            .and_then(|h| u8::from_str_radix(h, 16).ok());
+        out.push(hex.unwrap_or(b[i]));
+        i += if hex.is_some() { 3 } else { 1 };
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Satır, `from` notundan `target` notuna bağlantı içeriyor mu?
+fn links_to(line: &str, from: &Path, target: &Path, stem: &str) -> bool {
+    let wiki = line.split("[[").skip(1).any(|rest| {
+        let Some(end) = rest.find("]]") else { return false };
+        let name = rest[..end].split(['|', '#']).next().unwrap_or_default().replace('\\', "/");
+        let name = fold(name.rsplit('/').next().unwrap_or_default().trim());
+        let name = MD_EXTENSIONS.iter().find_map(|e| name.strip_suffix(e)).unwrap_or(&name);
+        name == stem
+    });
+    wiki || line.split("](").skip(1).any(|rest| {
+        let rest = rest.trim_start();
+        let href = match rest.strip_prefix('<') {
+            Some(r) => r.split('>').next().unwrap_or_default(),
+            None => rest.split([')', ' ']).next().unwrap_or_default(),
+        };
+        let href = href.split(['#', '?']).next().unwrap_or_default();
+        if href.is_empty() || href.contains("://") || href.starts_with("mailto:") {
+            return false;
+        }
+        let abs = from.parent().map(|dir| absolutize(dir, &percent_decode(href)));
+        abs.is_some_and(|p| crate::paths::same_path(&p.to_string_lossy(), &target.to_string_lossy()))
+    })
+}
+
 fn is_md(name: &str) -> bool {
     let low = name.to_lowercase();
     MD_EXTENSIONS.iter().any(|e| low.ends_with(e))
@@ -162,6 +203,39 @@ impl Workspace {
             }
         }
         json!({"success": true, "files": hits, "truncated": false})
+    }
+
+    /// Verilen nota bağlanan notlar (`[[ad]]` ya da `[metin](yol/ad.md)`), not
+    /// başına ilk satır `{name, path, dir, line, snippet}`. Wikilink ada göre,
+    /// göreli bağlantı çözülen yola göre eşleşir.
+    pub fn backlinks(&self, path: &str) -> Value {
+        let abs = match self.note_in_root(path) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+        let Some(root) = self.explorer_state().root.map(PathBuf::from) else {
+            return json!({"success": true, "files": []});
+        };
+        let stem = fold(&abs.file_stem().unwrap_or_default().to_string_lossy());
+        let mut notes = Vec::new();
+        walk_notes(&root, &root, &mut notes);
+        let mut hits = Vec::new();
+        for mut note in notes {
+            let from = PathBuf::from(note["path"].as_str().unwrap_or_default());
+            if from == abs || !std::fs::metadata(&from).is_ok_and(|m| m.len() <= SEARCH_FILE_LIMIT) {
+                continue;
+            }
+            let Ok(text) = crate::textfile::read_doc(&from) else { continue };
+            let Some((i, line)) = text.lines().enumerate().find(|(_, l)| links_to(l, &from, &abs, &stem)) else { continue };
+            note["line"] = json!(i + 1);
+            let want = if fold(line).contains(&stem) { stem.as_str() } else { "](" };
+            note["snippet"] = json!(snippet(line, want));
+            hits.push(note);
+            if hits.len() >= SEARCH_HIT_LIMIT {
+                break;
+            }
+        }
+        json!({"success": true, "files": hits})
     }
 
     /// Kök içindeki bir md dosyası; değilse gösterilecek hata.
@@ -544,6 +618,29 @@ mod tests {
         assert!(t.path().join(".trash").join("gezi 1.md").is_file());
         assert_eq!(ws.trash_note(&a.to_string_lossy())["error"], "Not bulunamadı.");
         assert_eq!(ws.trash_note(&t.path().to_string_lossy())["error"], DENIED);
+    }
+
+    #[test]
+    fn backlinks_match_wikilinks_and_relative_links() {
+        let t = tempfile::TempDir::new().unwrap();
+        let w = |rel: &str, text: &str| {
+            let p = t.path().join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(&p, text).unwrap();
+            p.to_string_lossy().into_owned()
+        };
+        let target = w("Proje Planı.md", "# Plan\n[[Proje Planı]]\n");
+        w("a.md", "x\nbkz [[alt/proje planı#Giriş|plan]]\n");
+        w("alt/b.md", "[plan](../Proje%20Plan%C4%B1.md#x)\n");
+        w("alt/c.md", "[plan](Proje%20Plan%C4%B1.md) [[Proje Planı 2]] [[Proje Planı\n%zz ](%é)\n");
+        w("d.md", "Proje Planı düz metin\n");
+        let mut ws = Workspace::default();
+        ws.set_explorer_root(&t.path().to_string_lossy()).unwrap();
+        let r = ws.backlinks(&target);
+        let names: Vec<_> = r["files"].as_array().unwrap().iter().map(|f| f["name"].as_str().unwrap()).collect();
+        assert_eq!(names, ["a.md", "b.md"]);
+        assert_eq!(r["files"][0]["line"], 2);
+        assert_eq!(ws.backlinks("/etc/passwd")["error"], DENIED);
     }
 
     fn search_fx() -> (tempfile::TempDir, Workspace) {

@@ -38,6 +38,7 @@
     "allow-initial-file",
     "allow-notes-dir",
     "allow-search-notes",
+    "allow-backlinks",
     "allow-rename-note",
     "allow-trash-note",
     "allow-update-info",

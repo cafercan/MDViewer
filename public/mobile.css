@@ -915,7 +915,7 @@ html.mobile.m-kbd .app-toast { bottom: 1rem; }
     white-space: normal;
     overflow-wrap: anywhere;
 }
-.m-prompt-input {
+html.mobile .ui-dialog-input {
     width: 100%;
     margin-bottom: 1.25rem;
     padding: 0 1rem;
@@ -928,7 +928,7 @@ html.mobile.m-kbd .app-toast { bottom: 1rem; }
     font-size: 1rem;
     outline: none;
 }
-.m-prompt-input:focus { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
+html.mobile .ui-dialog-input:focus { box-shadow: inset 0 0 0 1.5px var(--accent-primary); }
 
 /* Soru kutusu */
 html.mobile .ui-dialog-backdrop {

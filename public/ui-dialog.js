@@ -7,6 +7,7 @@
  *
  *   UiDialog.confirm(mesaj, { okText, cancelText }) -> Promise<boolean>
  *   UiDialog.alert(mesaj)                           -> Promise<void>
+ *   UiDialog.prompt(mesaj, { value, placeholder, okText }) -> Promise<string|null>
  *
  * Hem tarayıcıda (global UiDialog) hem Node'da (module.exports) kullanılabilir;
  * Node testleri `create(göster)` ile sahte bir görüntüleyici verir.
@@ -34,6 +35,17 @@
                     cancelText: opts.cancelText || 'Vazgeç'
                 }).then(Boolean, function () { return false; });
             },
+            prompt: function (message, opts) {
+                opts = opts || {};
+                return enqueue({
+                    kind: 'prompt',
+                    message: String(message),
+                    value: opts.value || '',
+                    placeholder: opts.placeholder || '',
+                    okText: opts.okText || 'Tamam',
+                    cancelText: opts.cancelText || 'Vazgeç'
+                }).then(function (v) { return typeof v === 'string' ? v : null; }, function () { return null; });
+            },
             alert: function (message) {
                 return enqueue({ kind: 'alert', message: String(message), okText: 'Tamam' })
                     .then(function () {}, function () {});
@@ -59,10 +71,25 @@
             box.setAttribute('aria-describedby', text.id);
             box.appendChild(text);
 
+            var input = null;
+            if (spec.kind === 'prompt') {
+                text.classList.add('short');
+                input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'ui-dialog-input';
+                input.value = spec.value;
+                input.placeholder = spec.placeholder;
+                input.autocomplete = 'off';
+                input.spellcheck = false;
+                input.enterKeyHint = 'done';
+                input.setAttribute('aria-labelledby', text.id);
+                box.appendChild(input);
+            }
+
             var actions = document.createElement('div');
             actions.className = 'ui-dialog-actions';
             var cancel = null;
-            if (spec.kind === 'confirm') {
+            if (spec.kind !== 'alert') {
                 cancel = document.createElement('button');
                 cancel.type = 'button';
                 cancel.className = 'ui-dialog-btn';
@@ -84,19 +111,25 @@
                 resolve(answer);
             }
 
+            // Yanıt: confirm/alert true|false, prompt metin|null
+            function accept() { finish(input ? input.value : true); }
+            function reject() { finish(input ? null : spec.kind !== 'confirm'); }
+
             function onKey(e) {
+                if (e.isComposing) return;
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     e.stopPropagation();
-                    finish(spec.kind !== 'confirm');
+                    reject();
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     e.stopPropagation();
-                    finish(document.activeElement === cancel ? false : true);
+                    if (cancel && document.activeElement === cancel) reject();
+                    else accept();
                 } else if (e.key === 'Tab') {
                     // Odak kutunun düğmeleri arasında kalsın
                     e.preventDefault();
-                    var buttons = cancel ? [cancel, ok] : [ok];
+                    var buttons = [input, cancel, ok].filter(Boolean);
                     var i = buttons.indexOf(document.activeElement);
                     buttons[(i + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus();
                 } else {
@@ -104,16 +137,21 @@
                 }
             }
 
-            ok.addEventListener('click', function () { finish(true); });
-            if (cancel) cancel.addEventListener('click', function () { finish(false); });
+            ok.addEventListener('click', accept);
+            if (cancel) cancel.addEventListener('click', reject);
             document.addEventListener('keydown', onKey, true);
             document.body.appendChild(backdrop);
-            ok.focus();
+            if (input) {
+                input.focus();
+                input.select();
+            } else {
+                ok.focus();
+            }
         });
     }
 
     var dialogs = create(domShow);
-    var api = { create: create, confirm: dialogs.confirm, alert: dialogs.alert };
+    var api = { create: create, confirm: dialogs.confirm, alert: dialogs.alert, prompt: dialogs.prompt };
 
     if (typeof module === 'object' && module.exports) {
         module.exports = api;
