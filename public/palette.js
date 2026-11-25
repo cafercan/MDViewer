@@ -12,6 +12,7 @@
     function commands() {
         var list = [
             ['Yeni not', 'Ctrl+N', function () { Notes.create(); }],
+            ['Yeni klasör', '', function () { Notes.createFolder(); }],
             ['Bugünün notu', '', Notes.today],
             [isEditMode ? 'Okuma moduna geç' : 'Düzenleme moduna geç', 'Ctrl+E', function () { (isEditMode ? btnReadMode : btnEditMode).click(); }],
             ['Odak modu', 'F9', function () { Reader.setZen(!Reader.isZen()); }],
@@ -29,6 +30,7 @@
             list.push(
                 [Notes.isPinned(path) ? 'Bu notun sabitlemesini kaldır' : 'Bu notu sabitle', '', function () { Notes.togglePin(path); }],
                 ['Bu notu yeniden adlandır…', '', function () { Notes.rename(path); }],
+                ['Bu notu taşı…', '', function () { Notes.pickMove(path); }],
                 ['Bu notu sil…', '', function () { Notes.trash(path); }],
                 ['Markdown kaynağını kopyala', '', async function () {
                     commitCell();
@@ -52,8 +54,6 @@
     async function open(initial) {
         if (box || doc.querySelector('.ui-dialog-backdrop')) return;
         returnFocus = doc.activeElement;
-        // Açık blok düzenleyici odağı kaybedince kapanır; ona geri dönülmez.
-        if (EditorKeys.isBlock(returnFocus)) returnFocus = null;
         var el = doc.createElement('div');
         el.className = 'palette-backdrop';
         el.innerHTML = '<div class="palette" role="dialog" aria-modal="true" aria-label="Ara ve git">' +
@@ -228,7 +228,7 @@
             var ctrl = (e.ctrlKey || e.metaKey) && !e.altKey;
             var key = String(e.key).toLowerCase();
             var act = null;
-            if (ctrl && !e.shiftKey && key === 'k' && !EditorKeys.isBlock(e.target)) act = open;
+            if (ctrl && !e.shiftKey && key === 'k' && !e.target.closest('#live-editor')) act = open;
             else if (ctrl && e.shiftKey && key === 'f') act = open;
             else if (ctrl && !e.shiftKey && key === 'n') act = function () { Notes.create(); };
             else if (ctrl && key === '\\') act = toggleSidebar;

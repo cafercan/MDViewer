@@ -605,9 +605,29 @@ async function initExplorer() {
     }
 }
 
-function applyExplorerState(state) {
+// Açık klasörler: ağaç yeniden çizilince (yeni not, taşıma…) kapanmasınlar.
+const openDirs = new Set();
+let openDirsRoot = null;
+
+// map(yol): yeni yol | null (silindi) | undefined (değişmedi)
+function remapOpenDirs(map) {
+    for (const p of [...openDirs]) {
+        const next = map(p);
+        if (next === undefined) continue;
+        openDirs.delete(p);
+        if (next) openDirs.add(next);
+    }
+}
+
+function refreshExplorer() { return applyExplorerState(explorerState); }
+
+async function applyExplorerState(state) {
     explorerState = state || null;
     const root = state && state.root;
+    if (root !== openDirsRoot) {
+        openDirs.clear();
+        openDirsRoot = root;
+    }
     explorerSection.classList.toggle('locked', !!(state && state.locked));
     btnExplorerLock.setAttribute('aria-pressed', state && state.locked ? 'true' : 'false');
     btnExplorerLock.title = state && state.locked
@@ -618,12 +638,14 @@ function applyExplorerState(state) {
     explorerRootLabel.textContent = root ? (basename(root) || root) : 'Klasör yok';
     explorerRootLabel.title = root || '';
 
+    const scroll = explorerTree.scrollTop;
     explorerTree.innerHTML = '';
     if (!root) {
         explorerTree.innerHTML = '<span class="empty-state">Bir dosya açın ya da klasör sabitleyin.</span>';
         return;
     }
-    renderDirChildren(explorerTree, root, 0);
+    await renderDirChildren(explorerTree, root, 0);
+    if (scroll) explorerTree.scrollTop = scroll;
 }
 
 function basename(p) {
@@ -662,8 +684,10 @@ async function renderDirChildren(container, dirPath, depth) {
         container.appendChild(empty);
         return;
     }
-    data.dirs.forEach((d) => container.appendChild(buildDirNode(d, depth)));
+    const nodes = data.dirs.map((d) => buildDirNode(d, depth));
+    nodes.forEach((n) => container.appendChild(n));
     data.files.forEach((f) => container.appendChild(buildFileRow(f, depth)));
+    await Promise.all(nodes.map((n, i) => openDirs.has(data.dirs[i].path) && n.expandDir()));
 }
 
 const SVG_CHEVRON = '<svg class="tree-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
@@ -692,6 +716,7 @@ function buildDirNode(dir, depth) {
     // Klasörü açar; alt öğeler yüklenince çözülen promise döner (revealInExplorer
     // bunu bekleyip bir alt seviyeye iner).
     const expand = () => {
+        openDirs.add(dir.path);
         row.classList.add('open');
         children.hidden = false;
         if (!loading) loading = renderDirChildren(children, dir.path, depth + 1);
@@ -707,6 +732,7 @@ function buildDirNode(dir, depth) {
             return;
         }
         if (row.classList.contains('open')) {
+            openDirs.delete(dir.path);
             row.classList.remove('open');
             children.hidden = true;
         } else {
@@ -716,10 +742,7 @@ function buildDirNode(dir, depth) {
 
     row.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        showContextMenu(e.clientX, e.clientY, [
-            { label: 'Buraya yeni not…', action: () => Notes.create(dir.path) },
-            { label: 'Dosya yöneticisinde aç', action: () => nativeApi().open_in_file_manager(dir.path) },
-        ]);
+        showContextMenu(e.clientX, e.clientY, Notes.folderMenuItems(dir.path));
     });
 
     node.appendChild(row);
@@ -847,6 +870,15 @@ function showContextMenu(x, y, items, owner) {
         btn.type = 'button';
         btn.className = 'context-menu-item';
         if (item.title) btn.title = item.title;
+        if (item.danger) btn.classList.add('danger');
+        // Telefonda simgeyi alttan açılan menü kendi ekler (mobile.js sheet).
+        if (item.icon && !window.MDFlowMobile) {
+            const ico = document.createElement('span');
+            ico.className = 'context-menu-icon';
+            ico.innerHTML = Icons.svg(Icons.paths[item.icon], 16);
+            btn.classList.add('with-icon');
+            btn.appendChild(ico);
+        }
         const label = document.createElement('span');
         label.className = 'context-menu-label';
         label.textContent = item.label;
@@ -1492,7 +1524,15 @@ function setupEventListeners() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') hideContextMenu();
     });
-    document.addEventListener('scroll', hideContextMenu, true);
+    document.addEventListener('scroll', (e) => {
+        if (!contextMenuEl || e.target !== contextMenuEl) hideContextMenu(); // menü kendi içinde kayabilir
+    }, true);
+    document.getElementById('explorer-new-folder').addEventListener('click', () => Notes.createFolder());
+    explorerTree.addEventListener('contextmenu', (e) => {
+        if (window.MDFlowMobile || e.target.closest('.tree-row') || !explorerState || !explorerState.root) return;
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, Notes.rootMenuItems());
+    });
     window.addEventListener('blur', hideContextMenu);
     window.addEventListener('resize', hideContextMenu);
 
@@ -1999,6 +2039,7 @@ async function showRecentMenu(kind, anchorEl) {
     const paths = (kind === 'file' ? data.files : data.folders) || [];
     const items = paths.map((p) => ({
         label: basename(p) || p,
+        icon: kind === 'file' ? 'note' : 'folder',
         hint: kind === 'file' ? dirname(p) : p,
         title: p,
         action: () => (kind === 'file' ? openRecentFile(p) : openWorkspacePath(p)),
@@ -2009,6 +2050,7 @@ async function showRecentMenu(kind, anchorEl) {
         items.push({ separator: true });
         items.push({
             label: 'Listeyi temizle',
+            icon: 'trash',
             action: async () => {
                 try {
                     await api.clear_recent_list(kind);
@@ -2018,7 +2060,31 @@ async function showRecentMenu(kind, anchorEl) {
             },
         });
     }
+    // Telefonda bu seçenekler panelin kendi menüsündedir.
+    if (!window.MDFlowMobile) items.unshift(...openMenuItems(kind), { separator: true });
     showMenuUnder(anchorEl, items);
+}
+
+// Üst bardaki okların menüsü: son açılanların üstünde duran seçenekler.
+function openMenuItems(kind) {
+    const root = explorerState && explorerState.root;
+    if (kind === 'file') {
+        return [
+            { label: 'Yeni not…', icon: 'newNote', action: () => Notes.create() },
+            { label: 'Bugünün notu', icon: 'day', action: Notes.today },
+            { label: 'Dosya aç…', icon: 'openFile', action: openFileDialog },
+        ];
+    }
+    const items = [
+        { label: 'Yeni klasör…', icon: 'newFolder', action: () => Notes.createFolder() },
+        { label: 'Klasör aç…', icon: 'openFolder', action: openFolderDialog },
+    ];
+    if (root) {
+        items.push(
+            { label: 'Dosya yöneticisinde aç', icon: 'external', action: () => nativeApi().open_in_file_manager(root) },
+            { label: explorerState.locked ? 'Sabitlemeyi kaldır' : 'Bu klasörü sabitle', icon: 'pin', action: explorerToggleLock });
+    }
+    return items;
 }
 
 function dirname(p) {

@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="settings.css">
     <script src="themes.js"></script>
     <script src="md-format.js"></script>
+    <script src="icons.js"></script>
     <script src="mobile.js"></script>
 </head>
 <body>
@@ -67,11 +68,12 @@
                 <div class="open-group">
                     <button class="icon-btn" id="btn-open-file" title="Dosya aç (Ctrl+O)" aria-label="Dosya aç">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h6a2 2 0 0 1 2 2v1"></path>
-                            <path d="M3 8h17.5a1 1 0 0 1 .95 1.32l-2.4 7.2A2 2 0 0 1 17.1 18H5a2 2 0 0 1-2-2z"></path>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <polyline points="9 15 12 12 15 15"></polyline><line x1="12" y1="12" x2="12" y2="18"></line>
                         </svg>
                     </button>
-                    <button class="icon-btn caret-btn" id="btn-recent-files" title="Son açılan dosyalar" aria-label="Son açılan dosyalar">
+                    <button class="icon-btn caret-btn" id="btn-recent-files" title="Not seçenekleri ve son açılanlar" aria-label="Not seçenekleri ve son açılanlar">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
@@ -84,9 +86,10 @@
                     <button class="icon-btn" id="btn-open-folder" title="Klasör aç (Ctrl+Shift+O)" aria-label="Klasör aç">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            <polyline points="9 14 12 11 15 14"></polyline><line x1="12" y1="11" x2="12" y2="17"></line>
                         </svg>
                     </button>
-                    <button class="icon-btn caret-btn" id="btn-recent-folders" title="Son açılan klasörler" aria-label="Son açılan klasörler">
+                    <button class="icon-btn caret-btn" id="btn-recent-folders" title="Klasör seçenekleri ve son açılanlar" aria-label="Klasör seçenekleri ve son açılanlar">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
@@ -259,6 +262,12 @@
                             </svg>
                         </button>
                         <span class="explorer-root" id="explorer-root" title=""></span>
+                        <button class="explorer-btn" id="explorer-new-folder" title="Yeni klasör" aria-label="Yeni klasör">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                <line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line>
+                            </svg>
+                        </button>
                         <button class="explorer-btn" id="explorer-lock" title="Bu klasörü sabitle (vault)" aria-label="Klasörü sabitle" aria-pressed="false">
                             <svg class="icon-unlocked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -456,6 +465,7 @@
     <script src="vendor/codemirror/codemirror.min.js"></script>
     <script src="live-editor.js"></script>
     <script src="notes.js"></script>
+    <script src="organize.js"></script>
     <script src="reader.js"></script>
     <script src="palette.js"></script>
     <script src="settings.js"></script>

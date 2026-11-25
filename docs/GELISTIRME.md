@@ -25,7 +25,7 @@ Gerekenler: Rust (stable), Node.js 22; Linux'ta `libwebkit2gtk-4.1-dev`,
 
 ```bash
 npm install
-npx tauri dev                    # pencereyi kaynaktan aç
+npx tauri dev --no-dev-server    # pencereyi kaynaktan aç (gezinme koruması dev sunucusunu engeller)
 cargo test --workspace           # Rust testleri
 node --test tests/*.test.js      # arayüz yardımcılarının testleri
 ```
