@@ -530,10 +530,16 @@ const SyncUi = (function () {
     let syncing = false;
     /** manual: sonucu ve hatayı göster; otomatikte yalnız değişiklik bildirilir. */
     async function syncNow(manual) {
-        if (syncing || !api() || !api().sync_now) return;
+        if (!api() || !api().sync_now) return;
+        if (syncing) {
+            if (manual && !visible) showToast('Zaten eşitleniyor…');
+            return;
+        }
         if (manual && !(await allowNetwork())) return;
         syncing = true;
         progress = '';
+        document.documentElement.classList.add('syncing');
+        if (manual && !visible) showToast('Eşitleniyor…');
         render();
         lastTry = Date.now();
         let r = null;
@@ -551,6 +557,7 @@ const SyncUi = (function () {
             }
         } catch (e) { r = { success: false, error: String(e) }; }
         syncing = false;
+        document.documentElement.classList.remove('syncing');
         progress = '';
         if (r && !r.busy) linkError = r.success ? '' : r.error;
         if (r && r.success && !r.busy) {
