@@ -56,6 +56,7 @@
     "allow-sync-pair-stop",
     "allow-sync-remove-peer",
     "allow-sync-discover",
+    "allow-sync-check",
     "allow-sync-pair",
     "allow-sync-set-link",
     "allow-sync-unlink",

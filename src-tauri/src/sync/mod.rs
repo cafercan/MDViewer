@@ -6,7 +6,7 @@
 mod channel;
 mod store;
 
-use channel::{bad, hex, random, read_frame, unhex32, write_frame, Channel};
+use channel::{bad, hex, random, read_frame, unhex32, write_frame, Channel, PairFail};
 use mdflow_core::sync::{self as core, HashCache, Manifest, Op};
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -134,6 +134,37 @@ fn parse_addr(s: &str) -> Result<SocketAddr, String> {
     }
 }
 
+/// Eşleştirme hatası; `at` arayüzün hangi adımı işaretleyeceğini söyler:
+/// addr, folder, code, closed (kod beklenmiyor), off (eşitleme kapalı),
+/// timeout, network, denied, host.
+#[derive(Debug)]
+pub struct PairError {
+    at: &'static str,
+    msg: String,
+}
+
+impl PairError {
+    fn new(at: &'static str, msg: impl Into<String>) -> PairError {
+        PairError { at, msg: msg.into() }
+    }
+
+    pub fn json(&self) -> Value {
+        json!({"success": false, "error": self.msg, "at": self.at})
+    }
+}
+
+fn unreachable(e: &io::Error, addr: SocketAddr) -> PairError {
+    let ip = addr.ip();
+    match e.kind() {
+        ErrorKind::ConnectionRefused => PairError::new("off", format!("{ip} açık ama MD Flow orada dinlemiyor.")),
+        ErrorKind::PermissionDenied => PairError::new("denied", "Yerel ağa erişim izni yok."),
+        ErrorKind::NetworkUnreachable | ErrorKind::NetworkDown | ErrorKind::AddrNotAvailable => {
+            PairError::new("network", format!("Bu aygıtın bulunduğu ağdan {ip} adresine gidilemiyor."))
+        }
+        _ => PairError::new("timeout", format!("{ip} yanıt vermedi.")),
+    }
+}
+
 impl SyncState {
     pub fn new(path: PathBuf, port: u16, notify: impl Fn(&str) + Send + Sync + 'static) -> Arc<SyncState> {
         Arc::new(SyncState {
@@ -174,7 +205,7 @@ impl SyncState {
             if g.as_ref().is_some_and(|p| p.until <= Instant::now()) {
                 *g = None;
             }
-            g.as_ref().map(|p| json!({"code": p.code, "seconds": p.until.saturating_duration_since(Instant::now()).as_secs()}))
+            g.as_ref().map(|p| json!({"code": p.code, "seconds": p.until.saturating_duration_since(Instant::now()).as_secs(), "tries": p.tries}))
         };
         let listening = lock(&self.server).as_ref().map(|s| s.port);
         let g = lock(&self.store);
@@ -400,8 +431,18 @@ impl SyncState {
             code
         };
         let code = code.ok_or_else(|| bad("Eşleştirme açık değil."))?;
-        let mut ch = channel::pair_accept(s, &code)?;
-        let (req, _) = ch.recv()?;
+        (self.notify)("pair-try");
+        let opened = channel::pair_accept(s, &code).and_then(|mut ch| ch.recv().map(|(req, _)| (ch, req)));
+        let (mut ch, req) = match opened {
+            Ok(v) => v,
+            Err(e) => {
+                // Hakkı biten kod ekranda geçerliymiş gibi kalmasın.
+                let over = lock(&self.pairing).take_if(|p| p.code == code && p.tries == 0).is_some();
+                let wrong = e.kind() == ErrorKind::InvalidData;
+                (self.notify)(if over { "pair-over" } else if wrong { "pair-bad" } else { "pair-lost" });
+                return Err(e);
+            }
+        };
         // Aynı kodla ikinci aygıt eşleşemez.
         if lock(&self.pairing).take_if(|p| p.code == code).is_none() {
             return Err(bad("Eşleştirme kapandı."));
@@ -485,6 +526,12 @@ impl SyncState {
                 targets.extend(a.broadcast.filter(|_| !i.name.starts_with("docker") && !i.name.starts_with("br-")));
             }
         }
+        let targets: Vec<SocketAddr> = targets.into_iter().map(|t| (t, self.port).into()).collect();
+        Self::ask(&udp, &targets, false)
+    }
+
+    /// Adresleri yoklar; `first` ise ilk yanıtta döner.
+    fn ask(udp: &UdpSocket, targets: &[SocketAddr], first: bool) -> Vec<Value> {
         let start = Instant::now();
         let mut sent = 0;
         let mut seen = HashSet::new();
@@ -492,8 +539,8 @@ impl SyncState {
         let mut buf = [0u8; 512];
         while start.elapsed() < Duration::from_millis(1800) {
             if start.elapsed() >= Duration::from_millis(600 * sent) && sent < 3 {
-                for t in &targets {
-                    let _ = udp.send_to(HELLO, (*t, self.port));
+                for t in targets {
+                    let _ = udp.send_to(HELLO, t);
                 }
                 sent += 1;
             }
@@ -504,28 +551,45 @@ impl SyncState {
             if v["app"] == "mdflow" && is_private(from.ip()) && found.len() < 20 && seen.insert((id.clone(), from.ip())) {
                 let addr = SocketAddr::new(from.ip(), port).to_string();
                 found.push(json!({"id": id, "name": clean_name(text(&v, "name")), "addr": addr}));
+                if first {
+                    break;
+                }
             }
         }
         found
     }
 
-    pub fn pair(&self, addr: &str, code: &str, name: &str, folder: &str) -> Result<Value, String> {
-        let addr = parse_addr(addr)?;
-        check_folder(folder)?;
+    /// Yazılan adreste eşitleme açık mı? Eşleştirme hakkı harcamaz.
+    pub fn check(&self, addr: &str) -> Result<Value, PairError> {
+        let addr = parse_addr(addr).map_err(|e| PairError::new("addr", e))?;
+        connect(addr).map_err(|e| unreachable(&e, addr))?;
+        let name = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok().and_then(|udp| {
+            let _ = udp.set_read_timeout(Some(Duration::from_millis(200)));
+            Self::ask(&udp, &[addr], true).first().map(|v| text(v, "name").to_string())
+        });
+        Ok(json!({"success": true, "name": name.unwrap_or_default()}))
+    }
+
+    pub fn pair(&self, addr: &str, code: &str, name: &str, folder: &str) -> Result<Value, PairError> {
+        let addr = parse_addr(addr).map_err(|e| PairError::new("addr", e))?;
+        check_folder(folder).map_err(|e| PairError::new("folder", e))?;
         let code: String = code.chars().filter(char::is_ascii_digit).collect();
         if code.len() != 8 {
-            return Err("Kod 8 haneli olmalı.".into());
+            return Err(PairError::new("code", "Kod 8 haneli olmalı."));
         }
-        let unreachable = "Bilgisayara ulaşılamadı. İki aygıt aynı Wi-Fi'de mi, bilgisayarda eşitleme açık mı?";
-        let mut s = connect(addr).map_err(|_| unreachable)?;
-        let wrong = |_: io::Error| "Eşleşme olmadı: kod yanlış ya da süresi dolmuş. Bilgisayardan yeni kod alın.".to_string();
-        write_frame(&mut s, b"PAIR").map_err(wrong)?;
-        let mut ch = channel::pair_connect(s, &code).map_err(wrong)?;
+        let s = connect(addr).map_err(|e| unreachable(&e, addr))?;
+        (self.notify)("pair-verify");
+        let mut ch = channel::pair_connect(s, &code).map_err(|e| match e {
+            PairFail::Closed => PairError::new("closed", "Bilgisayara ulaşıldı ama geçerli bir kod beklemiyor. Kodun süresi dolmuş ya da kod kullanılmış olabilir."),
+            PairFail::Silent => PairError::new("host", "Bilgisayara bağlanıldı ama yanıt gelmedi."),
+            PairFail::Code => PairError::new("code", "Kod yanlış. Bilgisayarda görünen kodu yeniden yaz."),
+        })?;
+        let wrong = |_: io::Error| PairError::new("host", "Kod doğru ama bağlantı yarıda kesildi.");
         let id = lock(&self.store).data.device_id.clone();
         ch.send(&json!({"id": id, "name": clean_name(name)}), &[]).map_err(wrong)?;
         let (r, _) = ch.recv().map_err(wrong)?;
         let key = text(&r, "key");
-        unhex32(key).ok_or("Eşleşme olmadı.")?;
+        unhex32(key).ok_or_else(|| PairError::new("host", "Eşleşme olmadı."))?;
         let mut addrs = vec![addr.to_string()];
         add_addrs(&mut addrs, &r, addr.port());
         {
@@ -539,7 +603,7 @@ impl SyncState {
                 auto: true,
                 ..Default::default()
             });
-            g.save().map_err(|e| e.to_string())?;
+            g.save().map_err(|e| PairError::new("folder", e.to_string()))?;
         }
         Ok(self.status())
     }
@@ -650,7 +714,12 @@ impl SyncState {
         let (mut down, mut up, mut removed, mut conflicts) = (0, 0, 0, 0);
         let mut failed: Vec<String> = Vec::new();
         let mut lost = None;
-        for (op, p) in &plan.ops {
+        let mut told = Instant::now();
+        for (i, (op, p)) in plan.ops.iter().enumerate() {
+            if i == 0 || told.elapsed() >= Duration::from_millis(150) {
+                told = Instant::now();
+                (self.notify)(&format!("progress:{}/{}", i + 1, plan.ops.len()));
+            }
             let (l, r) = (local.files.get(p), remote.files.get(p));
             let mut step = || -> Result<Option<String>, CallError> {
                 match op {
@@ -838,7 +907,7 @@ mod tests {
         fn code(&self) -> String {
             self.host.pair_start().unwrap()["host"]["pairing"]["code"].as_str().unwrap().to_string()
         }
-        fn pair(&self, code: &str) -> Result<Value, String> {
+        fn pair(&self, code: &str) -> Result<Value, PairError> {
             self.phone.pair(&self.addr, code, "Pixel", &self.t.path().join("tel").to_string_lossy())
         }
         fn paired() -> Fx {
@@ -950,16 +1019,56 @@ mod tests {
     #[test]
     fn wrong_code_is_refused_and_code_expires_after_tries() {
         let f = Fx::new();
-        assert!(f.pair("12345678").is_err(), "eşleştirme kapalıyken");
+        let at = |r: Result<Value, PairError>| r.unwrap_err().at;
+        assert_eq!(at(f.pair("12345678")), "closed", "eşleştirme kapalıyken");
+        assert_eq!(at(f.pair("123")), "code");
         let code = f.code();
         let wrong = if code == "00000000" { "00000001" } else { "00000000" };
         for _ in 0..CODE_TRIES {
-            assert!(f.pair(wrong).is_err());
+            assert_eq!(at(f.pair(wrong)), "code");
         }
-        assert!(f.pair(&code).is_err(), "deneme hakkı bitti");
+        assert_eq!(at(f.pair(&code)), "closed", "deneme hakkı bitti");
         let code = f.code();
         f.pair(&code).unwrap();
-        assert!(f.pair(&code).is_err(), "kod tek kullanımlık");
+        assert_eq!(at(f.pair(&code)), "closed", "kod tek kullanımlık");
+    }
+
+    #[test]
+    fn address_check_tells_what_is_wrong_and_costs_no_try() {
+        let f = Fx::new();
+        f.code();
+        assert_eq!(f.phone.check(&f.addr).unwrap()["success"], true);
+        assert_eq!(f.host.status()["host"]["pairing"]["tries"], CODE_TRIES);
+        assert_eq!(f.phone.check("8.8.8.8").unwrap_err().at, "addr");
+        assert_eq!(f.phone.check("192.168.1").unwrap_err().at, "addr");
+        let free = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+        assert!(["off", "timeout"].contains(&f.phone.check(&free.to_string()).unwrap_err().at));
+    }
+
+    #[test]
+    fn host_hears_about_attempts() {
+        let t = TempDir::new().unwrap();
+        let heard = Arc::new(Mutex::new(Vec::<String>::new()));
+        let log = heard.clone();
+        let host = SyncState::new(t.path().join("h.json"), 0, move |k| lock(&log).push(k.into()));
+        let phone = SyncState::new(t.path().join("p.json"), 0, |_| {});
+        let dir = t.path().to_string_lossy().into_owned();
+        let addr = format!("127.0.0.1:{}", host.set_host(true, Some(dir.clone())).unwrap()["port"]);
+        let code = host.pair_start().unwrap()["host"]["pairing"]["code"].as_str().unwrap().to_string();
+        let wrong = if code == "00000000" { "00000001" } else { "00000000" };
+        for _ in 0..CODE_TRIES {
+            assert!(phone.pair(&addr, wrong, "Pixel", &dir).is_err());
+        }
+        for _ in 0..50 {
+            if lock(&heard).iter().any(|k| k == "pair-over") {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let got = lock(&heard).clone();
+        assert!(got.contains(&"pair-try".into()) && got.contains(&"pair-bad".into()) && got.contains(&"pair-over".into()), "{got:?}");
+        assert!(host.status()["host"]["pairing"].is_null());
+        host.stop();
     }
 
     #[test]

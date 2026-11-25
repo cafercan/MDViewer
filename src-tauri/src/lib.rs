@@ -139,6 +139,7 @@ pub fn run() {
             commands::sync_pair_stop,
             commands::sync_remove_peer,
             commands::sync_discover,
+            commands::sync_check,
             commands::sync_pair,
             commands::sync_set_link,
             commands::sync_unlink,

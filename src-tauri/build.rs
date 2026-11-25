@@ -48,6 +48,7 @@ const COMMANDS: &[&str] = &[
     "sync_pair_stop",
     "sync_remove_peer",
     "sync_discover",
+    "sync_check",
     "sync_pair",
     "sync_set_link",
     "sync_unlink",
