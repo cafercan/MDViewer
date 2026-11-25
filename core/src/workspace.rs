@@ -94,6 +94,17 @@ impl Workspace {
         }
     }
 
+    /// Taşınan (ya da `to` yoksa silinen) klasörün içinde kalan belge kökünü düzeltir.
+    pub(crate) fn retarget(&mut self, from: &Path, to: Option<&Path>) {
+        let Some(root) = self.root.as_ref().filter(|r| is_under(r, from)) else { return };
+        // is_under Windows'ta harf duyarsız: bileşen sayısına göre kes.
+        let rest: PathBuf = root.components().skip(from.components().count()).collect();
+        self.root = match to {
+            Some(t) => Some(t.components().chain(rest.components()).collect()),
+            None => self.explorer_root.clone(),
+        };
+    }
+
     // --- gezgin -------------------------------------------------------------
 
     pub fn set_explorer_root(&mut self, dir: &str) -> io::Result<PathBuf> {

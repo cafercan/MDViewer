@@ -20,7 +20,8 @@ Telefonunuzdaki bir klasörü açmak için listenin üstündeki klasör adına, 
 - **Kalem** — yazmaya başlar; değişiklikler kendiliğinden kaydedilir. **✓** bitirir.
 - **＋** — yeni not.
 - **⋮** — notta ara, başlıklar, paylaş, sil.
-- **Nota ya da klasöre uzun bas** — o satırın işlemleri.
+- **Nota ya da klasöre uzun bas** — o satırın işlemleri; bırakmadan sürüklersen başka
+  klasöre taşınır.
 
 ## Neler var
 

@@ -1,5 +1,5 @@
 //! Gezgin listeleme, bağlantı hedefi inceleme ve Obsidian tarzı wikilink çözümü.
-use crate::paths::absolutize;
+use crate::paths::{absolutize, is_under, same_path};
 use crate::workspace::Workspace;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -282,6 +282,103 @@ impl Workspace {
         }
     }
 
+    /// Gezgin kökünün altındaki (kökün kendisi değil) bir klasör.
+    fn folder_in_root(&self, path: &str) -> Result<PathBuf, Value> {
+        let abs = absolutize(&cwd(), path);
+        let root = self.explorer_state().root.map(PathBuf::from);
+        let inside = root.is_some_and(|r| is_under(&abs, &r) && !is_under(&r, &abs));
+        let hidden = abs.file_name().is_none_or(|n| n.to_string_lossy().starts_with('.'));
+        if path.is_empty() || !inside || hidden {
+            return Err(json!({"success": false, "error": DENIED}));
+        }
+        if !abs.is_dir() {
+            return Err(json!({"success": false, "error": "Klasör bulunamadı."}));
+        }
+        Ok(abs)
+    }
+
+    /// İzinli bir klasörde yeni klasör; var olana dokunmaz. Dönüş: `{success, path}`.
+    pub fn create_folder(&self, dir: &str, name: &str) -> Value {
+        let abs = absolutize(&cwd(), dir);
+        if dir.is_empty() || !self.within_root(&abs) {
+            return json!({"success": false, "error": DENIED});
+        }
+        let path = abs.join(folder_name(name));
+        match std::fs::create_dir(&path) {
+            Ok(()) => json!({"success": true, "path": path.to_string_lossy()}),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                json!({"success": false, "error": "Bu adda bir klasör ya da dosya zaten var."})
+            }
+            Err(e) => json!({"success": false, "error": e.to_string()}),
+        }
+    }
+
+    pub fn rename_folder(&mut self, path: &str, name: &str) -> Value {
+        match self.folder_in_root(path) {
+            Ok(abs) => {
+                let target = abs.with_file_name(folder_name(name));
+                self.relocate(&abs, &target)
+            }
+            Err(e) => e,
+        }
+    }
+
+    /// Klasörü içindekilerle birlikte, bulunduğu yerdeki gizli `.trash` içine taşır.
+    pub fn trash_folder(&mut self, path: &str) -> Value {
+        let abs = match self.folder_in_root(path) {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+        match move_to_trash(&abs) {
+            Ok(target) => {
+                self.retarget(&abs, None);
+                json!({"success": true, "path": target.to_string_lossy()})
+            }
+            Err(e) => json!({"success": false, "error": e.to_string()}),
+        }
+    }
+
+    /// Notu ya da klasörü izinli bir klasörün içine taşır; üstüne yazmaz.
+    pub fn move_entry(&mut self, path: &str, dir: &str) -> Value {
+        let source = if absolutize(&cwd(), path).is_dir() { self.folder_in_root(path) } else { self.note_in_root(path) };
+        let abs = match source {
+            Ok(p) => p,
+            Err(e) => return e,
+        };
+        let dest = absolutize(&cwd(), dir);
+        if dir.is_empty() || !self.within_root(&dest) {
+            return json!({"success": false, "error": DENIED});
+        }
+        if !dest.is_dir() {
+            return json!({"success": false, "error": "Hedef klasör bulunamadı."});
+        }
+        if is_under(&dest, &abs) {
+            return json!({"success": false, "error": "Klasör kendi içine taşınamaz."});
+        }
+        let target = dest.join(abs.file_name().unwrap_or_default());
+        self.relocate(&abs, &target)
+    }
+
+    fn relocate(&mut self, from: &Path, to: &Path) -> Value {
+        // Yalnız harf büyüklüğü değişiyorsa harf duyarsız diskte hedef "var" görünür.
+        let case_only = from != to && from.to_string_lossy().to_lowercase() == to.to_string_lossy().to_lowercase();
+        // Harf duyarlı diskte aynı görünen iki ayrı öğe olabilir: kanonik yol ayırır.
+        let same = case_only && std::fs::canonicalize(from).ok() == std::fs::canonicalize(to).ok();
+        if from == to || same_path(&from.to_string_lossy(), &to.to_string_lossy()) && !case_only {
+            return json!({"success": true, "path": from.to_string_lossy()});
+        }
+        if !same && std::fs::symlink_metadata(to).is_ok() {
+            return json!({"success": false, "error": "Hedefte bu adda bir öğe zaten var."});
+        }
+        match rename_retry(from, to) {
+            Ok(()) => {
+                self.retarget(from, Some(to));
+                json!({"success": true, "path": to.to_string_lossy()})
+            }
+            Err(e) => json!({"success": false, "error": e.to_string()}),
+        }
+    }
+
     /// [[hedef]] için diskteki dosyayı bulur: (1) belgenin klasörüne göre yol,
     /// (2) izinli köklere göre yol, (3) köklerin altında dosya adıyla arama
     /// (harf duyarsız, gizli klasörler atlanır). Kök dışı hiçbir şey dönmez.
@@ -371,6 +468,26 @@ fn note_stem(name: &str) -> String {
     }
 }
 
+fn folder_name(name: &str) -> String {
+    // Not adı kuralları geçerli; yalnız ".md" klasör adında uzantı sayılmaz.
+    let clean = note_stem(&format!("{}.md", name.trim()));
+    if clean == "Adsız" { "Yeni klasör".to_string() } else { clean }
+}
+
+/// Windows'ta yeni bırakılan izleyicinin klasör tutamacı kısa süre açık kalabilir.
+fn rename_retry(from: &Path, to: &Path) -> std::io::Result<()> {
+    let tries = if cfg!(windows) { 8 } else { 0 };
+    for _ in 0..tries {
+        match std::fs::rename(from, to) {
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                std::thread::sleep(std::time::Duration::from_millis(60));
+            }
+            r => return r,
+        }
+    }
+    std::fs::rename(from, to)
+}
+
 /// `walk_find` ile aynı sıra: önce klasörün md dosyaları, sonra alt klasörler.
 fn walk_notes(root: &Path, dir: &Path, out: &mut Vec<Value>) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
@@ -418,17 +535,21 @@ fn walk_find(dir: &Path, wanted: &[String]) -> Option<PathBuf> {
     subdirs.iter().find_map(|d| walk_find(d, wanted))
 }
 
-/// Dosyayı klasöründeki gizli `.trash` içine, boş bir adla taşır.
+/// Dosyayı (ya da klasörü) bulunduğu klasördeki gizli `.trash` içine, boş bir adla taşır.
 pub(crate) fn move_to_trash(abs: &Path) -> std::io::Result<PathBuf> {
     let trash = abs.with_file_name(".trash");
     std::fs::create_dir_all(&trash)?;
-    let stem = abs.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-    let ext = abs.extension().unwrap_or_default().to_string_lossy().into_owned();
+    let whole = abs.file_name().unwrap_or_default().to_string_lossy().into_owned();
+    // Klasör adındaki nokta uzantı değildir.
+    let (stem, ext) = match whole.rsplit_once('.') {
+        Some((s, e)) if !abs.is_dir() => (s.to_string(), format!(".{e}")),
+        _ => (whole, String::new()),
+    };
     let target = (0..10_000)
-        .map(|n| trash.join(if n == 0 { format!("{stem}.{ext}") } else { format!("{stem} {n}.{ext}") }))
+        .map(|n| trash.join(if n == 0 { format!("{stem}{ext}") } else { format!("{stem} {n}{ext}") }))
         .find(|p| !p.exists())
         .ok_or_else(|| std::io::Error::other("Çöp klasörü dolu."))?;
-    std::fs::rename(abs, &target)?;
+    rename_retry(abs, &target)?;
     Ok(target)
 }
 
@@ -620,6 +741,55 @@ mod tests {
         assert!(t.path().join(".trash").join("gezi 1.md").is_file());
         assert_eq!(ws.trash_note(&a.to_string_lossy())["error"], "Not bulunamadı.");
         assert_eq!(ws.trash_note(&t.path().to_string_lossy())["error"], DENIED);
+    }
+
+    #[test]
+    fn create_folder_confined_and_never_reuses() {
+        let t = tree();
+        let ws = vault_ws(&t);
+        let r = ws.create_folder(&ps(&t, "vault"), "../Yeni: proje.md");
+        let made = PathBuf::from(r["path"].as_str().unwrap());
+        assert!(made.is_dir());
+        assert_eq!(made.parent(), Some(p(&t, "vault").as_path()));
+        assert_eq!(ws.create_folder(&ps(&t, "vault"), "sub")["success"], false);
+        assert_eq!(ws.create_folder(&t.path().to_string_lossy(), "x")["error"], DENIED);
+        assert_eq!(ws.create_folder("", "x")["error"], DENIED);
+    }
+
+    #[test]
+    fn move_entry_moves_notes_and_folders_without_overwriting() {
+        let t = tree();
+        let mut ws = vault_ws(&t);
+        assert_eq!(ws.move_entry(&ps(&t, "vault/a.md"), &ps(&t, "vault/sub"))["path"], ps(&t, "vault/sub/a.md"));
+        touch(&p(&t, "vault/a.md"));
+        assert_eq!(ws.move_entry(&ps(&t, "vault/a.md"), &ps(&t, "vault/sub"))["success"], false);
+        assert!(p(&t, "vault/a.md").is_file());
+        assert_eq!(ws.move_entry(&ps(&t, "vault/sub"), &ps(&t, "vault/empty"))["success"], true);
+        assert!(p(&t, "vault/empty/sub/c.md").is_file());
+        assert_eq!(ws.move_entry(&ps(&t, "vault/empty"), &ps(&t, "vault/empty/sub"))["success"], false);
+        assert_eq!(ws.move_entry(&ps(&t, "vault/a.md"), &t.path().to_string_lossy())["error"], DENIED);
+        assert_eq!(ws.move_entry(&ps(&t, "outside.md"), &ps(&t, "vault"))["error"], DENIED);
+        assert_eq!(ws.move_entry(&ps(&t, "vault/notes.txt"), &ps(&t, "vault/empty"))["error"], DENIED);
+        assert_eq!(ws.move_entry(&ps(&t, "vault"), &ps(&t, "vault/empty"))["error"], DENIED);
+        assert_eq!(ws.move_entry(&ps(&t, "vault/a.md"), &ps(&t, "vault"))["path"], ps(&t, "vault/a.md"));
+    }
+
+    #[test]
+    fn folder_rename_and_trash_keep_document_root_valid() {
+        let t = tree();
+        let mut ws = Workspace::default();
+        ws.ensure_root(Some(&ps(&t, "vault/sub/c.md")));
+        ws.set_explorer_root(&ps(&t, "vault")).unwrap();
+        assert_eq!(ws.rename_folder(&ps(&t, "vault/sub"), "empty")["success"], false);
+        assert_eq!(ws.rename_folder(&ps(&t, "vault/sub"), "v1.2")["success"], true);
+        assert_eq!(ws.root, Some(p(&t, "vault/v1.2")));
+        assert_eq!(ws.rename_folder(&ps(&t, "vault/v1.2"), "V1.2")["success"], true);
+        assert_eq!(ws.trash_folder(&ps(&t, "vault/V1.2"))["success"], true);
+        assert!(p(&t, "vault/.trash/V1.2/c.md").is_file());
+        assert_eq!(ws.root, Some(p(&t, "vault")));
+        assert_eq!(ws.trash_folder(&ps(&t, "vault"))["error"], DENIED);
+        assert_eq!(ws.trash_folder(&ps(&t, "vault/.hidden"))["error"], DENIED);
+        assert_eq!(ws.rename_folder(&ps(&t, "vault/a.md"), "x")["success"], false);
     }
 
     #[test]

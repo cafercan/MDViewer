@@ -65,7 +65,7 @@ html:not(.mobile) [data-only="mobile"], html.mobile [data-only="desktop"] { disp
 .settings-rows > .settings-section:first-child > h3,
 html:not(.mobile) #settings-sync > .settings-section:first-of-type > h3 { margin-top: 0; }
 .settings-dialog .settings-row { padding: 0.7rem 0; min-height: 3.1rem; }
-.settings-dialog .settings-row select { max-width: 230px; padding: 0.42rem 0.6rem; border-radius: 9px; }
+.settings-dialog .settings-row select { max-width: 230px; padding: 0.42rem 1.8rem 0.42rem 0.6rem; border-radius: 9px; }
 .settings-label { min-width: 0; }
 .settings-foot { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border-color); }
 .seg button.active, .ui-dialog-btn.primary, .icon-btn.active, .primary-btn { color: var(--on-accent, #fff); }

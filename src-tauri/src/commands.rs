@@ -195,6 +195,26 @@ pub async fn trash_note(app: AppHandle, path: String) -> Value {
     off_main(app, move |st| api::trash_note(st, &path)).await
 }
 
+#[tauri::command]
+pub async fn create_folder(app: AppHandle, dir: String, name: String) -> Value {
+    off_main(app, move |st| api::create_folder(st, &dir, &name)).await
+}
+
+#[tauri::command]
+pub async fn rename_folder(app: AppHandle, path: String, name: String) -> Value {
+    off_main(app, move |st| api::rename_folder(st, &path, &name)).await
+}
+
+#[tauri::command]
+pub async fn trash_folder(app: AppHandle, path: String) -> Value {
+    off_main(app, move |st| api::trash_folder(st, &path)).await
+}
+
+#[tauri::command]
+pub async fn move_entry(app: AppHandle, path: String, dir: String) -> Value {
+    off_main(app, move |st| api::move_entry(st, &path, &dir)).await
+}
+
 // --- güncelleme ---------------------------------------------------------------------
 
 /// Güncelleme işi ağda ya da yönetici izninde bekleyebilir: kendi iş parçacığında koşar.

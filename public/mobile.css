@@ -472,6 +472,9 @@ html.mobile .m-home-find {
     font: inherit;
     font-size: 1rem;
 }
+.m-home-tools { display: none; }
+html.mobile .m-home-tools { display: flex; align-items: center; flex-shrink: 0; gap: 0.25rem; margin: 0.25rem 0.5rem 0.5rem 1rem; }
+html.mobile .m-home-tools .m-home-find { flex: 1; min-width: 0; margin: 0; }
 /* Tek başparmakla: kalem (notta) ve artı (listede) aynı yerde */
 html.mobile #m-new, html.mobile #m-edit {
     position: absolute;
@@ -864,7 +867,7 @@ html.mobile .settings-row { flex-wrap: wrap; padding: 0.85rem 0; border-color: v
 html.mobile .settings-label { flex: 1 1 55%; font-size: 0.95rem; }
 html.mobile .seg { flex-wrap: wrap; }
 html.mobile .seg button { padding: 0.5rem 0.85rem; font-size: 0.88rem; }
-html.mobile .settings-row select { font-size: 0.95rem; padding: 0.5rem 0.6rem; }
+html.mobile .settings-row select { font-size: 0.95rem; padding: 0.5rem 1.8rem 0.5rem 0.6rem; }
 html.mobile .switch { width: 46px; height: 26px; }
 html.mobile .switch span::after { width: 20px; height: 20px; }
 html.mobile .switch input:checked + span::after { transform: translateX(20px); }

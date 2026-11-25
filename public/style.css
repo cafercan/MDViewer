@@ -506,6 +506,29 @@ body {
     font-weight: 600;
     border-left: 2px solid var(--accent-primary);
 }
+/* Sürükleyip taşıma (public/organize.js) */
+.tree-row.drag-source { opacity: 0.45; }
+.tree-row.drag-lifted { background: var(--bg-surface-hover); box-shadow: 0 0 0 2px var(--accent-primary); }
+.tree-row.drop-target, .explorer-root.drop-target { box-shadow: inset 0 0 0 2px var(--accent-primary); background: var(--accent-glow); }
+.explorer-container.drop-target { box-shadow: inset 0 0 0 2px var(--accent-primary); }
+html.row-dragging, html.row-dragging * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+.drag-ghost {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 4000;
+    max-width: 240px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 8px;
+    background: var(--accent-primary);
+    color: var(--on-accent, #fff);
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
 .tree-children[hidden] { display: none; }
 .tree-note {
     display: block;
@@ -1320,6 +1343,8 @@ html.code-wrap .markdown-body pre code {
     z-index: 3000;
     min-width: 180px;
     max-width: 420px;
+    max-height: 80vh;
+    overflow-y: auto;
     padding: 0.25rem;
     background: var(--bg-control);
     border: 1px solid var(--border-color);
@@ -1349,6 +1374,11 @@ html.code-wrap .markdown-body pre code {
     opacity: 0.55;
     cursor: default;
 }
+html:not(.mobile) .context-menu-item.with-icon { display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 0.6rem; align-items: center; }
+html:not(.mobile) .context-menu-item.with-icon > .context-menu-hint { grid-column: 2; }
+.context-menu-icon { display: flex; color: var(--text-muted); }
+html:not(.mobile) .context-menu-item:hover:not(:disabled) .context-menu-icon { color: var(--accent-primary); }
+html:not(.mobile) .context-menu-item.danger, html:not(.mobile) .context-menu-item.danger .context-menu-icon { color: var(--error) !important; }
 .context-menu-label {
     display: block;
     overflow: hidden;
@@ -1533,12 +1563,20 @@ html.code-wrap .markdown-body pre code {
 .settings-row select {
     font: inherit;
     font-size: 0.85rem;
-    padding: 0.3rem 0.5rem;
+    padding: 0.3rem 1.8rem 0.3rem 0.5rem;
     border-radius: 6px;
     border: 1px solid var(--border-color);
-    background: var(--bg-control);
+    /* GTK'nın kendi kutusu temayı dinlemez: kutuyu biz çizeriz. */
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: var(--bg-control);
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 15px center, right 10px center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
     color: var(--text-primary);
 }
+.settings-row select option, .settings-row select optgroup { background-color: var(--bg-base); color: var(--text-primary); }
 .settings-row.disabled { opacity: 0.45; pointer-events: none; }
 
 .seg {
@@ -1700,3 +1738,8 @@ html.img-zoom-on #markdown-viewer a img { cursor: pointer; }
 @keyframes update-pulse { 50% { opacity: 0.35; } }
 .update-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
 @media print { .update-card { display: none !important; } }
+
+/* Yerel denetimler (onay kutusu, kaydırma çubuğu, açılır liste) temayla aynı tonda */
+html[data-theme$="-light"] { color-scheme: light; }
+html[data-theme$="-dark"] { color-scheme: dark; }
+@media print { html[data-theme] { color-scheme: light; } .drag-ghost { display: none; } }
