@@ -102,7 +102,7 @@ xattr -dr com.apple.quarantine "/Applications/MD Flow Viewer.app"
 </p>
 
 1. Bilgisayarda **Ayarlar › Eşitleme**'yi açın, klasörü seçin ve **Kod göster**'e basın.
-2. Telefonda **Ayarlar › Eşitleme**'de **Ara**'ya basıp kodu yazın.
+2. Telefonda **Ayarlar › Eşitleme**'de **Ara**'ya basın ya da adresi yazın, kodu girin, **Eşleştir**'e basın. Olmazsa hangi adımda takıldığı ve ne yapılacağı ekranda yazar.
 
 İki cihaz aynı yerel ağda ya da aynı Tailscale ağında olmalı, iki uygulama da açık olmalıdır. Telefon 45 saniyede bir ve not kaydedince eşitler. Bir not iki tarafta da değişmişse ikisi de saklanır. Bağlanmıyorsa güvenlik duvarında 47823 (TCP ve UDP) kapısına izin verin.
 

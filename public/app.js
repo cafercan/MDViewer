@@ -954,7 +954,7 @@ function showToast(message) {
     toast.textContent = message;
     toast.classList.add('visible');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('visible'), 1800);
+    toastTimer = setTimeout(() => toast.classList.remove('visible'), Math.max(1800, message.length * 60));
 }
 
 function buildFileRow(file, depth) {

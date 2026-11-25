@@ -148,12 +148,30 @@ fn ids() -> (Identity, Identity) {
     (Identity::new(b"mdflow-telefon"), Identity::new(b"mdflow-bilgisayar"))
 }
 
-pub fn pair_connect(mut s: TcpStream, code: &str) -> io::Result<Channel> {
+/// Eşleştirmenin kaldığı yer.
+pub enum PairFail {
+    /// Karşı taraf kod doğrulamaya hiç başlamadı: eşleştirme açık değil.
+    Closed,
+    /// Yanıt gelmedi.
+    Silent,
+    /// Kod tutmadı.
+    Code,
+}
+
+pub fn timed_out(e: &io::Error) -> bool {
+    matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut)
+}
+
+pub fn pair_connect(mut s: TcpStream, code: &str) -> Result<Channel, PairFail> {
+    let early = |e: io::Error| if timed_out(&e) { PairFail::Silent } else { PairFail::Closed };
+    let late = |e: io::Error| if timed_out(&e) { PairFail::Silent } else { PairFail::Code };
     let (a, b) = ids();
     let (state, msg) = Spake2::<Ed25519Group>::start_a(&Password::new(code.as_bytes()), &a, &b);
-    write_frame(&mut s, &msg)?;
-    let key = pake_key(state.finish(&read_frame(&mut s)?).map_err(crypto)?)?;
-    Channel::connect(s, &key)
+    write_frame(&mut s, b"PAIR").map_err(early)?;
+    write_frame(&mut s, &msg).map_err(early)?;
+    let theirs = read_frame(&mut s).map_err(early)?;
+    let key = state.finish(&theirs).map_err(crypto).and_then(pake_key).map_err(late)?;
+    Channel::connect(s, &key).map_err(late)
 }
 
 pub fn pair_accept(mut s: TcpStream, code: &str) -> io::Result<Channel> {

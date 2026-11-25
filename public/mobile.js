@@ -57,6 +57,7 @@
             android.requestLocalNetwork();
             return !!(await granted);
         },
+        hasLocalNetwork: function () { return !android || !android.hasLocalNetwork || !!android.hasLocalNetwork(); },
         deviceName: function () { return android && android.deviceName ? android.deviceName() : ''; }
     };
     root.MDFlowMobile = api;

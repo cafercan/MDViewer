@@ -135,6 +135,7 @@
         sync_pair_stop: function () { return call('sync_pair_stop'); },
         sync_remove_peer: function (id) { return call('sync_remove_peer', { id: id }); },
         sync_discover: function () { return call('sync_discover'); },
+        sync_check: function (addr) { return call('sync_check', { addr: addr }); },
         sync_pair: function (addr, code, name, folder) {
             return call('sync_pair', { addr: addr, code: code, name: name, folder: folder });
         },

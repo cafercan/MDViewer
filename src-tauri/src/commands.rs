@@ -293,8 +293,13 @@ pub async fn sync_discover(app: AppHandle) -> Value {
 }
 
 #[tauri::command]
+pub async fn sync_check(app: AppHandle, addr: String) -> Value {
+    sync_job(app, move |s| Ok(s.check(&addr).unwrap_or_else(|e| e.json()))).await
+}
+
+#[tauri::command]
 pub async fn sync_pair(app: AppHandle, addr: String, code: String, name: String, folder: String) -> Value {
-    sync_job(app, move |s| s.pair(&addr, &code, &name, &folder)).await
+    sync_job(app, move |s| Ok(s.pair(&addr, &code, &name, &folder).unwrap_or_else(|e| e.json()))).await
 }
 
 #[tauri::command]
