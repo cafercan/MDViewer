@@ -16,6 +16,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     var CHECK_EVERY = 6 * 60 * 60 * 1000;
 
@@ -51,7 +54,7 @@
             if (!r || !r.success) {
                 // Arka planda inemediyse sessizce "indir" düğmesine düş.
                 if (quiet) show('available');
-                else show('error', { message: (r && r.error) || 'İndirilemedi.' });
+                else show('error', { message: (r && r.error) || T('İndirilemedi.') });
                 return false;
             }
             found.ready = true;
@@ -64,7 +67,7 @@
             var r = await native.update_install(deps.currentFile());
             if (!r || !r.success) {
                 found.ready = false;
-                show('error', { message: (r && r.error) || 'Kurulamadı.' });
+                show('error', { message: (r && r.error) || T('Kurulamadı.') });
                 return;
             }
             if (deps.finish && (await deps.finish(r)) === false) show('ready');
@@ -77,7 +80,7 @@
                 if (manual) show('checking');
                 var r = await native.update_check();
                 if (!r || !r.success) {
-                    if (manual) show('error', { message: (r && r.error) || 'Denetlenemedi.' });
+                    if (manual) show('error', { message: (r && r.error) || T('Denetlenemedi.') });
                     return;
                 }
                 if (!r.version) {
@@ -150,9 +153,9 @@
             row.appendChild(b);
             return b;
         }
-        var notes = btn('Yenilikler', '', actions.notes);
-        var later = btn('Sonra', '', actions.later);
-        var go = btn('Güncelle', ' primary', actions.apply);
+        var notes = btn(T('Yenilikler'), '', actions.notes);
+        var later = btn(T('Sonra'), '', actions.later);
+        var go = btn(T('Güncelle'), ' primary', actions.apply);
         [title, text, bar, row].forEach(function (n) { card.appendChild(n); });
         document.body.appendChild(card);
 
@@ -165,19 +168,19 @@
             if (!visible) return;
             title.textContent = 'MD Flow Viewer ' + st.version;
             text.textContent =
-                st.phase === 'ready' ? 'Yeni sürüm indirildi, kurulmaya hazır.' :
-                st.phase === 'available' ? (st.canInstall ? 'Yeni sürüm çıktı.' : 'Yeni sürüm çıktı. Bu kurulum kendini güncelleyemiyor; paket yöneticinizle güncelleyin.') :
-                st.phase === 'installing' ? 'Kuruluyor…' :
-                st.phase === 'error' ? st.message : 'İndiriliyor… %' + (st.percent || 0);
+                st.phase === 'ready' ? T('Yeni sürüm indirildi, kurulmaya hazır.') :
+                st.phase === 'available' ? (st.canInstall ? T('Yeni sürüm çıktı.') : T('Yeni sürüm çıktı. Bu kurulum kendini güncelleyemiyor; paket yöneticinizle güncelleyin.')) :
+                st.phase === 'installing' ? T('Kuruluyor…') :
+                st.phase === 'error' ? st.message : T('İndiriliyor… %{n}', { n: st.percent || 0 });
             bar.classList.toggle('hidden', !busy);
             bar.classList.toggle('indeterminate', st.phase === 'installing');
             fill.style.width = (st.percent || 0) + '%';
             row.classList.toggle('hidden', busy);
             notes.classList.toggle('hidden', st.phase === 'error');
-            later.textContent = st.phase === 'error' ? 'Kapat' : 'Sonra';
-            go.textContent = st.phase === 'error' ? 'Yeniden dene' :
-                !st.canInstall ? 'İndirme sayfası' :
-                st.phase === 'ready' ? actions.readyLabel : 'Güncelle';
+            later.textContent = st.phase === 'error' ? T('Kapat') : T('Sonra');
+            go.textContent = st.phase === 'error' ? T('Yeniden dene') :
+                !st.canInstall ? T('İndirme sayfası') :
+                st.phase === 'ready' ? actions.readyLabel : T('Güncelle');
         };
     }
 
@@ -185,13 +188,13 @@
         var line = document.getElementById('update-status');
         if (!line) return;
         var text = {
-            checking: 'Denetleniyor…',
-            latest: 'En güncel sürümü kullanıyorsunuz',
-            available: 'Yeni sürüm var: ' + st.version,
-            ready: 'Yeni sürüm hazır: ' + st.version,
-            downloading: 'İndiriliyor…',
-            progress: 'İndiriliyor… %' + (st.percent || 0),
-            installing: 'Kuruluyor…',
+            checking: T('Denetleniyor…'),
+            latest: T('En güncel sürümü kullanıyorsunuz'),
+            available: T('Yeni sürüm var: {v}', { v: st.version }),
+            ready: T('Yeni sürüm hazır: {v}', { v: st.version }),
+            downloading: T('İndiriliyor…'),
+            progress: T('İndiriliyor… %{n}', { n: st.percent || 0 }),
+            installing: T('Kuruluyor…'),
             error: st.message
         }[st.phase];
         if (text) line.textContent = text;
@@ -227,7 +230,7 @@
         });
         view = buildCard({
             apply: updater.apply, later: updater.later, notes: updater.notes,
-            readyLabel: mobile ? 'Kur' : 'Yeniden başlat ve güncelle'
+            readyLabel: mobile ? T('Kur') : T('Yeniden başlat ve güncelle')
         });
         native.onUpdateProgress(updater.progress);
 
@@ -235,7 +238,7 @@
         if (btn) btn.addEventListener('click', function () { updater.check(true); });
         updater.info().then(function (i) {
             var v = document.getElementById('app-version');
-            if (v && i) v.textContent = 'Sürüm ' + i.version;
+            if (v && i) v.textContent = T('Sürüm {v}', { v: i.version });
         }).catch(function () { /* yut */ });
         updater.start().catch(function (e) { console.error('Güncelleme denetimi kurulamadı:', e); });
         return updater;

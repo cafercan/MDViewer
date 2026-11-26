@@ -21,6 +21,8 @@ const PREF_DEFAULTS = {
     followSystem: false, lightTheme: 'minimal-light', darkTheme: 'slate-dark',
     favoriteThemes: [], customThemes: [],
     autoUpdate: true, customCss: '',
+    // dil (i18n.js); asıl seçim localStorage'dadır, bu kopya ayar dosyasında kalsın diye
+    language: 'tr',
 };
 const FONT_STACKS = {
     sans: null, // style.css varsayılanı
@@ -52,6 +54,7 @@ const PREF_CHOICES = {
     codeSize: { s: 0.86, m: 1, l: 1.14 },
     editorSize: { s: 0.88, m: 1, l: 1.15, xl: 1.3 },
     openMode: { read: 1, edit: 1 },
+    language: Object.fromEntries(I18N.languages.map((l) => [l.code, 1])),
 };
 const ACCENTS = ['#e5484d', '#f76b15', '#e5a000', '#46a758', '#12a594', '#0090ff', '#3e63dd', '#8e4ec6', '#d6409f', '#a18072'];
 /** <html data-…> olarak yazılan tercihler; varsayılan değerde öznitelik konmaz. */
@@ -179,7 +182,7 @@ function chooseTheme(theme) {
         const systemDark = !!(darkQuery && darkQuery.matches);
         if (isDark !== systemDark) {
             prefs.followSystem = false;
-            showToast('Sistem teması takibi kapatıldı');
+            showToast(T('Sistem teması takibi kapatıldı'));
         }
     }
     setTheme(theme);
@@ -197,6 +200,7 @@ function setTheme(theme) {
 }
 
 function setPref(key, value) {
+    if (key === 'language') return changeLanguage(value);
     prefs[key] = value;
     if (key === 'followSystem' || key === 'lightTheme' || key === 'darkTheme') {
         if (prefs.followSystem) setTheme(systemTheme());
@@ -204,6 +208,19 @@ function setPref(key, value) {
     applyPrefs();
     syncSettingsPanel();
     saveSettings();
+}
+
+// Dil değişince sayfa yeniden yüklenir (açık not adres çubuğundan geri gelir).
+async function changeLanguage(code) {
+    if (code === prefs.language || !(await confirmLeaveUnsaved())) return syncSettingsPanel();
+    prefs.language = code;
+    await saveSettings();
+    applyLanguage();
+}
+
+/** Ayarlardaki dil sayfanınkinden farklıysa sayfayı o dille yeniden yükler. */
+function applyLanguage() {
+    if (I18N.setLang(prefs.language)) window.location.reload();
 }
 
 function toggleFavoriteTheme(id) {
@@ -223,12 +240,12 @@ function createThemeGallery(box, opts) {
     const search = document.createElement('input');
     search.type = 'search';
     search.className = 'tg-search';
-    search.placeholder = 'Tema ara…';
-    search.setAttribute('aria-label', 'Tema ara');
+    search.placeholder = T('Tema ara…');
+    search.setAttribute('aria-label', T('Tema ara'));
     search.addEventListener('input', () => { state.query = search.value; draw(); });
     const chips = document.createElement('div');
     chips.className = 'tg-chips';
-    [['all', 'Tümü'], ['light', 'Açık'], ['dark', 'Koyu'], ['fav', 'Favori'], ['custom', 'Benim']].forEach(([id, label]) => {
+    [['all', T('Tümü')], ['light', T('Açık')], ['dark', T('Koyu')], ['fav', T('Favori')], ['custom', T('Benim')]].forEach(([id, label]) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = label;
@@ -277,9 +294,9 @@ function createThemeGallery(box, opts) {
             el.appendChild(b);
         };
         act('fav' + (fav ? ' on' : ''), '<path d="M12 3.5l2.6 5.5 6 .8-4.4 4.1 1.1 6-5.3-3-5.3 3 1.1-6L3.400 9.800l6-.8z"/>',
-            fav ? 'Favoriden çıkar' : 'Favoriye ekle', () => toggleFavoriteTheme(t.id));
+            fav ? T('Favoriden çıkar') : T('Favoriye ekle'), () => toggleFavoriteTheme(t.id));
         if (t.kind === 'custom' && !opts.compact) {
-            act('edit', '<path d="M4 20h4L19 9l-4-4L4 16z"/>', 'Düzenle', () => ThemeEditor.open(t));
+            act('edit', '<path d="M4 20h4L19 9l-4-4L4 16z"/>', T('Düzenle'), () => ThemeEditor.open(t));
         }
         return el;
     }
@@ -302,8 +319,8 @@ function createThemeGallery(box, opts) {
             if (again) again.focus({ preventScroll: true });
         }
         empty.hidden = items.length > 0;
-        empty.textContent = state.filter === 'fav' ? 'Favori tema yok. Kartın yıldızına basarak ekle.'
-            : state.filter === 'custom' ? 'Henüz kendi teman yok.' : 'Eşleşen tema yok.';
+        empty.textContent = state.filter === 'fav' ? T('Favori tema yok. Kartın yıldızına basarak ekle.')
+            : state.filter === 'custom' ? T('Henüz kendi teman yok.') : T('Eşleşen tema yok.');
     }
     const gallery = { draw, visible: opts.visible };
     galleries.push(gallery);
@@ -320,7 +337,7 @@ function drawGalleries() {
 const ThemeEditor = (function () {
     let draft = null;
     let editing = null;
-    const FIELDS = [['bg', 'Zemin'], ['fg', 'Yazı'], ['ac', 'Vurgu'], ['ac2', 'İkinci vurgu']];
+    const FIELDS = [['bg', T('Zemin')], ['fg', T('Yazı')], ['ac', T('Vurgu')], ['ac2', T('İkinci vurgu')]];
     const $ = (id) => document.getElementById(id);
 
     function paint() {
@@ -329,8 +346,8 @@ const ThemeEditor = (function () {
         Object.keys(v).forEach((k) => p.style.setProperty(k, v[k]));
         const c = Themes.contrast(draft.fg, draft.bg);
         const a = Themes.contrast(draft.ac, draft.bg);
-        $('te-warn').textContent = c < 4.5 ? 'Yazı bu zeminde zor okunur; rengi koyult ya da aç.'
-            : a < 2.5 ? 'Vurgu rengi zemine çok yakın.' : '';
+        $('te-warn').textContent = c < 4.5 ? T('Yazı bu zeminde zor okunur; rengi koyult ya da aç.')
+            : a < 2.5 ? T('Vurgu rengi zemine çok yakın.') : '';
     }
     function fill() {
         FIELDS.forEach(([k]) => {
@@ -344,7 +361,7 @@ const ThemeEditor = (function () {
     function open(theme) {
         editing = theme && theme.kind === 'custom' ? theme.id : null;
         const from = theme || Themes.find(currentTheme);
-        draft = { name: editing ? from.name : 'Temam', bg: from.bg, fg: from.fg, ac: from.ac, ac2: from.ac2 };
+        draft = { name: editing ? from.name : T('Temam'), bg: from.bg, fg: from.fg, ac: from.ac, ac2: from.ac2 };
         $('theme-editor').hidden = false;
         fill();
         $('theme-editor').scrollIntoView({ block: 'nearest' });
@@ -364,15 +381,15 @@ const ThemeEditor = (function () {
         // Zemin açıktan koyuya dönerse kimlik de değişir (ek, temanın türüdür).
         const keep = editing && Themes.isDark(editing) === dark;
         const id = keep ? editing : Themes.newId(dark);
-        const theme = { ...draft, name: $('te-name').value.trim() || 'Temam', id };
+        const theme = { ...draft, name: $('te-name').value.trim() || T('Temam'), id };
         const rest = prefs.customThemes.filter((t) => t.id !== editing);
-        if (!keep && rest.length >= 40) return showToast('En çok 40 özel tema olabilir');
+        if (!keep && rest.length >= 40) return showToast(T('En çok 40 özel tema olabilir'));
         store(rest.concat(theme));
         close();
         chooseTheme(id);
     }
     async function remove() {
-        if (!(await UiDialog.confirm('Bu tema silinsin mi?', { okText: 'Sil', cancelText: 'Vazgeç' }))) return;
+        if (!(await UiDialog.confirm(T('Bu tema silinsin mi?'), { okText: T('Sil'), cancelText: T('Vazgeç') }))) return;
         const was = currentTheme === editing;
         store(prefs.customThemes.filter((t) => t.id !== editing));
         close();
@@ -384,7 +401,7 @@ const ThemeEditor = (function () {
         FIELDS.forEach(([k, label]) => {
             const row = document.createElement('label');
             row.className = 'te-field';
-            row.innerHTML = `<span>${label}</span><input type="color" id="te-${k}" aria-label="${label} rengi"><input type="text" id="te-${k}-hex" maxlength="7" spellcheck="false" aria-label="${label} kodu">`;
+            row.innerHTML = `<span>${label}</span><input type="color" id="te-${k}" aria-label="${T('{label} rengi', { label })}"><input type="text" id="te-${k}-hex" maxlength="7" spellcheck="false" aria-label="${T('{label} kodu', { label })}">`;
             fields.appendChild(row);
             $('te-' + k).addEventListener('input', (e) => { draft[k] = e.target.value; $('te-' + k + '-hex').value = e.target.value; paint(); });
             $('te-' + k + '-hex').addEventListener('input', (e) => {
@@ -417,6 +434,8 @@ const pick = (pref, label, options, hint) => ({ kind: 'select', pref, label, opt
 const SETTING_ROWS = {
     look: [
         { title: 'Arayüz' },
+        // Dil adları her dilde kendi yazılışıyla durur (raw: çevrilmez)
+        { ...pick('language', 'Dil', Object.fromEntries(I18N.languages.map((l) => [l.code, l.name]))), raw: true },
         seg('uiScale', 'Arayüz boyutu', { s: 'Küçük', m: 'Normal', l: 'Büyük', xl: 'Çok büyük' }),
         seg('density', 'Yoğunluk', { compact: 'Sıkı', normal: 'Normal', roomy: 'Ferah' }, 'Liste ve menü satırlarının aralığı'),
         seg('corners', 'Köşeler', { sharp: 'Keskin', normal: 'Normal', round: 'Yuvarlak' }),
@@ -467,18 +486,19 @@ const SETTING_ROWS = {
 function buildRow(row) {
     if (row.title) {
         const h = document.createElement('h3');
-        h.textContent = row.title;
+        h.textContent = T(row.title);
         return h;
     }
     const el = document.createElement('div');
     el.className = 'settings-row';
     const label = document.createElement('span');
     label.className = 'settings-label';
-    label.textContent = row.label;
+    const text = T(row.label);
+    label.textContent = text;
     if (row.hint) {
         const hint = document.createElement('span');
         hint.className = 'settings-hint';
-        hint.textContent = row.hint;
+        hint.textContent = T(row.hint);
         label.appendChild(hint);
     }
     el.appendChild(label);
@@ -488,12 +508,12 @@ function buildRow(row) {
         box.className = 'seg';
         box.dataset.pref = row.pref;
         box.setAttribute('role', 'group');
-        box.setAttribute('aria-label', row.label);
-        Object.entries(row.options).forEach(([v, text]) => {
+        box.setAttribute('aria-label', text);
+        Object.entries(row.options).forEach(([v, label]) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.dataset.value = v;
-            b.textContent = text;
+            b.textContent = T(label);
             b.addEventListener('click', () => setPref(row.pref, v));
             box.appendChild(b);
         });
@@ -501,16 +521,16 @@ function buildRow(row) {
     } else if (row.kind === 'select') {
         const s = document.createElement('select');
         s.dataset.pref = row.pref;
-        s.setAttribute('aria-label', row.label);
-        Object.entries(row.options).forEach(([v, text]) => s.add(new Option(text, v)));
+        s.setAttribute('aria-label', text);
+        Object.entries(row.options).forEach(([v, label]) => s.add(new Option(row.raw ? label : T(label), v)));
         s.addEventListener('change', () => setPref(row.pref, s.value));
         el.appendChild(s);
     } else if (row.kind === 'text') {
         const i = document.createElement('input');
         i.type = 'text';
         i.className = 'settings-input';
-        i.placeholder = row.placeholder || '';
-        i.setAttribute('aria-label', row.label);
+        i.placeholder = row.placeholder ? T(row.placeholder) : '';
+        i.setAttribute('aria-label', text);
         i.dataset.pref = row.pref;
         i.addEventListener('change', () => setPref(row.pref, i.value.trim()));
         el.appendChild(i);
@@ -519,7 +539,7 @@ function buildRow(row) {
         l.className = 'switch';
         const c = document.createElement('input');
         c.type = 'checkbox';
-        c.setAttribute('aria-label', row.label);
+        c.setAttribute('aria-label', text);
         if (row.pref) c.dataset.pref = row.pref;
         else c.dataset.key = row.key;
         c.addEventListener('change', () => (row.set ? row.set(c.checked) : setPref(row.pref, c.checked)));
@@ -553,7 +573,7 @@ const SettingsNav = (function () {
         panel().classList.toggle('m-detail', !!detail);
         const b = panel().querySelector(`.settings-nav [data-section="${id}"]`);
         document.getElementById('settings-title').textContent =
-            detail && document.documentElement.classList.contains('mobile') && b ? b.querySelector('b').textContent : 'Ayarlar';
+            detail && document.documentElement.classList.contains('mobile') && b ? b.querySelector('b').textContent : T('Ayarlar');
         panel().querySelector('.settings-body').scrollTop = 0;
         drawGalleries();
         if (typeof SyncUi !== 'undefined') SyncUi.shown(id === 'sync');
@@ -631,8 +651,8 @@ function setupSettingsPanel() {
         b.type = 'button';
         b.className = 'accent-dot' + (hex ? '' : ' auto');
         b.dataset.accent = hex;
-        b.title = hex || 'Temanın rengi';
-        b.setAttribute('aria-label', hex ? 'Vurgu rengi ' + hex : 'Temanın vurgu rengi');
+        b.title = hex || T('Temanın rengi');
+        b.setAttribute('aria-label', hex ? T('Vurgu rengi {hex}', { hex }) : T('Temanın vurgu rengi'));
         if (hex) b.style.background = hex;
         b.addEventListener('click', () => setPref('accent', hex));
         accents.appendChild(b);
@@ -640,8 +660,8 @@ function setupSettingsPanel() {
     const own = document.createElement('input');
     own.type = 'color';
     own.id = 'accent-own';
-    own.title = 'Kendi rengin';
-    own.setAttribute('aria-label', 'Kendi vurgu rengin');
+    own.title = T('Kendi rengin');
+    own.setAttribute('aria-label', T('Kendi vurgu rengin'));
     own.addEventListener('change', () => setPref('accent', own.value));
     accents.appendChild(own);
     settingsPanel.querySelectorAll('select[data-theme-pref]').forEach((s) =>
@@ -672,29 +692,30 @@ function setupSettingsPanel() {
     // Ayarları taşıma
     document.getElementById('btn-export-prefs').addEventListener('click', async () => {
         const text = JSON.stringify({ mdflow: 1, theme: currentTheme, ...prefs });
-        showToast((await copyToClipboard(text)) ? 'Ayarlar panoya kopyalandı' : 'Panoya kopyalanamadı');
+        showToast((await copyToClipboard(text)) ? T('Ayarlar panoya kopyalandı') : T('Panoya kopyalanamadı'));
     });
     document.getElementById('btn-import-prefs').addEventListener('click', async () => {
-        const text = await UiDialog.prompt('Kopyaladığın ayarları yapıştır:', { placeholder: '{"mdflow":1,…}', okText: 'Uygula' });
+        const text = await UiDialog.prompt(T('Kopyaladığın ayarları yapıştır:'), { placeholder: '{"mdflow":1,…}', okText: T('Uygula') });
         if (!text) return;
         let data = null;
         try { data = JSON.parse(text); } catch (e) { /* aşağıda */ }
-        if (!data || data.mdflow !== 1) return UiDialog.alert('Bu metin MD Flow ayarı değil.');
+        if (!data || data.mdflow !== 1) return UiDialog.alert(T('Bu metin MD Flow ayarı değil.'));
         prefs = normalizePrefs(data);
         fillThemeSelects();
         applyPrefs();
         setTheme(prefs.followSystem ? systemTheme() : data.theme);
-        saveSettings();
-        showToast('Ayarlar uygulandı');
+        await saveSettings();
+        showToast(T('Ayarlar uygulandı'));
+        applyLanguage();
     });
 
     document.getElementById('btn-settings-back').addEventListener('click', () => SettingsNav.back());
     document.getElementById('btn-settings-close').addEventListener('click', closeSettingsPanel);
     document.getElementById('btn-settings-done').addEventListener('click', closeSettingsPanel);
     document.getElementById('btn-settings-reset').addEventListener('click', async () => {
-        if (!(await UiDialog.confirm('Tüm ayarlar varsayılana dönsün mü? Özel CSS silinir; kendi temaların kalır.',
-            { okText: 'Sıfırla', cancelText: 'Vazgeç' }))) return;
-        prefs = { ...PREF_DEFAULTS, customThemes: prefs.customThemes };
+        if (!(await UiDialog.confirm(T('Tüm ayarlar varsayılana dönsün mü? Özel CSS silinir; kendi temaların kalır.'),
+            { okText: T('Sıfırla'), cancelText: T('Vazgeç') }))) return;
+        prefs = { ...PREF_DEFAULTS, customThemes: prefs.customThemes, language: prefs.language };
         applyPrefs();
         setTheme('minimal-light');
         saveSettings();

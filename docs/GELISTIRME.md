@@ -18,6 +18,25 @@ Arayüz saf web (HTML/CSS/JS), kabuk Rust (Tauri 2):
   dayanıklı), gezinme koruması. Eşitleme kapalıyken ağ portu açılmaz; komutlar yalnız ana pencereye
   izinlidir (`src-tauri/capabilities/default.json`).
 
+## Arayüz dili
+
+Arayüz metinleri kodda Türkçe yazılır ve `T()` ile sarılır: `T('Dosya aç')`,
+`T('Yeni ad: {name}', { name })`. Türkçe metnin kendisi anahtardır; diğer diller
+`public/locales/<kod>.js` sözlüklerindedir (`public/i18n.js`). Sözlükte olmayan
+metin İngilizceye, o da yoksa Türkçeye düşer; yani yeni bir metin çevirisi
+eklenene kadar Türkçe görünür. `index.html`'deki sabit metinler (yazı, `title`,
+`aria-label`, `placeholder`) açılışta `public/i18n-page.js` ile çevrilir.
+
+- **Yeni metin:** kodda `T('…')` ile yaz, karşılığını her `locales/*.js`
+  dosyasına ekle. Sayıya göre değişen metin `{ one: '…', other: '…' }`
+  olabilir (sayı `n` olarak verilir).
+- **Yeni dil:** `i18n.js`'teki `LANGS` listesine ekle ve `locales/<kod>.js`
+  dosyasını oluştur. `tests/i18n.test.js` liste ile dosyaların uyduğunu ve
+  çevirilerde yer tutucuların korunduğunu denetler.
+
+Seçilen dil `localStorage` (`md_lang`) ve ayar dosyasında (`language`) tutulur;
+değişince sayfa yeniden yüklenir. Rust tarafının hata iletileri henüz Türkçedir.
+
 ## Çalıştırma ve test
 
 Gerekenler: Rust (stable), Node.js 22; Linux'ta `libwebkit2gtk-4.1-dev`,

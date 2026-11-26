@@ -11,34 +11,34 @@
 
     function commands() {
         var list = [
-            ['Yeni not', 'Ctrl+N', function () { Notes.create(); }],
-            ['Yeni klasör', '', function () { Notes.createFolder(); }],
-            ['Bugünün notu', '', Notes.today],
-            [isEditMode ? 'Okuma moduna geç' : 'Düzenleme moduna geç', 'Ctrl+E', function () { (isEditMode ? btnReadMode : btnEditMode).click(); }],
-            ['Odak modu', 'F9', function () { Reader.setZen(!Reader.isZen()); }],
-            ['Kenar çubuğunu aç/kapat', 'Ctrl+\\', toggleSidebar],
-            ['Dosya aç…', 'Ctrl+O', openFileDialog],
-            ['Klasör aç…', 'Ctrl+Shift+O', openFolderDialog],
-            ['Yazdır / PDF', 'Ctrl+P', exportToPdf],
-            ['Ayarlar', 'Ctrl+,', function () { openSettingsPanel(); }],
-            ['Tema galerisi', '', function () { openSettingsPanel('theme'); }],
-            ['Kendi temanı yap…', '', function () { openSettingsPanel('theme'); ThemeEditor.open(null); }],
-            ['Telefonla eşitleme', '', function () { openSettingsPanel('sync'); }]
+            [T('Yeni not'), 'Ctrl+N', function () { Notes.create(); }],
+            [T('Yeni klasör'), '', function () { Notes.createFolder(); }],
+            [T('Bugünün notu'), '', Notes.today],
+            [isEditMode ? T('Okuma moduna geç') : T('Düzenleme moduna geç'), 'Ctrl+E', function () { (isEditMode ? btnReadMode : btnEditMode).click(); }],
+            [T('Odak modu'), 'F9', function () { Reader.setZen(!Reader.isZen()); }],
+            [T('Kenar çubuğunu aç/kapat'), 'Ctrl+\\', toggleSidebar],
+            [T('Dosya aç…'), 'Ctrl+O', openFileDialog],
+            [T('Klasör aç…'), 'Ctrl+Shift+O', openFolderDialog],
+            [T('Yazdır / PDF'), 'Ctrl+P', exportToPdf],
+            [T('Ayarlar'), 'Ctrl+,', function () { openSettingsPanel(); }],
+            [T('Tema galerisi'), '', function () { openSettingsPanel('theme'); }],
+            [T('Kendi temanı yap…'), '', function () { openSettingsPanel('theme'); ThemeEditor.open(null); }],
+            [T('Telefonla eşitleme'), '', function () { openSettingsPanel('sync'); }]
         ];
         if (currentFilePath) {
             var path = currentFilePath;
             list.push(
-                [Notes.isPinned(path) ? 'Bu notun sabitlemesini kaldır' : 'Bu notu sabitle', '', function () { Notes.togglePin(path); }],
-                ['Bu notu yeniden adlandır…', '', function () { Notes.rename(path); }],
-                ['Bu notu taşı…', '', function () { Notes.pickMove(path); }],
-                ['Bu notu sil…', '', function () { Notes.trash(path); }],
-                ['Markdown kaynağını kopyala', '', async function () {
+                [Notes.isPinned(path) ? T('Bu notun sabitlemesini kaldır') : T('Bu notu sabitle'), '', function () { Notes.togglePin(path); }],
+                [T('Bu notu yeniden adlandır…'), '', function () { Notes.rename(path); }],
+                [T('Bu notu taşı…'), '', function () { Notes.pickMove(path); }],
+                [T('Bu notu sil…'), '', function () { Notes.trash(path); }],
+                [T('Markdown kaynağını kopyala'), '', async function () {
                     commitCell();
-                    showToast((await copyToClipboard(currentContent)) ? 'Markdown kopyalandı' : 'Panoya kopyalanamadı');
+                    showToast((await copyToClipboard(currentContent)) ? T('Markdown kopyalandı') : T('Panoya kopyalanamadı'));
                 }]
             );
         }
-        THEMES.forEach(function (t) { list.push(['Tema: ' + t.name, t.id === currentTheme ? '✓' : '', function () { chooseTheme(t.id); }]); });
+        THEMES.forEach(function (t) { list.push([T('Tema: {name}', { name: t.name }), t.id === currentTheme ? '✓' : '', function () { chooseTheme(t.id); }]); });
         return list.map(function (c) { return { label: c[0], hint: c[1], run: c[2], key: Notes.fold(c[0]), kind: 'command' }; });
     }
 
@@ -56,10 +56,10 @@
         returnFocus = doc.activeElement;
         var el = doc.createElement('div');
         el.className = 'palette-backdrop';
-        el.innerHTML = '<div class="palette" role="dialog" aria-modal="true" aria-label="Ara ve git">' +
-            '<input type="text" class="palette-input" spellcheck="false" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="palette-list" placeholder="Not ara, komut için &gt; yaz…">' +
+        el.innerHTML = '<div class="palette" role="dialog" aria-modal="true" aria-label="' + T('Ara ve git') + '">' +
+            '<input type="text" class="palette-input" spellcheck="false" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="palette-list" placeholder="' + T('Not ara, komut için &gt; yaz…') + '">' +
             '<div class="palette-list" id="palette-list" role="listbox"></div>' +
-            '<div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> gez</span><span><kbd>Enter</kbd> aç</span><span><kbd>Esc</kbd> kapat</span></div></div>';
+            '<div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> ' + T('gez') + '</span><span><kbd>Enter</kbd> ' + T('aç') + '</span><span><kbd>Esc</kbd> ' + T('kapat') + '</span></div></div>';
         doc.body.appendChild(el);
         box = el;
         var input = el.querySelector('input');
@@ -138,22 +138,22 @@
                         else if (at > 0 || Notes.fold(n.dir).indexOf(q) >= 0) inside.push(n);
                     });
                     shown = starts.concat(inside).slice(0, 30).map(function (n) { return noteItem(n.path, n.dir); });
-                    if (shown.length) section('Notlar');
+                    if (shown.length) section(T('Notlar'));
                     shown.forEach(add);
                 } else {
                     var pins = Notes.pins();
-                    if (pins.length) section('Sabitlenenler');
+                    if (pins.length) section(T('Sabitlenenler'));
                     pins.forEach(function (p) { add(noteItem(p, dirname(p))); });
                     var rest = recents.filter(function (p) { return pins.indexOf(p) < 0 && p !== currentFilePath; }).slice(0, 6);
-                    if (rest.length) section('Son açılanlar');
+                    if (rest.length) section(T('Son açılanlar'));
                     rest.forEach(function (p) { add(noteItem(p, dirname(p))); });
                 }
             }
             var found = cmds.filter(function (c) { return !q || c.key.indexOf(q) >= 0; });
             if (!only && !q) found = found.slice(0, 9);
-            if (found.length) section('Komutlar');
+            if (found.length) section(T('Komutlar'));
             found.forEach(add);
-            if (!items.length) empty('Eşleşme yok');
+            if (!items.length) empty(T('Eşleşme yok'));
             setActive(0);
             if (!only && q.length >= 2) timer = setTimeout(function () { searchInside(raw, g); }, 220);
         }
@@ -171,7 +171,7 @@
             if (!files.length) return;
             var e = list.querySelector('.palette-empty');
             if (e) e.remove();
-            section('Not içinde' + (r.truncated ? ' (ilk ' + files.length + ')' : ''));
+            section(r.truncated ? T('Not içinde (ilk {n})', { n: files.length }) : T('Not içinde'));
             files.forEach(function (n) {
                 add({
                     label: Notes.noteName(n.path), hint: n.snippet, kind: 'hit',

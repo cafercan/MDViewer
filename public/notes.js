@@ -45,15 +45,15 @@
     async function create(dir, suggested, text) {
         var rootPath = rootDir();
         if (!nativeApi() || !rootPath) {
-            showToast('Önce bir klasör açın');
+            showToast(T('Önce bir klasör açın'));
             return;
         }
         if (!dir) {
             var here = currentFilePath ? dirname(currentFilePath) : '';
             dir = here && pathUnder(here, rootPath) ? here : rootPath;
         }
-        var name = await UiDialog.prompt('Yeni not · ' + hooks.placeName(dir),
-            { placeholder: 'Not adı', okText: 'Oluştur', value: suggested });
+        var name = await UiDialog.prompt(T('Yeni not · {place}', { place: hooks.placeName(dir) }),
+            { placeholder: T('Not adı'), okText: T('Oluştur'), value: suggested });
         if (name === null) return;
         if (!(await confirmLeaveUnsaved())) return;
         await createAndOpen(dir, name, text);
@@ -63,13 +63,13 @@
         var native = nativeApi();
         var result = await native.create_note(dir, name);
         if (!result || !result.success) {
-            UiDialog.alert('Not oluşturulamadı: ' + ((result && result.error) || 'bilinmeyen hata'));
+            UiDialog.alert(T('Not oluşturulamadı: {e}', { e: (result && result.error) || T('bilinmeyen hata') }));
             return;
         }
         if (text) {
             var made = await native.content(result.path);
             var saved = made && made.success && await native.save(result.path, made.content + text + '\n');
-            if (!saved || !saved.success) UiDialog.alert('Metin nota yazılamadı.');
+            if (!saved || !saved.success) UiDialog.alert(T('Metin nota yazılamadı.'));
         }
         hooks.beforeOpen();
         applyExplorerState(explorerState);      // ağaç yeni notu göstersin
@@ -85,7 +85,7 @@
         var native = nativeApi();
         var rootPath = rootDir();
         if (!native || !rootPath) {
-            showToast('Önce bir klasör açın');
+            showToast(T('Önce bir klasör açın'));
             return;
         }
         var d = new Date();
@@ -105,18 +105,18 @@
         if (!hasUnsavedChanges) return true;
         clearTimeout(autosaveTimer);
         await saveFile();
-        if (hasUnsavedChanges) showToast('Not kaydedilemedi');
+        if (hasUnsavedChanges) showToast(T('Not kaydedilemedi'));
         return !hasUnsavedChanges;
     }
 
     async function rename(path) {
-        var name = await UiDialog.prompt('Yeniden adlandır',
-            { placeholder: 'Not adı', okText: 'Kaydet', value: noteName(path) });
+        var name = await UiDialog.prompt(T('Yeniden adlandır'),
+            { placeholder: T('Not adı'), okText: T('Kaydet'), value: noteName(path) });
         if (name === null || !name.trim() || name.trim() === noteName(path)) return;
         if (!(await settle(path))) return;
         var r = await nativeApi().rename_note(path, name);
         if (!r || !r.success) {
-            UiDialog.alert('Yeniden adlandırılamadı: ' + ((r && r.error) || 'bilinmeyen hata'));
+            UiDialog.alert(T('Yeniden adlandırılamadı: {e}', { e: (r && r.error) || T('bilinmeyen hata') }));
             return;
         }
         if (isPinned(path)) {
@@ -125,7 +125,7 @@
         }
         applyExplorerState(explorerState);
         if (path === currentFilePath) await loadFile(r.path, { replaceHistory: true });
-        showToast('Yeni ad: ' + noteName(r.path));
+        showToast(T('Yeni ad: {name}', { name: noteName(r.path) }));
     }
 
     // --- klasörler ve taşıma ---------------------------------------------------
@@ -139,7 +139,7 @@
     }
 
     function fail(title, r) {
-        UiDialog.alert(title + ': ' + ((r && r.error) || 'bilinmeyen hata'));
+        UiDialog.alert(title + ': ' + ((r && r.error) || T('bilinmeyen hata')));
     }
 
     /** Yolu değiştiren işlem: açık not diske iner, sonra sabitler, ağaç ve açık not yeni yola geçer. */
@@ -174,33 +174,33 @@
     async function createFolder(dir) {
         var parent = dir || rootDir();
         if (!nativeApi() || !parent) {
-            showToast('Önce bir klasör açın');
+            showToast(T('Önce bir klasör açın'));
             return;
         }
-        var name = await UiDialog.prompt('Yeni klasör · ' + hooks.placeName(parent),
-            { placeholder: 'Klasör adı', okText: 'Oluştur' });
+        var name = await UiDialog.prompt(T('Yeni klasör · {place}', { place: hooks.placeName(parent) }),
+            { placeholder: T('Klasör adı'), okText: T('Oluştur') });
         if (name === null || !name.trim()) return;
         var r = await nativeApi().create_folder(parent, name);
-        if (!r || !r.success) return fail('Klasör oluşturulamadı', r);
+        if (!r || !r.success) return fail(T('Klasör oluşturulamadı'), r);
         openDirs.add(parent);
         await refreshExplorer();
         await revealInExplorer(r.path);
-        showToast('Klasör oluşturuldu: ' + basename(r.path));
+        showToast(T('Klasör oluşturuldu: {name}', { name: basename(r.path) }));
     }
 
     async function renameFolder(path) {
         var old = basename(path);
-        var name = await UiDialog.prompt('Klasörü yeniden adlandır',
-            { placeholder: 'Klasör adı', okText: 'Kaydet', value: old });
+        var name = await UiDialog.prompt(T('Klasörü yeniden adlandır'),
+            { placeholder: T('Klasör adı'), okText: T('Kaydet'), value: old });
         if (name === null || !name.trim() || name.trim() === old) return;
-        var next = await relocate(path, 'Yeniden adlandırılamadı', function (n) { return n.rename_folder(path, name); });
-        if (next) showToast('Yeni ad: ' + basename(next));
+        var next = await relocate(path, T('Yeniden adlandırılamadı'), function (n) { return n.rename_folder(path, name); });
+        if (next) showToast(T('Yeni ad: {name}', { name: basename(next) }));
     }
 
     async function move(path, dir) {
         if (samePlace(dirname(path), dir)) return;
         openDirs.add(dir);
-        var next = await relocate(path, 'Taşınamadı', function (n) { return n.move_entry(path, dir); });
+        var next = await relocate(path, T('Taşınamadı'), function (n) { return n.move_entry(path, dir); });
         if (next) showToast(noteName(next) + ' → ' + hooks.placeName(dir));
     }
 
@@ -214,10 +214,10 @@
         dir = dir || rootDir();
         if (!dir) return;
         var data = await nativeApi().list_dir(dir);
-        if (!data || !data.success) return fail('Klasör okunamadı', data);
+        if (!data || !data.success) return fail(T('Klasör okunamadı'), data);
         var items = [];
         if (!samePlace(dirname(path), dir)) {
-            items.push({ label: 'Buraya taşı', icon: 'done', action: function () { move(path, dir); } }, { separator: true });
+            items.push({ label: T('Buraya taşı'), icon: 'done', action: function () { move(path, dir); } }, { separator: true });
         }
         if (!samePlace(dir, rootDir())) {
             items.push({ label: '.. ' + hooks.placeName(dirname(dir)), icon: 'up', action: function () { pickMove(path, dirname(dir)); } });
@@ -225,14 +225,14 @@
         data.dirs.filter(function (d) { return d.path !== path; }).forEach(function (d) {
             items.push({ label: d.name, icon: 'folder', action: function () { pickMove(path, d.path); } });
         });
-        if (!items.length) items.push({ label: 'Taşınacak başka klasör yok', disabled: true });
-        hooks.menu('Taşı: ' + noteName(path) + ' · ' + hooks.placeName(dir), items);
+        if (!items.length) items.push({ label: T('Taşınacak başka klasör yok'), disabled: true });
+        hooks.menu(T('Taşı: {name} · {place}', { name: noteName(path), place: hooks.placeName(dir) }), items);
     }
 
     async function trashFolder(path) {
         var name = basename(path);
-        if (!(await UiDialog.confirm('"' + name + '" klasörü içindeki her şeyle birlikte silinsin mi? Klasör, bulunduğu yerdeki gizli .trash klasörüne taşınır.',
-            { okText: 'Sil', cancelText: 'Vazgeç' }))) return;
+        if (!(await UiDialog.confirm(T('"{name}" klasörü içindeki her şeyle birlikte silinsin mi? Klasör, bulunduğu yerdeki gizli .trash klasörüne taşınır.', { name: name }),
+            { okText: T('Sil'), cancelText: T('Vazgeç') }))) return;
         var open = currentFilePath && remap(currentFilePath, path, path) !== undefined ? currentFilePath : '';
         if (open) {
             if (!(await settle(open))) return;
@@ -241,13 +241,13 @@
         var r = await nativeApi().trash_folder(path);
         if (!r || !r.success) {
             if (open) setupFileWatcher(open);
-            return fail('Silinemedi', r);
+            return fail(T('Silinemedi'), r);
         }
         setPinned(pinned.filter(function (p) { return remap(p, path, null) === undefined; }));
         saveSettings();
         remapOpenDirs(function (p) { return remap(p, path, null); });
         refreshExplorer();
-        showToast('Klasör silindi');
+        showToast(T('Klasör silindi'));
         if (open) await leaveDeleted();
     }
 
@@ -260,17 +260,17 @@
     }
 
     async function trash(path) {
-        if (!(await UiDialog.confirm('"' + noteName(path) + '" silinsin mi? Not, bulunduğu klasördeki gizli .trash klasörüne taşınır.',
-            { okText: 'Sil', cancelText: 'Vazgeç' }))) return;
+        if (!(await UiDialog.confirm(T('"{name}" silinsin mi? Not, bulunduğu klasördeki gizli .trash klasörüne taşınır.', { name: noteName(path) }),
+            { okText: T('Sil'), cancelText: T('Vazgeç') }))) return;
         if (!(await settle(path))) return;
         var r = await nativeApi().trash_note(path);
         if (!r || !r.success) {
-            UiDialog.alert('Silinemedi: ' + ((r && r.error) || 'bilinmeyen hata'));
+            UiDialog.alert(T('Silinemedi: {e}', { e: (r && r.error) || T('bilinmeyen hata') }));
             return;
         }
         if (isPinned(path)) togglePin(path, true);
         applyExplorerState(explorerState);
-        showToast('Not silindi');
+        showToast(T('Not silindi'));
         if (path === currentFilePath) await leaveDeleted();
     }
 
@@ -288,7 +288,7 @@
         var had = isPinned(path);
         setPinned(had ? pinned.filter(function (p) { return p !== path; }) : pinned.concat(path));
         saveSettings();
-        if (!quiet) showToast(had ? 'Sabitleme kaldırıldı' : 'Sabitlendi: ' + noteName(path));
+        if (!quiet) showToast(had ? T('Sabitleme kaldırıldı') : T('Sabitlendi: {name}', { name: noteName(path) }));
     }
 
     /** Gezginin üstündeki "Sabitlenenler" bölümü. */
@@ -300,7 +300,7 @@
         if (!pinned.length) return;
         var title = document.createElement('div');
         title.className = 'pinned-title';
-        title.textContent = 'Sabitlenenler';
+        title.textContent = T('Sabitlenenler');
         box.appendChild(title);
         pinned.forEach(function (p) {
             box.appendChild(buildFileRow({ name: noteName(p), path: p }, 0));
@@ -310,72 +310,72 @@
     /** Dosya satırının sağ tık menüsü (masaüstü). */
     function menuItems(path) {
         return [
-            { label: isPinned(path) ? 'Sabitlemeyi kaldır' : 'Sabitle', icon: 'pin', action: function () { togglePin(path); } },
-            { label: 'Yeniden adlandır…', icon: 'edit', action: function () { rename(path); } },
-            { label: 'Taşı…', icon: 'move', action: function () { pickMove(path); } },
-            { label: 'Kopyasını oluştur', icon: 'copy', action: function () { duplicate(path); } },
+            { label: isPinned(path) ? T('Sabitlemeyi kaldır') : T('Sabitle'), icon: 'pin', action: function () { togglePin(path); } },
+            { label: T('Yeniden adlandır…'), icon: 'edit', action: function () { rename(path); } },
+            { label: T('Taşı…'), icon: 'move', action: function () { pickMove(path); } },
+            { label: T('Kopyasını oluştur'), icon: 'copy', action: function () { duplicate(path); } },
             { separator: true },
-            { label: 'Wikilink kopyala', icon: 'wikilink', action: function () { copyText('[[' + noteName(path) + ']]', 'Bağlantı kopyalandı'); } },
+            { label: T('Wikilink kopyala'), icon: 'wikilink', action: function () { copyText('[[' + noteName(path) + ']]', T('Bağlantı kopyalandı')); } },
             copyPathItem(path),
-            { label: 'Dosya yöneticisinde göster', icon: 'external', action: function () { nativeApi().open_in_file_manager(dirname(path)); } },
+            { label: T('Dosya yöneticisinde göster'), icon: 'external', action: function () { nativeApi().open_in_file_manager(dirname(path)); } },
             { separator: true },
-            { label: 'Sil…', icon: 'trash', danger: true, action: function () { trash(path); } }
+            { label: T('Sil…'), icon: 'trash', danger: true, action: function () { trash(path); } }
         ];
     }
 
     async function copyText(text, done) {
-        showToast((await copyToClipboard(text)) ? done : 'Panoya kopyalanamadı');
+        showToast((await copyToClipboard(text)) ? done : T('Panoya kopyalanamadı'));
     }
     function copyPathItem(path) {
-        return { label: 'Tam yolu kopyala', icon: 'link', action: function () { copyText(path, 'Yol kopyalandı: ' + basename(path)); } };
+        return { label: T('Tam yolu kopyala'), icon: 'link', action: function () { copyText(path, T('Yol kopyalandı: {name}', { name: basename(path) })); } };
     }
 
     async function duplicate(path) {
         if (!(await settle(path))) return;
         var native = nativeApi();
         var source = await native.content(path);
-        if (!source || !source.success) return fail('Kopyalanamadı', source);
-        var made = await native.create_note(dirname(path), noteName(path) + ' kopya');
-        if (!made || !made.success) return fail('Kopyalanamadı', made);
+        if (!source || !source.success) return fail(T('Kopyalanamadı'), source);
+        var made = await native.create_note(dirname(path), noteName(path) + ' ' + T('kopya'));
+        if (!made || !made.success) return fail(T('Kopyalanamadı'), made);
         var saved = await native.save(made.path, source.content);
         refreshExplorer();
-        if (!saved || !saved.success) return fail('Kopyalanamadı', saved);
-        showToast('Kopyalandı: ' + noteName(made.path));
+        if (!saved || !saved.success) return fail(T('Kopyalanamadı'), saved);
+        showToast(T('Kopyalandı: {name}', { name: noteName(made.path) }));
     }
 
     /** Klasör satırının sağ tık menüsü (masaüstü). */
     function folderMenuItems(path) {
         var items = [
-            { label: 'Buraya yeni not…', icon: 'newNote', action: function () { create(path); } },
-            { label: 'Buraya yeni klasör…', icon: 'newFolder', action: function () { createFolder(path); } },
+            { label: T('Buraya yeni not…'), icon: 'newNote', action: function () { create(path); } },
+            { label: T('Buraya yeni klasör…'), icon: 'newFolder', action: function () { createFolder(path); } },
             { separator: true },
-            { label: 'Yeniden adlandır…', icon: 'edit', action: function () { renameFolder(path); } },
-            { label: 'Taşı…', icon: 'move', action: function () { pickMove(path); } }
+            { label: T('Yeniden adlandır…'), icon: 'edit', action: function () { renameFolder(path); } },
+            { label: T('Taşı…'), icon: 'move', action: function () { pickMove(path); } }
         ];
         if (explorerState && !explorerState.locked) {
-            items.push({ label: 'Bu klasörü kök yap', icon: 'target', action: function () { explorerEnter(path); } });
+            items.push({ label: T('Bu klasörü kök yap'), icon: 'target', action: function () { explorerEnter(path); } });
         }
         return items.concat([
             copyPathItem(path),
-            { label: 'Dosya yöneticisinde aç', icon: 'external', action: function () { nativeApi().open_in_file_manager(path); } },
+            { label: T('Dosya yöneticisinde aç'), icon: 'external', action: function () { nativeApi().open_in_file_manager(path); } },
             { separator: true },
-            { label: 'Sil…', icon: 'trash', danger: true, action: function () { trashFolder(path); } }
+            { label: T('Sil…'), icon: 'trash', danger: true, action: function () { trashFolder(path); } }
         ]);
     }
 
     /** Gezginin boş yerinin sağ tık menüsü (masaüstü). */
     function rootMenuItems() {
         return [
-            { label: 'Yeni not…', icon: 'newNote', action: function () { create(rootDir()); } },
-            { label: 'Yeni klasör…', icon: 'newFolder', action: function () { createFolder(); } },
-            { label: 'Bugünün notu', icon: 'day', action: today },
+            { label: T('Yeni not…'), icon: 'newNote', action: function () { create(rootDir()); } },
+            { label: T('Yeni klasör…'), icon: 'newFolder', action: function () { createFolder(); } },
+            { label: T('Bugünün notu'), icon: 'day', action: today },
             { separator: true },
-            { label: 'Dosya aç…', icon: 'openFile', action: openFileDialog },
-            { label: 'Klasör aç…', icon: 'openFolder', action: openFolderDialog },
-            { label: 'Dosya yöneticisinde aç', icon: 'external', action: function () { nativeApi().open_in_file_manager(rootDir()); } },
+            { label: T('Dosya aç…'), icon: 'openFile', action: openFileDialog },
+            { label: T('Klasör aç…'), icon: 'openFolder', action: openFolderDialog },
+            { label: T('Dosya yöneticisinde aç'), icon: 'external', action: function () { nativeApi().open_in_file_manager(rootDir()); } },
             { separator: true },
-            { label: 'Yenile', icon: 'sync', action: refreshExplorer },
-            { label: 'Tüm klasörleri kapat', icon: 'collapse', action: function () { openDirs.clear(); refreshExplorer(); } }
+            { label: T('Yenile'), icon: 'sync', action: refreshExplorer },
+            { label: T('Tüm klasörleri kapat'), icon: 'collapse', action: function () { openDirs.clear(); refreshExplorer(); } }
         ];
     }
 

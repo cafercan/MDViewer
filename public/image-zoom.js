@@ -12,6 +12,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     var MIN_SCALE = 0.05;
     var MAX_SCALE = 16;
@@ -70,7 +73,7 @@
         overlay.className = 'img-zoom';
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-label', 'Görsel: ' + (alt || 'görsel'));
+        overlay.setAttribute('aria-label', T('Görsel: {name}', { name: alt || T('görsel') }));
         overlay.tabIndex = -1;
 
         var img = document.createElement('img');
@@ -97,14 +100,14 @@
             bar.appendChild(b);
             return b;
         }
-        button('−', 'Uzaklaştır (-)', function () { zoomCenter(1 / STEP); });
+        button('−', T('Uzaklaştır (-)'), function () { zoomCenter(1 / STEP); });
         var level = document.createElement('span');
         level.className = 'img-zoom-level';
         bar.appendChild(level);
-        button('+', 'Yakınlaştır (+)', function () { zoomCenter(STEP); });
-        button('Sığdır', 'Pencereye sığdır (0)', fit);
-        button('1:1', 'Gerçek boyut (1)', actual);
-        button('✕', 'Kapat (Esc)', close);
+        button('+', T('Yakınlaştır (+)'), function () { zoomCenter(STEP); });
+        button(T('Sığdır'), T('Pencereye sığdır (0)'), fit);
+        button('1:1', T('Gerçek boyut (1)'), actual);
+        button('✕', T('Kapat (Esc)'), close);
         overlay.appendChild(bar);
 
         var view = { scale: 1, x: 0, y: 0 };

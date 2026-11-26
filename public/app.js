@@ -206,8 +206,8 @@ async function initApp(settingsReady) {
             commitCell();
             if (hasUnsavedChanges && await flushAutosave()) return;
             if (!hasUnsavedChanges) return;
-            const close = await UiDialog.confirm('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?',
-                { okText: 'Kapat', cancelText: 'Vazgeç' });
+            const close = await UiDialog.confirm(T('Kaydedilmemiş değişiklikler var. Yine de kapatılsın mı?'),
+                { okText: T('Kapat'), cancelText: T('Vazgeç') });
             if (!close) event.preventDefault();
             else markSaved(); // kullanıcı değişiklikleri bıraktı
         });
@@ -237,11 +237,11 @@ function startUpdater() {
                 commitCell();
             }
             if (!hasUnsavedChanges) return true;
-            if (!chkAutosave.checked && !(await UiDialog.confirm('Kaydedilmemiş değişiklikler kaydedilip güncellensin mi?',
-                { okText: 'Kaydet ve güncelle', cancelText: 'Vazgeç' }))) return false;
+            if (!chkAutosave.checked && !(await UiDialog.confirm(T('Kaydedilmemiş değişiklikler kaydedilip güncellensin mi?'),
+                { okText: T('Kaydet ve güncelle'), cancelText: T('Vazgeç') }))) return false;
             clearTimeout(autosaveTimer);
             await saveFile();
-            if (hasUnsavedChanges) showToast('Belge kaydedilemedi; güncelleme durduruldu');
+            if (hasUnsavedChanges) showToast(T('Belge kaydedilemedi; güncelleme durduruldu'));
             return !hasUnsavedChanges;
         },
         // Android: kurulumu sistem ekranı yapar (mobile.js)
@@ -274,10 +274,10 @@ async function getInitialFile() {
 async function loadFile(filePath, options = {}) {
     const { replaceHistory = false, pushHistory = true, anchor = '' } = options;
     try {
-        setSyncStatus('syncing', 'Dosya yükleniyor...');
+        setSyncStatus('syncing', T('Dosya yükleniyor...'));
         
         const native = nativeApi();
-        if (!native) throw new Error('Belgeler yalnızca MD Flow Viewer uygulama penceresinde açılır.');
+        if (!native) throw new Error(T('Belgeler yalnızca MD Flow Viewer uygulama penceresinde açılır.'));
         const data = await native.content(filePath || null);
 
         if (data.success) {
@@ -311,7 +311,7 @@ async function loadFile(filePath, options = {}) {
             
             // Establish Live Connection
             setupFileWatcher(data.path);
-            setSyncStatus('connected', 'Bağlandı');
+            setSyncStatus('connected', T('Bağlandı'));
             
             // Gezgindeki aktif dosya vurgusunu güncelle
             highlightActiveFile();
@@ -324,19 +324,19 @@ async function loadFile(filePath, options = {}) {
             if (anchor) scrollToAnchor(anchor);
             else if (saved && !prefs.alwaysStartAtTop) restoreScrollPosition(saved);
         } else {
-            throw new Error(data.error || 'Bilinmeyen sunucu hatası');
+            throw new Error(data.error || T('Bilinmeyen sunucu hatası'));
         }
     } catch (error) {
         console.error('Dosya yükleme hatası:', error);
-        setSyncStatus('error', 'Yükleme hatası');
+        setSyncStatus('error', T('Yükleme hatası'));
         if (currentFilePath && filePath !== currentFilePath) {
             // Açık bir belge varken bağlantı/geçmiş üzerinden gelen hata belgeyi
             // silmesin; kullanıcı olduğu yerde kalsın.
-            UiDialog.alert('Dosya açılamadı: ' + error.message);
+            UiDialog.alert(T('Dosya açılamadı: {e}', { e: error.message }));
             return;
         }
         markdownViewer.innerHTML = `<div class="danger-box">
-            <h4>Dosya Yüklenirken Hata Oluştu</h4>
+            <h4>${T('Dosya Yüklenirken Hata Oluştu')}</h4>
             <p>${error.message}</p>
         </div>`;
     }
@@ -469,7 +469,7 @@ async function openDocumentLink(link, ctrlKey) {
             const api = nativeApi();
             if (api && typeof api.open_external === 'function') {
                 const ok = await api.open_external(info.target);
-                if (!ok) UiDialog.alert('Bu bağlantı açılamıyor: ' + info.target);
+                if (!ok) UiDialog.alert(T('Bu bağlantı açılamıyor: {e}', { e: info.target }));
             } else {
                 window.open(info.target, '_blank', 'noopener');
             }
@@ -483,7 +483,7 @@ async function openDocumentLink(link, ctrlKey) {
             await openLocalTarget(info.target, ctrlKey);
             return;
         default:
-            UiDialog.alert('Bağlantı çözülemedi: ' + info.target);
+            UiDialog.alert(T('Bağlantı çözülemedi: {e}', { e: info.target }));
     }
 }
 
@@ -505,7 +505,7 @@ async function openWikilink(target, anchor) {
         resolved = AssetUrl.resolveLocalPath(guess, currentFilePath);
     }
     if (!resolved) {
-        UiDialog.alert('Not bulunamadı: [[' + target + ']]\nBelgenin klasöründe ve gezgin kökünde arandı.');
+        UiDialog.alert(T('Not bulunamadı: [[{name}]]\nBelgenin klasöründe ve gezgin kökünde arandı.', { name: target }));
         return;
     }
     await loadFile(resolved, { anchor });
@@ -546,8 +546,8 @@ async function flushAutosave() {
 // Kaydedilmemiş değişiklik varsa kullanıcıya sorar. true = devam edilebilir.
 async function confirmLeaveUnsaved() {
     if (await flushAutosave()) return true;
-    const leave = await UiDialog.confirm('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?',
-        { okText: 'Geç', cancelText: 'Vazgeç' });
+    const leave = await UiDialog.confirm(T('Kaydedilmemiş değişiklikleriniz var. Başka bir dosyaya geçmek istiyor musunuz?'),
+        { okText: T('Geç'), cancelText: T('Vazgeç') });
     if (leave) {
         // Değişiklikler bırakıldı: bekleyen otomatik kayıt yazmasın.
         clearTimeout(autosaveTimer);
@@ -592,7 +592,7 @@ function whenNativeReady() {
 async function initExplorer() {
     const api = await whenNativeReady();
     if (!api || typeof api.explorer_state !== 'function') {
-        explorerTree.innerHTML = '<span class="empty-state">Dosya gezgini yalnızca MD Flow Viewer uygulama penceresinde çalışır.</span>';
+        explorerTree.innerHTML = '<span class="empty-state">' + T('Dosya gezgini yalnızca MD Flow Viewer uygulama penceresinde çalışır.') + '</span>';
         btnExplorerUp.disabled = true;
         btnExplorerLock.disabled = true;
         return;
@@ -601,7 +601,7 @@ async function initExplorer() {
         applyExplorerState(await api.explorer_state());
     } catch (error) {
         console.error('Gezgin başlatılamadı:', error);
-        explorerTree.innerHTML = '<span class="empty-state">Gezgin yüklenemedi</span>';
+        explorerTree.innerHTML = '<span class="empty-state">' + T('Gezgin yüklenemedi') + '</span>';
     }
 }
 
@@ -631,17 +631,17 @@ async function applyExplorerState(state) {
     explorerSection.classList.toggle('locked', !!(state && state.locked));
     btnExplorerLock.setAttribute('aria-pressed', state && state.locked ? 'true' : 'false');
     btnExplorerLock.title = state && state.locked
-        ? 'Sabitlemeyi kaldır (belge klasörüne dön)'
-        : 'Bu klasörü sabitle (vault)';
+        ? T('Sabitlemeyi kaldır (belge klasörüne dön)')
+        : T('Bu klasörü sabitle (vault)');
     btnExplorerLock.disabled = !root;
     btnExplorerUp.disabled = !(state && state.canUp);
-    explorerRootLabel.textContent = root ? (basename(root) || root) : 'Klasör yok';
+    explorerRootLabel.textContent = root ? (basename(root) || root) : T('Klasör yok');
     explorerRootLabel.title = root || '';
 
     const scroll = explorerTree.scrollTop;
     explorerTree.innerHTML = '';
     if (!root) {
-        explorerTree.innerHTML = '<span class="empty-state">Bir dosya açın ya da klasör sabitleyin.</span>';
+        explorerTree.innerHTML = '<span class="empty-state">' + T('Bir dosya açın ya da klasör sabitleyin.') + '</span>';
         return;
     }
     await renderDirChildren(explorerTree, root, 0);
@@ -657,7 +657,7 @@ async function renderDirChildren(container, dirPath, depth) {
     const note = document.createElement('span');
     note.className = 'tree-note';
     note.style.setProperty('--depth', depth);
-    note.textContent = 'Yükleniyor...';
+    note.textContent = T('Yükleniyor...');
     container.appendChild(note);
 
     let data;
@@ -672,7 +672,7 @@ async function renderDirChildren(container, dirPath, depth) {
         const err = document.createElement('span');
         err.className = 'tree-note error';
         err.style.setProperty('--depth', depth);
-        err.textContent = (data && data.error) || 'Klasör okunamadı';
+        err.textContent = (data && data.error) || T('Klasör okunamadı');
         container.appendChild(err);
         return;
     }
@@ -680,7 +680,7 @@ async function renderDirChildren(container, dirPath, depth) {
         const empty = document.createElement('span');
         empty.className = 'tree-note';
         empty.style.setProperty('--depth', depth);
-        empty.textContent = depth === 0 ? 'Bu klasörde MD dosyası yok' : 'Boş';
+        empty.textContent = depth === 0 ? T('Bu klasörde MD dosyası yok') : T('Boş');
         container.appendChild(empty);
         return;
     }
@@ -701,7 +701,7 @@ function buildDirNode(dir, depth) {
     const row = document.createElement('div');
     row.className = 'tree-row tree-dir';
     row.style.setProperty('--depth', depth);
-    row.title = dir.path + '\nÜç kez tıkla: bu klasöre in (kilit açıkken)';
+    row.title = dir.path + '\n' + T('Üç kez tıkla: bu klasöre in (kilit açıkken)');
     row.setAttribute('data-path', dir.path);
     row.innerHTML = SVG_CHEVRON + SVG_FOLDER;
     const label = document.createElement('span');
@@ -811,7 +811,7 @@ async function openLocalTarget(absPath, ctrlKey) {
     switch (info.type) {
         case 'dir':
             if (ctrlKey) {
-                if (!(await api.open_in_file_manager(info.path))) UiDialog.alert('Klasör açılamadı: ' + info.path);
+                if (!(await api.open_in_file_manager(info.path))) UiDialog.alert(T('Klasör açılamadı: {e}', { e: info.path }));
                 return;
             }
             if (info.note) {
@@ -820,17 +820,17 @@ async function openLocalTarget(absPath, ctrlKey) {
                 return;
             }
             if (!(await revealInExplorer(info.path))) {
-                UiDialog.alert('Klasör gezgin kökünün dışında:\n' + info.path + '\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile dosya yöneticisinde açın.');
+                UiDialog.alert(T('Klasör gezgin kökünün dışında:\n{path}\nKilidi açıp üst klasöre çıkın ya da Ctrl+tık ile dosya yöneticisinde açın.', { path: info.path }));
             }
             return;
         case 'file':
-            if (!(await api.open_path(info.path))) UiDialog.alert('Dosya açılamadı: ' + info.path);
+            if (!(await api.open_path(info.path))) UiDialog.alert(T('Dosya açılamadı: {e}', { e: info.path }));
             return;
         case 'denied':
-            UiDialog.alert('Erişim reddedildi: çalışma klasörü dışında.\n' + info.path);
+            UiDialog.alert(T('Erişim reddedildi: çalışma klasörü dışında.') + '\n' + info.path);
             return;
         default:
-            UiDialog.alert('Bulunamadı: ' + (info.path || absPath));
+            UiDialog.alert(T('Bulunamadı: {e}', { e: info.path || absPath }));
     }
 }
 
@@ -1036,18 +1036,18 @@ async function setupFileWatcher(filePath) {
             Reader.refresh();
         } else {
             // Automatically reload in read mode
-            setSyncStatus('syncing', 'Diskteki değişiklikler güncelleniyor...');
+            setSyncStatus('syncing', T('Diskteki değişiklikler güncelleniyor...'));
             const fileData = await native.content(filePath);
             if (fileData.success) {
                 currentContent = fileData.content;
                 renderMarkdown(currentContent);
-                setSyncStatus('connected', 'Güncellendi');
+                setSyncStatus('connected', T('Güncellendi'));
             }
         }
     };
     const onError = (err) => {
         console.error('İzleme hatası:', err);
-        setSyncStatus('error', 'İzleme hatası');
+        setSyncStatus('error', T('İzleme hatası'));
     };
 
     try {
@@ -1112,7 +1112,7 @@ function resolveLocalAssets(container) {
         img.setAttribute('src', resolved);
         img.addEventListener('error', () => {
             img.classList.add('asset-missing');
-            img.title = 'Görsel bulunamadı: ' + original;
+            img.title = T('Görsel bulunamadı: {e}', { e: original });
         }, { once: true });
     });
 }
@@ -1193,11 +1193,11 @@ function setupLiveEditor() {
 function scheduleAutosave() {
     clearTimeout(autosaveTimer);
     if (!chkAutosave.checked) {
-        saveStatus.textContent = 'Kaydedilmedi';
+        saveStatus.textContent = T('Kaydedilmedi');
         return;
     }
     if (diskConflict) return;
-    saveStatus.textContent = 'Yazılıyor…';
+    saveStatus.textContent = T('Yazılıyor…');
     autosaveTimer = setTimeout(() => saveFile(), 1200);
 }
 
@@ -1231,7 +1231,7 @@ function buildTableOfContents() {
         : Array.from(markdownViewer.querySelectorAll('h1, h2, h3, h4'));
     
     if (headingElements.length === 0) {
-        tocList.innerHTML = `<span class="empty-state">Başlık bulunamadı</span>`;
+        tocList.innerHTML = `<span class="empty-state">${T('Başlık bulunamadı')}</span>`;
         return;
     }
 
@@ -1318,7 +1318,7 @@ async function saveFile(contentToSave = null) {
         commitCell();
         const path = currentFilePath;
         const text = contentToSave === null ? currentContent : contentToSave;
-        saveStatus.textContent = 'Kaydediliyor…';
+        saveStatus.textContent = T('Kaydediliyor…');
         const data = await nativeApi().save(path, text);
         if (!data.success) throw new Error(data.error);
         if (path !== currentFilePath) return;
@@ -1329,11 +1329,11 @@ async function saveFile(contentToSave = null) {
         if (!isEditMode) currentContent = text;
         SyncUi.saved();
         Reader.refresh();
-        if (!hasUnsavedChanges) saveStatus.textContent = 'Kaydedildi';
+        if (!hasUnsavedChanges) saveStatus.textContent = T('Kaydedildi');
     } catch (error) {
         console.error('Kaydetme hatası:', error);
-        saveStatus.textContent = 'Kaydedilemedi';
-        showToast('Kaydedilemedi: ' + error.message);
+        saveStatus.textContent = T('Kaydedilemedi');
+        showToast(T('Kaydedilemedi: {e}', { e: error.message }));
     }
 }
 
@@ -1614,6 +1614,7 @@ async function loadSettings() {
 
     // Kullanıcı tercihleri (Ayarlar paneli); bilinmeyen/eksik değer varsayılana döner
     prefs = normalizePrefs(settings);
+    applyLanguage(); // dil ayarı bu sayfanınkinden farklıysa yeniden yüklenir
     applyPrefs();
 
     // Tema — varsayılan AÇIK (minimal-light); sistem takibi açıksa o seçer
@@ -1972,7 +1973,7 @@ function nativeApi() {
 async function openFolderDialog() {
     const api = nativeApi();
     if (!api || typeof api.open_folder !== 'function') {
-        UiDialog.alert('Klasör seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert(T('Klasör seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.'));
         return;
     }
     if (!(await confirmLeaveUnsaved())) return;
@@ -1981,7 +1982,7 @@ async function openFolderDialog() {
         if (result) adoptWorkspace(result);
     } catch (error) {
         console.error('Klasör seçme hatası:', error);
-        UiDialog.alert('Klasör seçme penceresi açılamadı: ' + error);
+        UiDialog.alert(T('Klasör seçme penceresi açılamadı: {e}', { e: error }));
     }
 }
 
@@ -1992,10 +1993,10 @@ async function openWorkspacePath(path) {
     try {
         const result = await api.open_folder_path(path);
         if (result) adoptWorkspace(result);
-        else showToast('Klasör bulunamadı: ' + path);
+        else showToast(T('Klasör bulunamadı: {e}', { e: path }));
     } catch (error) {
         console.error('Çalışma alanı açılamadı:', error);
-        showToast('Klasör açılamadı');
+        showToast(T('Klasör açılamadı'));
     }
 }
 
@@ -2003,7 +2004,7 @@ function adoptWorkspace(result) {
     applyExplorerState(result.state);
     setSidebarTab('explorer');
     sidebar.classList.remove('collapsed');
-    showToast('Çalışma alanı: ' + (basename(result.path) || result.path));
+    showToast(T('Çalışma alanı: {e}', { e: basename(result.path) || result.path }));
 }
 
 async function openRecentFile(path) {
@@ -2013,10 +2014,10 @@ async function openRecentFile(path) {
     try {
         const opened = await api.open_file_path(path);
         if (opened) await loadFile(opened);
-        else showToast('Dosya bulunamadı: ' + path);
+        else showToast(T('Dosya bulunamadı: {e}', { e: path }));
     } catch (error) {
         console.error('Son açılan dosya açılamadı:', error);
-        showToast('Dosya açılamadı');
+        showToast(T('Dosya açılamadı'));
     }
 }
 
@@ -2026,7 +2027,7 @@ async function showRecentMenu(kind, anchorEl) {
     if (menuJustClosedFor(anchorEl.id)) return;
     const api = nativeApi();
     if (!api || typeof api.recent_list !== 'function') {
-        UiDialog.alert('Son açılanlar yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert(T('Son açılanlar yalnızca MD Flow Viewer uygulama penceresinde çalışır.'));
         return;
     }
     let data;
@@ -2045,11 +2046,11 @@ async function showRecentMenu(kind, anchorEl) {
         action: () => (kind === 'file' ? openRecentFile(p) : openWorkspacePath(p)),
     }));
     if (!items.length) {
-        items.push({ label: kind === 'file' ? 'Son açılan dosya yok' : 'Son açılan klasör yok', disabled: true });
+        items.push({ label: kind === 'file' ? T('Son açılan dosya yok') : T('Son açılan klasör yok'), disabled: true });
     } else {
         items.push({ separator: true });
         items.push({
-            label: 'Listeyi temizle',
+            label: T('Listeyi temizle'),
             icon: 'trash',
             action: async () => {
                 try {
@@ -2070,19 +2071,19 @@ function openMenuItems(kind) {
     const root = explorerState && explorerState.root;
     if (kind === 'file') {
         return [
-            { label: 'Yeni not…', icon: 'newNote', action: () => Notes.create() },
-            { label: 'Bugünün notu', icon: 'day', action: Notes.today },
-            { label: 'Dosya aç…', icon: 'openFile', action: openFileDialog },
+            { label: T('Yeni not…'), icon: 'newNote', action: () => Notes.create() },
+            { label: T('Bugünün notu'), icon: 'day', action: Notes.today },
+            { label: T('Dosya aç…'), icon: 'openFile', action: openFileDialog },
         ];
     }
     const items = [
-        { label: 'Yeni klasör…', icon: 'newFolder', action: () => Notes.createFolder() },
-        { label: 'Klasör aç…', icon: 'openFolder', action: openFolderDialog },
+        { label: T('Yeni klasör…'), icon: 'newFolder', action: () => Notes.createFolder() },
+        { label: T('Klasör aç…'), icon: 'openFolder', action: openFolderDialog },
     ];
     if (root) {
         items.push(
-            { label: 'Dosya yöneticisinde aç', icon: 'external', action: () => nativeApi().open_in_file_manager(root) },
-            { label: explorerState.locked ? 'Sabitlemeyi kaldır' : 'Bu klasörü sabitle', icon: 'pin', action: explorerToggleLock });
+            { label: T('Dosya yöneticisinde aç'), icon: 'external', action: () => nativeApi().open_in_file_manager(root) },
+            { label: explorerState.locked ? T('Sabitlemeyi kaldır') : T('Bu klasörü sabitle'), icon: 'pin', action: explorerToggleLock });
     }
     return items;
 }
@@ -2096,7 +2097,7 @@ function dirname(p) {
 async function openFileDialog() {
     const api = nativeApi();
     if (!api || typeof api.open_file !== 'function') {
-        UiDialog.alert('Dosya seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.');
+        UiDialog.alert(T('Dosya seçme penceresi yalnızca MD Flow Viewer uygulama penceresinde çalışır.'));
         return;
     }
 
@@ -2107,6 +2108,6 @@ async function openFileDialog() {
         if (path) await loadFile(path);
     } catch (error) {
         console.error('Dosya seçme hatası:', error);
-        UiDialog.alert('Dosya seçme penceresi açılamadı: ' + error);
+        UiDialog.alert(T('Dosya seçme penceresi açılamadı: {e}', { e: error }));
     }
 }

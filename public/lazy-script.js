@@ -5,6 +5,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     var pending = {};
 
@@ -35,7 +38,7 @@
             el.onload = function () { resolve(); };
             el.onerror = function () {
                 el.remove();
-                reject(new Error('Betik yüklenemedi: ' + src));
+                reject(new Error(T('Betik yüklenemedi: {src}', { src: src })));
             };
             document.head.appendChild(el);
         });
