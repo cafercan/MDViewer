@@ -31,21 +31,22 @@ const SyncUi = (function () {
     let progress = '';        // süren eşitleme: "3/40"
     let linkError = '';       // son eşitlemenin hatası (otomatik dahil)
 
-    const FIREWALL = 'Bilgisayarın güvenlik duvarında 47823 (TCP ve UDP) kapısına izin ver.';
-    const SAME_NET = 'İki aygıt aynı Wi-Fi’de olsun. Misafir ağı ve VPN aygıtları birbirinden ayırabilir.';
-    const OPEN_HOST = 'Bilgisayarda MD Flow açık ve Ayarlar › Eşitleme’de “Eşitleme açık” işaretli olsun.';
-    const NEW_CODE = 'Bilgisayarda “Kod göster”e yeniden bas ve yeni kodu yaz.';
+    const OR = '  ' + T('ya da') + '  ';
+    const FIREWALL = T('Bilgisayarın güvenlik duvarında 47823 (TCP ve UDP) kapısına izin ver.');
+    const SAME_NET = T('İki aygıt aynı Wi-Fi’de olsun. Misafir ağı ve VPN aygıtları birbirinden ayırabilir.');
+    const OPEN_HOST = T('Bilgisayarda MD Flow açık ve Ayarlar › Eşitleme’de “Eşitleme açık” işaretli olsun.');
+    const NEW_CODE = T('Bilgisayarda “Kod göster”e yeniden bas ve yeni kodu yaz.');
     /** Hatanın yeri (sync/mod.rs PairError) → adım ve yapılacaklar. */
     const HELP = {
-        addr: ['addr', ['Bilgisayarda Eşitleme sayfasında görünen adresi yaz. Örnek: 192.168.1.5']],
-        off: ['addr', [OPEN_HOST, 'Adres başka bir aygıtın olabilir; bilgisayarda görünen adresle karşılaştır.']],
-        timeout: ['addr', ['Adresi bilgisayarda görünenle karşılaştır.', SAME_NET, OPEN_HOST, FIREWALL]],
-        network: ['addr', ['Telefonun Wi-Fi’si açık olsun.', SAME_NET, '100.x ile başlayan adres için telefonda Tailscale bağlı olmalı.']],
-        denied: ['addr', ['Telefonun ayarlarından MD Flow’a yerel ağ iznini ver.']],
-        host: ['addr', ['Yeniden dene.', OPEN_HOST, NEW_CODE]],
-        closed: ['code', [NEW_CODE, 'Kod 5 dakika geçerli, bir kez kullanılır ve 5 yanlış denemede iptal olur.']],
-        code: ['code', ['Kodu bilgisayardakiyle hane hane karşılaştır.', 'Birkaç kez olmadıysa: ' + NEW_CODE]],
-        folder: ['folder', ['Daha dar bir not klasörü seç.']]
+        addr: ['addr', [T('Bilgisayarda Eşitleme sayfasında görünen adresi yaz. Örnek: 192.168.1.5')]],
+        off: ['addr', [OPEN_HOST, T('Adres başka bir aygıtın olabilir; bilgisayarda görünen adresle karşılaştır.')]],
+        timeout: ['addr', [T('Adresi bilgisayarda görünenle karşılaştır.'), SAME_NET, OPEN_HOST, FIREWALL]],
+        network: ['addr', [T('Telefonun Wi-Fi’si açık olsun.'), SAME_NET, T('100.x ile başlayan adres için telefonda Tailscale bağlı olmalı.')]],
+        denied: ['addr', [T('Telefonun ayarlarından MD Flow’a yerel ağ iznini ver.')]],
+        host: ['addr', [T('Yeniden dene.'), OPEN_HOST, NEW_CODE]],
+        closed: ['code', [NEW_CODE, T('Kod 5 dakika geçerli, bir kez kullanılır ve 5 yanlış denemede iptal olur.')]],
+        code: ['code', [T('Kodu bilgisayardakiyle hane hane karşılaştır.'), T('Birkaç kez olmadıysa: {tip}', { tip: NEW_CODE })]],
+        folder: ['folder', [T('Daha dar bir not klasörü seç.')]]
     };
 
     function el(tag, cls, text) {
@@ -87,12 +88,12 @@ const SyncUi = (function () {
         return s;
     }
     function ago(t) {
-        if (!t) return 'henüz eşitlenmedi';
+        if (!t) return T('henüz eşitlenmedi');
         const s = Math.max(0, Math.round(Date.now() / 1000 - t));
-        if (s < 60) return 'az önce';
-        if (s < 3600) return Math.floor(s / 60) + ' dk önce';
-        if (s < 86400) return Math.floor(s / 3600) + ' sa önce';
-        return Math.floor(s / 86400) + ' gün önce';
+        if (s < 60) return T('az önce');
+        if (s < 3600) return T('{n} dk önce', { n: Math.floor(s / 60) });
+        if (s < 86400) return T('{n} sa önce', { n: Math.floor(s / 3600) });
+        return T('{n} gün önce', { n: Math.floor(s / 86400) });
     }
     /** Simgeli durum satırı. kind: wait (dönen), ok, bad, idle */
     function state(kind, text, help) {
@@ -134,7 +135,7 @@ const SyncUi = (function () {
         let r = null;
         try { r = await fn(); } catch (e) { r = { success: false, error: String(e) }; }
         busy = false;
-        if (!r || r.success === false) say((r && r.error) || 'İşlem yapılamadı.', true);
+        if (!r || r.success === false) say((r && r.error) || T('İşlem yapılamadı.'), true);
         await refresh();
         return r && r.success !== false ? r : null;
     }
@@ -148,18 +149,18 @@ const SyncUi = (function () {
     function folderChoices() {
         const list = [];
         const rootDir = explorerState && explorerState.root;
-        if (mobile() && notesDir) list.push(['Uygulamanın notları', notesDir]);
-        if (rootDir && rootDir !== notesDir) list.push(['Açık klasör', rootDir]);
+        if (mobile() && notesDir) list.push([T('Uygulamanın notları'), notesDir]);
+        if (rootDir && rootDir !== notesDir) list.push([T('Açık klasör'), rootDir]);
         return list;
     }
     function folderBox(current, onPick) {
         const box = el('div', 'sync-folder');
-        box.appendChild(el('code', 'sync-path', current && current === notesDir ? 'Uygulamanın notları' : current || 'seçilmedi'));
+        box.appendChild(el('code', 'sync-path', current && current === notesDir ? T('Uygulamanın notları') : current || T('seçilmedi')));
         const acts = el('div', 'sync-acts');
         folderChoices().forEach(([name, path]) => {
             if (path !== current) acts.appendChild(button(name, () => onPick(path)));
         });
-        acts.appendChild(button('Seç…', async () => {
+        acts.appendChild(button(T('Seç…'), async () => {
             const p = mobile() ? await window.MDFlowMobile.pickFolderPath() : await api().sync_pick_folder();
             if (p) onPick(p);
         }));
@@ -179,19 +180,20 @@ const SyncUi = (function () {
         if (!left) return;
         const s = Math.max(0, Math.round((codeEnd - Date.now()) / 1000));
         const tries = status.host.pairing ? status.host.pairing.tries : 0;
-        left.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} kaldı · tek kullanımlık` + (tries < 5 ? ` · ${tries} deneme hakkı` : '');
+        left.textContent = T('{time} kaldı · tek kullanımlık', { time: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }) +
+            (tries < 5 ? ' · ' + T('{n} deneme hakkı', { n: tries }) : '');
         document.getElementById('sync-bar').style.width = Math.min(100, s / 3) + '%';
         if (!s && !busy) {
-            hostSay = { kind: 'bad', text: 'Kodun süresi doldu.', help: ['Yeni kod göster ve 5 dakika içinde telefona yaz.'] };
+            hostSay = { kind: 'bad', text: T('Kodun süresi doldu.'), help: [T('Yeni kod göster ve 5 dakika içinde telefona yaz.')] };
             refresh();
         }
     }
     function hostEvent(kind) {
         const say = {
-            'pair-try': ['wait', 'Telefon bağlandı, kod doğrulanıyor…'],
-            'pair-bad': ['bad', 'Telefonda yanlış kod yazıldı. Kod hâlâ geçerli; yeniden yazılabilir.'],
-            'pair-lost': ['bad', 'Telefonun bağlantısı yarıda kesildi.', ['Telefonda “Eşleştir”e yeniden bas.', SAME_NET]],
-            'pair-over': ['bad', 'Deneme hakkı bitti, kod iptal edildi.', ['Yeni kod gösterip telefona yaz.']]
+            'pair-try': ['wait', T('Telefon bağlandı, kod doğrulanıyor…')],
+            'pair-bad': ['bad', T('Telefonda yanlış kod yazıldı. Kod hâlâ geçerli; yeniden yazılabilir.')],
+            'pair-lost': ['bad', T('Telefonun bağlantısı yarıda kesildi.'), [T('Telefonda “Eşleştir”e yeniden bas.'), SAME_NET]],
+            'pair-over': ['bad', T('Deneme hakkı bitti, kod iptal edildi.'), [T('Yeni kod gösterip telefona yaz.')]]
         }[kind];
         if (say) hostSay = { kind: say[0], text: say[1], help: say[2] };
         return !!say;
@@ -200,34 +202,34 @@ const SyncUi = (function () {
     // --- bilgisayar ---------------------------------------------------------
     function renderHost() {
         const h = status.host;
-        const s = section('Telefonla eşitle');
-        s.appendChild(row('Eşitleme açık', h.enabled
-            ? (h.listening ? 'Bu pencere açıkken telefon bağlanabilir' : 'Açık ama başlatılamadı')
-            : 'Notların sunucu ve hesap olmadan, iki aygıt arasında doğrudan ve şifreli gider',
-        toggle('Eşitleme açık', h.enabled, (on) => run(() => api().sync_host(on, h.folder ? null : ((explorerState && explorerState.root) || null))))));
-        s.appendChild(folderRow('Eşitlenecek klasör', 'Alt klasörleriyle; notlar, görseller ve PDF', h.folder,
+        const s = section(T('Telefonla eşitle'));
+        s.appendChild(row(T('Eşitleme açık'), h.enabled
+            ? (h.listening ? T('Bu pencere açıkken telefon bağlanabilir') : T('Açık ama başlatılamadı'))
+            : T('Notların sunucu ve hesap olmadan, iki aygıt arasında doğrudan ve şifreli gider'),
+        toggle(T('Eşitleme açık'), h.enabled, (on) => run(() => api().sync_host(on, h.folder ? null : ((explorerState && explorerState.root) || null))))));
+        s.appendChild(folderRow(T('Eşitlenecek klasör'), T('Alt klasörleriyle; notlar, görseller ve PDF'), h.folder,
             (p) => run(() => api().sync_host(h.enabled, p))));
         if (!h.enabled) {
-            s.appendChild(state('idle', h.folder ? 'Telefon eklemek için “Eşitleme açık”ı işaretle.' : 'Önce klasörü seç, sonra “Eşitleme açık”ı işaretle.'));
+            s.appendChild(state('idle', h.folder ? T('Telefon eklemek için “Eşitleme açık”ı işaretle.') : T('Önce klasörü seç, sonra “Eşitleme açık”ı işaretle.')));
             return;
         }
         if (!h.listening) {
-            s.appendChild(state('bad', 'Telefonlar şu an bağlanamaz: eşitleme kapısı açılamadı.', ['MD Flow’un başka bir penceresi açıksa kapat.']));
-            s.appendChild(button('Yeniden dene', () => run(() => api().sync_host(true, null)), 'primary'));
+            s.appendChild(state('bad', T('Telefonlar şu an bağlanamaz: eşitleme kapısı açılamadı.'), [T('MD Flow’un başka bir penceresi açıksa kapat.')]));
+            s.appendChild(button(T('Yeniden dene'), () => run(() => api().sync_host(true, null)), 'primary'));
             return;
         }
-        if (!status.addrs.length) s.appendChild(state('bad', 'Bilgisayar bir ağa bağlı değil; telefon onu bulamaz.', ['Wi-Fi’ye ya da kabloya bağlan.']));
-        else s.appendChild(state('ok', 'Dinleniyor · ' + status.addrs.map(addrLabel).join('  ya da  ')));
+        if (!status.addrs.length) s.appendChild(state('bad', T('Bilgisayar bir ağa bağlı değil; telefon onu bulamaz.'), [T('Wi-Fi’ye ya da kabloya bağlan.')]));
+        else s.appendChild(state('ok', T('Dinleniyor · {addrs}', { addrs: status.addrs.map(addrLabel).join(OR) })));
 
-        const p = section('Telefon ekle');
-        if (pairedName) p.appendChild(state('ok', `${pairedName} eşleşti. İlk eşitlemeyi telefon kendisi başlatır.`));
+        const p = section(T('Telefon ekle'));
+        if (pairedName) p.appendChild(state('ok', T('{name} eşleşti. İlk eşitlemeyi telefon kendisi başlatır.', { name: pairedName })));
         if (h.pairing) {
             codeEnd = Date.now() + h.pairing.seconds * 1000;
-            step(p, 1, 'Telefonda Ayarlar › Eşitleme’yi aç', 'İki aygıt aynı Wi-Fi’de (ya da aynı Tailscale ağında) olmalı.');
+            step(p, 1, T('Telefonda Ayarlar › Eşitleme’yi aç'), T('İki aygıt aynı Wi-Fi’de (ya da aynı Tailscale ağında) olmalı.'));
     
-            const s2 = step(p, 2, 'Ara’ya bas ve “' + status.name + '”ı seç', 'Listede çıkmazsa bu adresi elle yaz:');
-            s2.appendChild(el('code', 'sync-path', status.addrs.map(addrLabel).join('  ya da  ') || 'ağ bağlantısı yok'));
-            const s3 = step(p, 3, 'Bu kodu telefona yaz');
+            const s2 = step(p, 2, T('Ara’ya bas ve “{name}”ı seç', { name: status.name }), T('Listede çıkmazsa bu adresi elle yaz:'));
+            s2.appendChild(el('code', 'sync-path', status.addrs.map(addrLabel).join(OR) || T('ağ bağlantısı yok')));
+            const s3 = step(p, 3, T('Bu kodu telefona yaz'));
             const box = el('div', 'sync-code');
             box.appendChild(el('strong', '', h.pairing.code.slice(0, 4) + ' ' + h.pairing.code.slice(4)));
             const left = el('span', 'settings-hint', '');
@@ -237,14 +239,14 @@ const SyncUi = (function () {
             track.appendChild(el('i'));
             track.firstChild.id = 'sync-bar';
             box.appendChild(track);
-            box.appendChild(button('Vazgeç', () => { hostSay = null; run(() => api().sync_pair_stop()); }));
+            box.appendChild(button(T('Vazgeç'), () => { hostSay = null; run(() => api().sync_pair_stop()); }));
             s3.appendChild(box);
             const slow = !hostSay && Date.now() - codeSince > 40000;
             s3.appendChild(hostSay ? state(hostSay.kind, hostSay.text, hostSay.help)
-                : state('wait', 'Telefon bekleniyor…', slow ? ['Telefon bulamıyorsa:', SAME_NET, FIREWALL] : null));
+                : state('wait', T('Telefon bekleniyor…'), slow ? [T('Telefon bulamıyorsa:'), SAME_NET, FIREWALL] : null));
         } else {
             if (hostSay) p.appendChild(state(hostSay.kind, hostSay.text, hostSay.help));
-            p.appendChild(row('Yeni telefon', 'Kod gösterilir, telefona yazılır. Telefonda MD Flow 3.4 ya da sonrası olmalı', button(hostSay ? 'Yeni kod göster' : 'Kod göster', () => {
+            p.appendChild(row(T('Yeni telefon'), T('Kod gösterilir, telefona yazılır. Telefonda MD Flow 3.4 ya da sonrası olmalı'), button(hostSay ? T('Yeni kod göster') : T('Kod göster'), () => {
                 hostSay = null;
                 pairedName = '';
                 codeSince = Date.now();
@@ -255,8 +257,8 @@ const SyncUi = (function () {
             }, 'primary')));
         }
         h.peers.forEach((d) => {
-            p.appendChild(row(d.name, d.last ? 'Son eşitleme: ' + ago(d.last) : 'Eşleşti, ilk eşitleme bekleniyor', button('Kaldır', async () => {
-                if (await UiDialog.confirm(`${d.name} artık eşitlenmesin mi? Notlar iki tarafta da kalır.`, { okText: 'Kaldır', cancelText: 'Vazgeç' })) {
+            p.appendChild(row(d.name, d.last ? T('Son eşitleme: {when}', { when: ago(d.last) }) : T('Eşleşti, ilk eşitleme bekleniyor'), button(T('Kaldır'), async () => {
+                if (await UiDialog.confirm(T('{name} artık eşitlenmesin mi? Notlar iki tarafta da kalır.', { name: d.name }), { okText: T('Kaldır'), cancelText: T('Vazgeç') })) {
                     run(() => api().sync_remove_peer(d.id));
                 }
             })));
@@ -267,7 +269,7 @@ const SyncUi = (function () {
     async function allowNetwork() {
         const ok = !window.MDFlowMobile || !window.MDFlowMobile.localNetwork || (await window.MDFlowMobile.localNetwork());
         if (!ok) {
-            say('Yerel ağ izni verilmedi. Bilgisayara ulaşmak için telefonun ayarlarından MD Flow’a izin ver.', true);
+            say(T('Yerel ağ izni verilmedi. Bilgisayara ulaşmak için telefonun ayarlarından MD Flow’a izin ver.'), true);
             render();
             if (!visible) showToast(note);
         }
@@ -309,10 +311,10 @@ const SyncUi = (function () {
         addrSeq++;
         const shape = addrShape(form.addr);
         addrState = null;
-        if (shape === 'part') addrState = { kind: 'idle', text: 'Adres dört sayıdan oluşur: 192.168.1.5 gibi' };
-        else if (shape === 'bad') addrState = { kind: 'bad', text: 'Adres geçersiz; sayı ve nokta kullan, her sayı en çok 255.' };
+        if (shape === 'part') addrState = { kind: 'idle', text: T('Adres dört sayıdan oluşur: 192.168.1.5 gibi') };
+        else if (shape === 'bad') addrState = { kind: 'bad', text: T('Adres geçersiz; sayı ve nokta kullan, her sayı en çok 255.') };
         else if (shape === 'ok') {
-            addrState = { kind: 'wait', text: 'Adres deneniyor…' };
+            addrState = { kind: 'wait', text: T('Adres deneniyor…') };
             addrTimer = setTimeout(checkAddr, 900);
         }
         render();
@@ -321,7 +323,7 @@ const SyncUi = (function () {
         clearTimeout(addrTimer);
         const m = window.MDFlowMobile;
         if (m && m.hasLocalNetwork && !m.hasLocalNetwork()) {
-            addrState = { kind: 'idle', text: 'Eşleştirirken yerel ağ izni istenecek.' };
+            addrState = { kind: 'idle', text: T('Eşleştirirken yerel ağ izni istenecek.') };
             return render();
         }
         const seq = ++addrSeq;
@@ -331,7 +333,7 @@ const SyncUi = (function () {
         try { r = await api().sync_check(form.addr); } catch (e) { r = { success: false, error: String(e) }; }
         if (seq !== addrSeq) return;
         addrState = r.success
-            ? { kind: 'ok', text: r.name ? `${r.name} bulundu, bağlanılabiliyor.` : 'Bilgisayar yanıt verdi, bağlanılabiliyor.' }
+            ? { kind: 'ok', text: r.name ? T('{name} bulundu, bağlanılabiliyor.', { name: r.name }) : T('Bilgisayar yanıt verdi, bağlanılabiliyor.') }
             : { kind: 'bad', text: r.error, help: (HELP[r.at] || HELP.host)[1] };
         render();
     }
@@ -358,7 +360,7 @@ const SyncUi = (function () {
         if (r && r.success) {
             found = r.found;
             if (found.length === 1) choose(found[0]);
-        } else say((r && r.error) || 'Arama yapılamadı.', true);
+        } else say((r && r.error) || T('Arama yapılamadı.'), true);
         render();
     }
     function choose(d) {
@@ -370,10 +372,10 @@ const SyncUi = (function () {
         if (busy) return;
         wrongAt = null;
         const folder = pickedFolder();
-        if (!form.addr.trim()) return wrong('addr', 'Önce bilgisayarı seç ya da adresini yaz.');
-        if (addrShape(form.addr) !== 'ok') return wrong('addr', 'Adres eksik ya da hatalı.', HELP.addr[1]);
-        if (digits().length !== 8) return wrong('code', digits().length ? `Kod 8 haneli; ${8 - digits().length} hane eksik.` : 'Bilgisayarda görünen kodu yaz.');
-        if (!folder) return wrong('folder', 'Önce klasör seç.');
+        if (!form.addr.trim()) return wrong('addr', T('Önce bilgisayarı seç ya da adresini yaz.'));
+        if (addrShape(form.addr) !== 'ok') return wrong('addr', T('Adres eksik ya da hatalı.'), HELP.addr[1]);
+        if (digits().length !== 8) return wrong('code', digits().length ? T('Kod 8 haneli; {n} hane eksik.', { n: 8 - digits().length }) : T('Bilgisayarda görünen kodu yaz.'));
+        if (!folder) return wrong('folder', T('Önce klasör seç.'));
         if (!(await allowNetwork())) return;
         clearTimeout(addrTimer);
         addrSeq++;
@@ -384,18 +386,18 @@ const SyncUi = (function () {
         render();
         const bar = document.querySelector('.sync-stages');
         if (bar) bar.scrollIntoView({ block: 'center' });
-        const name = (window.MDFlowMobile && window.MDFlowMobile.deviceName && window.MDFlowMobile.deviceName()) || 'Telefon';
+        const name = (window.MDFlowMobile && window.MDFlowMobile.deviceName && window.MDFlowMobile.deviceName()) || T('Telefon');
         let r;
         try { r = await api().sync_pair(form.addr, form.code, name, folder); } catch (e) { r = { success: false, error: String(e) }; }
         busy = false;
         stage = -1;
         if (!r || !r.success) {
             const h = HELP[r && r.at] || HELP.host;
-            return wrong(h[0], (r && r.error) || 'Eşleştirilemedi.', h[1]);
+            return wrong(h[0], (r && r.error) || T('Eşleştirilemedi.'), h[1]);
         }
         form = { addr: '', code: '', folder: '' };
         found = null;
-        showToast('Eşleşti: ' + ((r.link && r.link.name) || 'bilgisayar'));
+        showToast(T('Eşleşti: {name}', { name: (r.link && r.link.name) || T('bilgisayar') }));
         status = r;
         render();
         page.scrollIntoView({ block: 'start' });
@@ -404,40 +406,40 @@ const SyncUi = (function () {
     function renderLink() {
         const l = status.link;
         if (!l) {
-            const s = section('Bilgisayara bağlan');
-            s.appendChild(el('p', 'sync-intro', 'Dört adım; hesap ve ücret yok. İki aygıt aynı Wi-Fi’de olsun.'));
+            const s = section(T('Bilgisayara bağlan'));
+            s.appendChild(el('p', 'sync-intro', T('Dört adım; hesap ve ücret yok. İki aygıt aynı Wi-Fi’de olsun.')));
             const bad = (at) => !!wrongAt && wrongAt.step === at;
             const tell = (box, at) => { if (bad(at)) box.appendChild(state('bad', wrongAt.text, wrongAt.help)); };
 
-            step(s, 1, 'Bilgisayarda kodu göster', 'MD Flow › Ayarlar › Eşitleme: “Eşitleme açık”ı işaretle, “Kod göster”e bas.');
+            step(s, 1, T('Bilgisayarda kodu göster'), T('MD Flow › Ayarlar › Eşitleme: “Eşitleme açık”ı işaretle, “Kod göster”e bas.'));
 
-            const a = step(s, 2, 'Bilgisayarı bul', null, !!addrState && addrState.kind === 'ok', bad('addr'));
-            const find = button(searching ? 'Aranıyor…' : found ? 'Yeniden ara' : 'Ara', search, (found ? '' : 'primary ') + 'sync-wide');
+            const a = step(s, 2, T('Bilgisayarı bul'), null, !!addrState && addrState.kind === 'ok', bad('addr'));
+            const find = button(searching ? T('Aranıyor…') : found ? T('Yeniden ara') : T('Ara'), search, (found ? '' : 'primary ') + 'sync-wide');
             find.disabled = busy || searching;
             a.appendChild(find);
-            if (searching) a.appendChild(state('wait', 'Ağdaki bilgisayarlar aranıyor…'));
-            else if (found && !found.length && !form.addr) a.appendChild(state('bad', 'Ağda bilgisayar bulunamadı. Adresini aşağıya yazabilirsin.', [OPEN_HOST, SAME_NET, FIREWALL]));
-            else if (found && found.length > 1 && !form.addr) a.appendChild(state('idle', found.length + ' bilgisayar bulundu, birini seç.'));
+            if (searching) a.appendChild(state('wait', T('Ağdaki bilgisayarlar aranıyor…')));
+            else if (found && !found.length && !form.addr) a.appendChild(state('bad', T('Ağda bilgisayar bulunamadı. Adresini aşağıya yazabilirsin.'), [OPEN_HOST, SAME_NET, FIREWALL]));
+            else if (found && found.length > 1 && !form.addr) a.appendChild(state('idle', T('{n} bilgisayar bulundu, birini seç.', { n: found.length })));
             (found || []).forEach((d) => {
                 a.appendChild(button(d.name + '  ·  ' + d.addr.split(':')[0], () => choose(d), 'sync-host' + (form.addr === d.addr ? ' primary' : '')));
             });
-            a.appendChild(el('span', 'settings-hint', 'ya da bilgisayarda görünen adres'));
-            a.appendChild(input('addr', 'Örn. 192.168.1.5', 'decimal'));
+            a.appendChild(el('span', 'settings-hint', T('ya da bilgisayarda görünen adres')));
+            a.appendChild(input('addr', T('Örn. 192.168.1.5'), 'decimal'));
             if (addrState) {
                 a.appendChild(state(addrState.kind, addrState.text, addrState.help));
-                if (addrState.kind === 'bad' && addrShape(form.addr) === 'ok') a.appendChild(button('Yeniden dene', checkAddr));
+                if (addrState.kind === 'bad' && addrShape(form.addr) === 'ok') a.appendChild(button(T('Yeniden dene'), checkAddr));
             }
             tell(a, 'addr');
 
             const n = digits().length;
-            const c = step(s, 3, 'Kodu yaz', n && n < 8 ? n + ' / 8 hane' : 'Bilgisayarda görünen 8 hane', n === 8 && !bad('code'), bad('code'));
+            const c = step(s, 3, T('Kodu yaz'), n && n < 8 ? T('{n} / 8 hane', { n }) : T('Bilgisayarda görünen 8 hane'), n === 8 && !bad('code'), bad('code'));
             const code = input('code', '1234 5678', 'numeric');
-            code.setAttribute('aria-label', '8 haneli kod');
+            code.setAttribute('aria-label', T('8 haneli kod'));
             code.classList.add('sync-codein');
             c.appendChild(code);
             tell(c, 'code');
 
-            const f = step(s, 4, 'Telefondaki klasör', 'Notlar bu klasörle eşitlenir', !!pickedFolder() && !bad('folder'), bad('folder'));
+            const f = step(s, 4, T('Telefondaki klasör'), T('Notlar bu klasörle eşitlenir'), !!pickedFolder() && !bad('folder'), bad('folder'));
             f.appendChild(folderBox(pickedFolder(), (p) => {
                 form.folder = p;
                 if (bad('folder')) wrongAt = null;
@@ -445,10 +447,10 @@ const SyncUi = (function () {
             }));
             tell(f, 'folder');
 
-            s.appendChild(button(busy ? 'Eşleştiriliyor…' : 'Eşleştir', doPair, 'primary sync-wide'));
+            s.appendChild(button(busy ? T('Eşleştiriliyor…') : T('Eşleştir'), doPair, 'primary sync-wide'));
             if (stage >= 0) {
                 const box = el('div', 'sync-stages');
-                ['Bilgisayara bağlanılıyor', 'Kod doğrulanıyor'].forEach((t, i) => {
+                [T('Bilgisayara bağlanılıyor'), T('Kod doğrulanıyor')].forEach((t, i) => {
                     box.appendChild(state(i < stage ? 'ok' : i === stage ? 'wait' : 'idle', t + (i === stage ? '…' : '')));
                 });
                 s.appendChild(box);
@@ -457,15 +459,15 @@ const SyncUi = (function () {
         }
         const s = section(l.name);
         const going = syncing || busy || status.running;
-        s.appendChild(going ? state('wait', progress ? `Eşitleniyor… ${progress} dosya` : l.name + ' ile bağlantı kuruluyor…')
+        s.appendChild(going ? state('wait', progress ? T('Eşitleniyor… {progress} dosya', { progress }) : T('{name} ile bağlantı kuruluyor…', { name: l.name }))
             : linkError ? state('bad', linkError, [OPEN_HOST, SAME_NET])
-                : state(l.last ? 'ok' : 'idle', l.last ? 'Eşleşti ve eşitlendi' : 'Eşleşti, henüz eşitlenmedi'));
-        s.appendChild(row('Son eşitleme', ago(l.last), button(going ? 'Eşitleniyor…' : linkError ? 'Yeniden dene' : 'Şimdi eşitle', () => syncNow(true), 'primary')));
-        s.appendChild(row('Otomatik eşitle', 'Uygulama açıkken ve not kaydedilince',
-            toggle('Otomatik eşitle', l.auto, (on) => run(() => api().sync_set_link(null, on)))));
-        s.appendChild(folderRow('Telefondaki klasör', null, l.folder, (p) => run(() => api().sync_set_link(p, null))));
-        s.appendChild(row('Bağlantı', 'Notlar iki tarafta da kalır', button('Bağlantıyı kaldır', async () => {
-            if (await UiDialog.confirm(`${l.name} ile bağlantı kaldırılsın mı?`, { okText: 'Kaldır', cancelText: 'Vazgeç' })) run(() => api().sync_unlink());
+                : state(l.last ? 'ok' : 'idle', l.last ? T('Eşleşti ve eşitlendi') : T('Eşleşti, henüz eşitlenmedi')));
+        s.appendChild(row(T('Son eşitleme'), ago(l.last), button(going ? T('Eşitleniyor…') : linkError ? T('Yeniden dene') : T('Şimdi eşitle'), () => syncNow(true), 'primary')));
+        s.appendChild(row(T('Otomatik eşitle'), T('Uygulama açıkken ve not kaydedilince'),
+            toggle(T('Otomatik eşitle'), l.auto, (on) => run(() => api().sync_set_link(null, on)))));
+        s.appendChild(folderRow(T('Telefondaki klasör'), null, l.folder, (p) => run(() => api().sync_set_link(p, null))));
+        s.appendChild(row(T('Bağlantı'), T('Notlar iki tarafta da kalır'), button(T('Bağlantıyı kaldır'), async () => {
+            if (await UiDialog.confirm(T('{name} ile bağlantı kaldırılsın mı?', { name: l.name }), { okText: T('Kaldır'), cancelText: T('Vazgeç') })) run(() => api().sync_unlink());
         })));
     }
 
@@ -498,7 +500,7 @@ const SyncUi = (function () {
     }
     function build() {
         if (!status) {
-            page.appendChild(el('p', 'sync-intro', 'Eşitleme yalnız uygulamanın içinde kullanılabilir.'));
+            page.appendChild(el('p', 'sync-intro', T('Eşitleme yalnız uygulamanın içinde kullanılabilir.')));
             return;
         }
         const n = el('p', 'sync-note' + (noteError ? ' error' : ''), note);
@@ -507,24 +509,24 @@ const SyncUi = (function () {
         page.appendChild(n);
         if (mobile()) renderLink();
         else renderHost();
-        const how = section('Nasıl çalışır');
+        const how = section(T('Nasıl çalışır'));
         const ul = el('ul', 'sync-how');
-        ['Aynı not iki tarafta da değişirse ikisi de kalır: biri “çakışma” kopyası olur.',
-            'Silinen not diğer tarafta klasördeki .trash içine taşınır.',
-            'O an düzenlediğin notun üzerine yazılmaz; düzenleme bitince eşitlenir.',
-            'İki aygıtta Tailscale kuruluysa aynı ağda olmasanız da bilgisayarın 100.x adresiyle çalışır.'].forEach((t) => ul.appendChild(el('li', '', t)));
+        [T('Aynı not iki tarafta da değişirse ikisi de kalır: biri “çakışma” kopyası olur.'),
+            T('Silinen not diğer tarafta klasördeki .trash içine taşınır.'),
+            T('O an düzenlediğin notun üzerine yazılmaz; düzenleme bitince eşitlenir.'),
+            T('İki aygıtta Tailscale kuruluysa aynı ağda olmasanız da bilgisayarın 100.x adresiyle çalışır.')].forEach((t) => ul.appendChild(el('li', '', t)));
         how.appendChild(ul);
     }
 
     function summary(r) {
         const parts = [];
-        if (r.down) parts.push(r.down + ' alındı');
-        if (r.up) parts.push(r.up + ' gönderildi');
-        if (r.removed) parts.push(r.removed + ' silindi');
-        if (r.conflicts) parts.push(r.conflicts + ' çakışma kopyası');
-        if (r.deferred) parts.push(r.deferred + ' not düzenlendiği için bekliyor');
-        if (r.failed && r.failed.length) parts.push(r.failed.length + ' dosya yapılamadı (' + r.failed[0] + ')');
-        return parts.length ? parts.join(', ') : 'Her şey güncel';
+        if (r.down) parts.push(T('{n} alındı', { n: r.down }));
+        if (r.up) parts.push(T('{n} gönderildi', { n: r.up }));
+        if (r.removed) parts.push(T('{n} silindi', { n: r.removed }));
+        if (r.conflicts) parts.push(T('{n} çakışma kopyası', { n: r.conflicts }));
+        if (r.deferred) parts.push(T('{n} not düzenlendiği için bekliyor', { n: r.deferred }));
+        if (r.failed && r.failed.length) parts.push(T('{n} dosya yapılamadı ({file})', { n: r.failed.length, file: r.failed[0] }));
+        return parts.length ? parts.join(', ') : T('Her şey güncel');
     }
 
     let syncing = false;
@@ -532,14 +534,14 @@ const SyncUi = (function () {
     async function syncNow(manual) {
         if (!api() || !api().sync_now) return;
         if (syncing) {
-            if (manual && !visible) showToast('Zaten eşitleniyor…');
+            if (manual && !visible) showToast(T('Zaten eşitleniyor…'));
             return;
         }
         if (manual && !(await allowNetwork())) return;
         syncing = true;
         progress = '';
         document.documentElement.classList.add('syncing');
-        if (manual && !visible) showToast('Eşitleniyor…');
+        if (manual && !visible) showToast(T('Eşitleniyor…'));
         render();
         lastTry = Date.now();
         let r = null;
@@ -548,10 +550,10 @@ const SyncUi = (function () {
             if (r && r.confirm) {
                 if (!manual) {
                     // Toplu silme kendiliğinden yapılmaz; kullanıcı elle eşitleyince sorulur.
-                    say(`${r.deletes} not silinecek görünüyor; onay için “Şimdi eşitle”ye bas.`, true);
+                    say(T('{n} not silinecek görünüyor; onay için “Şimdi eşitle”ye bas.', { n: r.deletes }), true);
                     r = null;
-                } else if (await UiDialog.confirm(`Eşitleme ${r.deletes} notu silecek. Bu klasörü bilerek mi boşalttın?\nSilinenler .trash klasörüne taşınır.`,
-                    { okText: 'Sil ve eşitle', cancelText: 'Vazgeç' })) {
+                } else if (await UiDialog.confirm(T('Eşitleme {n} notu silecek. Bu klasörü bilerek mi boşalttın?\nSilinenler .trash klasörüne taşınır.', { n: r.deletes }),
+                    { okText: T('Sil ve eşitle'), cancelText: T('Vazgeç') })) {
                     r = await api().sync_now(true);
                 } else r = null;
             }
@@ -562,7 +564,7 @@ const SyncUi = (function () {
         if (r && !r.busy) linkError = r.success ? '' : r.error;
         if (r && r.success && !r.busy) {
             say(summary(r));
-            if (manual || r.down || r.removed || r.conflicts) showToast('Eşitlendi: ' + summary(r));
+            if (manual || r.down || r.removed || r.conflicts) showToast(T('Eşitlendi: {summary}', { summary: summary(r) }));
         } else if (r && !r.success && manual) {
             if (!visible) showToast(r.error);
         }
@@ -616,8 +618,8 @@ const SyncUi = (function () {
                 hostSay = null;
                 await refresh();
                 const peers = status ? status.host.peers : [];
-                pairedName = (peers[peers.length - 1] || {}).name || 'Telefon';
-                showToast(pairedName + ' eşleşti');
+                pairedName = (peers[peers.length - 1] || {}).name || T('Telefon');
+                showToast(T('{name} eşleşti', { name: pairedName }));
             } else pairedName = '';
             if (e.kind === 'files' && explorerState) applyExplorerState(explorerState);
             refresh();

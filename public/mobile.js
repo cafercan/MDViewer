@@ -123,14 +123,14 @@
         if (!android) return false;
         if (android.hasStorageAccess()) return true;
         var ok = await UiDialog.confirm(
-            'Telefondaki klasörleri ve notları açabilmek için "Tüm dosyalara erişim" izni gerekiyor.\n' +
-            'Açılan ekranda MD Flow Viewer için izni açıp geri dönün.',
-            { okText: 'İzin ver', cancelText: 'Vazgeç' });
+            T('Telefondaki klasörleri ve notları açabilmek için "Tüm dosyalara erişim" izni gerekiyor.') + '\n' +
+            T('Açılan ekranda MD Flow Viewer için izni açıp geri dönün.'),
+            { okText: T('İzin ver'), cancelText: T('Vazgeç') });
         if (!ok) return false;
         var granted = once('storage');
         android.requestStorageAccess();
         if (await granted) return true;
-        showToast('İzin verilmedi');
+        showToast(T('İzin verilmedi'));
         return false;
     }
 
@@ -145,7 +145,7 @@
             UiDialog.alert(result.error);
             return null;
         }
-        if (result.copied) showToast('Kopyası açıldı: Notlar/Gelenler');
+        if (result.copied) showToast(T('Kopyası açıldı: Notlar/Gelenler'));
         return result.path || null;
     }
 
@@ -200,7 +200,7 @@
     function parseOpened(json) {
         try {
             var r = JSON.parse(json || '{}');
-            if (r.copied && r.path) setTimeout(function () { showToast('Kopyası açıldı: Notlar/Gelenler'); }, 600);
+            if (r.copied && r.path) setTimeout(function () { showToast(T('Kopyası açıldı: Notlar/Gelenler')); }, 600);
             return r.path || '';
         } catch (e) {
             return '';
@@ -221,7 +221,7 @@
 
     function homeOpen() { return !sidebar.classList.contains('collapsed'); }
     function syncHome() {
-        if (homeTitle) homeTitle.textContent = placeName(explorerState && explorerState.root) || 'Notlar';
+        if (homeTitle) homeTitle.textContent = placeName(explorerState && explorerState.root) || T('Notlar');
     }
     function openHome() {
         LiveEditor.blur();          // klavye insin; not düzenlemede kalabilir
@@ -243,18 +243,18 @@
         var here = explorerState && explorerState.root;
         var items = [];
         if (notesDir && (!here || normPath(here) !== normPath(notesDir))) {
-            items.push({ label: 'Notlarım', icon: 'home', hint: 'Uygulamanın klasörü', action: function () { openWorkspacePath(notesDir); } });
+            items.push({ label: T('Notlarım'), icon: 'home', hint: T('Uygulamanın klasörü'), action: function () { openWorkspacePath(notesDir); } });
         }
-        if (explorerState && explorerState.canUp) items.push({ label: 'Üst klasöre çık', icon: 'up', action: explorerGoUp });
+        if (explorerState && explorerState.canUp) items.push({ label: T('Üst klasöre çık'), icon: 'up', action: explorerGoUp });
         items.push(
-            { label: 'Yeni klasör', icon: 'newFolder', action: function () { Notes.createFolder(); } },
-            { label: 'Klasör aç', icon: 'openFolder', action: openFolderDialog },
-            { label: 'Dosya aç', icon: 'openFile', action: openFileDialog },
-            { label: 'Son klasörler', icon: 'recentFolder', action: function () { showRecentMenu('folder', doc.getElementById('m-place')); } },
-            { label: 'Son notlar', icon: 'clock', action: function () { showRecentMenu('file', doc.getElementById('m-place')); } }
+            { label: T('Yeni klasör'), icon: 'newFolder', action: function () { Notes.createFolder(); } },
+            { label: T('Klasör aç'), icon: 'openFolder', action: openFolderDialog },
+            { label: T('Dosya aç'), icon: 'openFile', action: openFileDialog },
+            { label: T('Son klasörler'), icon: 'recentFolder', action: function () { showRecentMenu('folder', doc.getElementById('m-place')); } },
+            { label: T('Son notlar'), icon: 'clock', action: function () { showRecentMenu('file', doc.getElementById('m-place')); } }
         );
-        if (here) items.push({ label: explorerState.locked ? 'Sabitlemeyi kaldır' : 'Bu klasörü sabitle', icon: 'pin', hint: 'Not açınca klasör değişmez', action: explorerToggleLock });
-        sheet(here ? placeName(here) : 'Klasör', items);
+        if (here) items.push({ label: explorerState.locked ? T('Sabitlemeyi kaldır') : T('Bu klasörü sabitle'), icon: 'pin', hint: T('Not açınca klasör değişmez'), action: explorerToggleLock });
+        sheet(here ? placeName(here) : T('Klasör'), items);
     }
 
     function buildHome() {
@@ -265,26 +265,26 @@
         var place = doc.createElement('button');
         place.type = 'button';
         place.id = 'm-place';
-        place.innerHTML = '<span>Notlar</span>' + icon(ICON.chevron, 20);
+        place.innerHTML = '<span>' + T('Notlar') + '</span>' + icon(ICON.chevron, 20);
         place.addEventListener('click', openPlaces);
         homeTitle = place.firstChild;
         head.appendChild(place);
-        head.appendChild(button('m-today', 'day', 'Bugünün notu', Notes.today));
-        head.appendChild(button('m-sync', 'sync', 'Bilgisayarla eşitle', function () {
+        head.appendChild(button('m-today', 'day', T('Bugünün notu'), Notes.today));
+        head.appendChild(button('m-sync', 'sync', T('Bilgisayarla eşitle'), function () {
             if (SyncUi.linked()) SyncUi.syncNow(true); else openSettingsPanel('sync');
         }));
-        head.appendChild(button('m-settings', 'gear', 'Ayarlar', function () { openSettingsPanel(); }));
+        head.appendChild(button('m-settings', 'gear', T('Ayarlar'), function () { openSettingsPanel(); }));
         sidebar.insertBefore(head, sidebar.firstChild);
 
         var find = doc.createElement('button');
         find.type = 'button';
         find.className = 'm-home-find';
-        find.innerHTML = icon(ICON.search, 20) + '<span>Notlarda ara</span>';
+        find.innerHTML = icon(ICON.search, 20) + '<span>' + T('Notlarda ara') + '</span>';
         find.addEventListener('click', openSwitcher);
         var tools = doc.createElement('div');
         tools.className = 'm-home-tools';
         tools.appendChild(find);
-        tools.appendChild(button('m-new-folder', 'newFolder', 'Yeni klasör', function () { Notes.createFolder(); }));
+        tools.appendChild(button('m-new-folder', 'newFolder', T('Yeni klasör'), function () { Notes.createFolder(); }));
         head.insertAdjacentElement('afterend', tools);
 
         var scrim = doc.createElement('div');
@@ -292,7 +292,7 @@
         scrim.addEventListener('click', closeHome);
         sidebar.parentNode.insertBefore(scrim, sidebar.nextSibling);
 
-        var add = button('m-new', 'plus', 'Yeni not', function () { Notes.create(explorerState && explorerState.root); }, 26);
+        var add = button('m-new', 'plus', T('Yeni not'), function () { Notes.create(explorerState && explorerState.root); }, 26);
         sidebar.appendChild(add);
         new MutationObserver(syncHome).observe(explorerRootLabel, { childList: true });
         setSidebarTab('explorer', false);
@@ -337,15 +337,15 @@
             e.stopPropagation();
             var path = row.getAttribute('data-path');
             var items = [
-                { label: 'Buraya yeni not', icon: 'newNote', action: function () { Notes.create(path); } },
-                { label: 'Buraya yeni klasör', icon: 'newFolder', action: function () { Notes.createFolder(path); } },
-                { label: 'Yeniden adlandır', icon: 'edit', action: function () { Notes.renameFolder(path); } },
-                { label: 'Taşı', icon: 'move', action: function () { Notes.pickMove(path); } }
+                { label: T('Buraya yeni not'), icon: 'newNote', action: function () { Notes.create(path); } },
+                { label: T('Buraya yeni klasör'), icon: 'newFolder', action: function () { Notes.createFolder(path); } },
+                { label: T('Yeniden adlandır'), icon: 'edit', action: function () { Notes.renameFolder(path); } },
+                { label: T('Taşı'), icon: 'move', action: function () { Notes.pickMove(path); } }
             ];
             if (explorerState && !explorerState.locked) {
-                items.push({ label: 'Bu klasörü kök yap', icon: 'target', hint: path, action: function () { explorerEnter(path); } });
+                items.push({ label: T('Bu klasörü kök yap'), icon: 'target', hint: path, action: function () { explorerEnter(path); } });
             }
-            items.push({ separator: true }, { label: 'Sil', icon: 'trash', danger: true, hint: 'İçindekilerle .trash içine taşınır', action: function () { Notes.trashFolder(path); } });
+            items.push({ separator: true }, { label: T('Sil'), icon: 'trash', danger: true, hint: T('İçindekilerle .trash içine taşınır'), action: function () { Notes.trashFolder(path); } });
             Organize.hold(row, function () { sheet(basename(path), items); });
         }, true);
 
@@ -395,8 +395,8 @@
     // Klasörün kullanıcıya gösterilen adı: uygulamanın not klasörü "Notlarım".
     function placeName(dir) {
         if (!dir) return '';
-        if (notesDir && normPath(dir) === normPath(notesDir)) return 'Notlarım';
-        if (notesDir && Notes.pathUnder(dir, notesDir)) return 'Notlarım' + normPath(dir).slice(normPath(notesDir).length);
+        if (notesDir && normPath(dir) === normPath(notesDir)) return T('Notlarım');
+        if (notesDir && Notes.pathUnder(dir, notesDir)) return T('Notlarım') + normPath(dir).slice(normPath(notesDir).length);
         return basename(dir) || dir;
     }
 
@@ -477,15 +477,15 @@
         var center = doc.querySelector('.header-center');
         var right = doc.querySelector('.header-right');
 
-        left.appendChild(button('m-home', 'menu', 'Notlar', openHome));
-        center.insertBefore(button('m-find-close', 'back', 'Aramayı kapat', function () { setFindOpen(false); }), center.firstChild);
+        left.appendChild(button('m-home', 'menu', T('Notlar'), openHome));
+        center.insertBefore(button('m-find-close', 'back', T('Aramayı kapat'), function () { setFindOpen(false); }), center.firstChild);
         currentFileBadge.addEventListener('click', function () { openNoteMenu(currentFilePath); });
         buildTitle();
         trackScroll();
 
-        right.appendChild(button('m-done', 'done', 'Düzenlemeyi bitir', function () { btnReadMode.click(); }));
-        right.appendChild(button('m-add', 'plus', 'Yeni not', function () { Notes.create(); }, 24));
-        right.appendChild(button('m-more', 'more', 'Diğer', openMoreMenu));
+        right.appendChild(button('m-done', 'done', T('Düzenlemeyi bitir'), function () { btnReadMode.click(); }));
+        right.appendChild(button('m-add', 'plus', T('Yeni not'), function () { Notes.create(); }, 24));
+        right.appendChild(button('m-more', 'more', T('Diğer'), openMoreMenu));
         // Mod başka yoldan da değişir (geri tuşu, yazdırma): düğmeyi app.js'in
         // tıklama işleyicisi bittikten sonra eşitle.
         [btnReadMode, btnEditMode].forEach(function (b) {
@@ -494,7 +494,7 @@
         syncMode();
 
         doc.querySelector('.workspace-viewport').appendChild(
-            button('m-edit', 'edit', 'Düzenle', function () { btnEditMode.click(); LiveEditor.focus(); }, 24));
+            button('m-edit', 'edit', T('Düzenle'), function () { btnEditMode.click(); LiveEditor.focus(); }, 24));
 
         // Kelime/süre notun sonunda: okuma ve yazma aynı yerden başlasın
         markdownViewer.insertAdjacentElement('afterend', doc.getElementById('doc-meta'));
@@ -511,20 +511,20 @@
 
     function openMoreMenu() {
         sheet(null, [
-            { label: 'Notta ara', icon: 'search', tile: true, action: function () { setFindOpen(true); } },
-            { label: 'Başlıklar', icon: 'toc', tile: true, action: openHeadings },
-            { label: 'Paylaş', icon: 'share', tile: true, action: function () { if (currentFilePath) shareNote(currentFilePath, false); } },
-            { label: Notes.isPinned(currentFilePath) ? 'Bırak' : 'Sabitle', icon: 'pin', tile: true, action: function () { if (currentFilePath) Notes.togglePin(currentFilePath); } },
+            { label: T('Notta ara'), icon: 'search', tile: true, action: function () { setFindOpen(true); } },
+            { label: T('Başlıklar'), icon: 'toc', tile: true, action: openHeadings },
+            { label: T('Paylaş'), icon: 'share', tile: true, action: function () { if (currentFilePath) shareNote(currentFilePath, false); } },
+            { label: Notes.isPinned(currentFilePath) ? T('Bırak') : T('Sabitle'), icon: 'pin', tile: true, action: function () { if (currentFilePath) Notes.togglePin(currentFilePath); } },
             { separator: true }
         ].concat(noteItems(currentFilePath), [
-            { label: 'Yazdır / PDF', icon: 'print', action: exportToPdf },
-            { label: 'Odak modu', icon: 'focus', action: function () { Reader.setZen(true); } }
+            { label: T('Yazdır / PDF'), icon: 'print', action: exportToPdf },
+            { label: T('Odak modu'), icon: 'focus', action: function () { Reader.setZen(true); } }
         ], deleteItem(currentFilePath)));
     }
 
     function openHeadings() {
-        if (!headingElements.length) { showToast('Bu notta başlık yok'); return; }
-        sheet('Başlıklar', headingElements.map(function (h) {
+        if (!headingElements.length) { showToast(T('Bu notta başlık yok')); return; }
+        sheet(T('Başlıklar'), headingElements.map(function (h) {
             return { label: '\u2003'.repeat(Number(h.tagName.slice(1)) - 1) + h.textContent, action: function () { scrollToHeading(h); } };
         }));
     }
@@ -535,18 +535,18 @@
     function noteItems(path) {
         if (!path) return [];
         var items = [];
-        if (android) items.push({ label: 'Dosya olarak paylaş', icon: 'file', action: function () { shareNote(path, true); } });
+        if (android) items.push({ label: T('Dosya olarak paylaş'), icon: 'file', action: function () { shareNote(path, true); } });
         items.push(
-            { label: 'Yeniden adlandır', icon: 'edit', action: function () { Notes.rename(path); } },
-            { label: 'Taşı', icon: 'move', action: function () { Notes.pickMove(path); } },
-            { label: 'Tam yolu kopyala', icon: 'copy', action: async function () {
-                showToast((await copyToClipboard(path)) ? 'Yol kopyalandı' : 'Panoya kopyalanamadı');
+            { label: T('Yeniden adlandır'), icon: 'edit', action: function () { Notes.rename(path); } },
+            { label: T('Taşı'), icon: 'move', action: function () { Notes.pickMove(path); } },
+            { label: T('Tam yolu kopyala'), icon: 'copy', action: async function () {
+                showToast((await copyToClipboard(path)) ? T('Yol kopyalandı') : T('Panoya kopyalanamadı'));
             } }
         );
         return items;
     }
     function deleteItem(path) {
-        return path ? [{ separator: true }, { label: 'Sil', icon: 'trash', danger: true, hint: 'Klasördeki .trash içine taşınır', action: async function () {
+        return path ? [{ separator: true }, { label: T('Sil'), icon: 'trash', danger: true, hint: T('Klasördeki .trash içine taşınır'), action: async function () {
             var current = path === currentFilePath;
             await Notes.trash(path);
             if (current && path !== currentFilePath) openHome();
@@ -555,13 +555,13 @@
 
     function openNoteMenu(path) {
         if (!path) {
-            showToast('Açık not yok');
+            showToast(T('Açık not yok'));
             return;
         }
         var items = [
-            { label: Notes.isPinned(path) ? 'Sabitlemeyi kaldır' : 'Sabitle', icon: 'pin', action: function () { Notes.togglePin(path); } }
+            { label: Notes.isPinned(path) ? T('Sabitlemeyi kaldır') : T('Sabitle'), icon: 'pin', action: function () { Notes.togglePin(path); } }
         ];
-        if (android) items.push({ label: 'Metin olarak paylaş', icon: 'share', action: function () { shareNote(path, false); } });
+        if (android) items.push({ label: T('Metin olarak paylaş'), icon: 'share', action: function () { shareNote(path, false); } });
         sheet(Notes.noteName(path), items.concat(noteItems(path), deleteItem(path)));
     }
 
@@ -569,7 +569,7 @@
         if (!(await Notes.settle(path))) return;
         var data = await nativeApi().content(path);
         if (!data || !data.success) {
-            UiDialog.alert((data && data.error) || 'Not okunamadı.');
+            UiDialog.alert((data && data.error) || T('Not okunamadı.'));
             return;
         }
         var error = android.shareNote(basename(path), data.content, asFile);
@@ -583,14 +583,14 @@
         var bar = doc.createElement('div');
         bar.id = 'm-format';
         bar.setAttribute('role', 'toolbar');
-        bar.setAttribute('aria-label', 'Biçim');
+        bar.setAttribute('aria-label', T('Biçim'));
 
         [
-            ['task', 'Görev'], ['bullet', 'Madde'], ['heading', 'Başlık'], ['bold', 'Kalın'], ['italic', 'İtalik'],
-            ['undo', 'Geri al'], ['redo', 'Yinele'],
-            ['indent', 'Girinti artır'], ['outdent', 'Girinti azalt'],
-            ['number', 'Numaralı liste'], ['quote', 'Alıntı'], ['strike', 'Üstü çizili'],
-            ['link', 'Bağlantı'], ['wikilink', 'Not bağlantısı'], ['code', 'Kod']
+            ['task', T('Görev')], ['bullet', T('Madde')], ['heading', T('Başlık')], ['bold', T('Kalın')], ['italic', T('İtalik')],
+            ['undo', T('Geri al')], ['redo', T('Yinele')],
+            ['indent', T('Girinti artır')], ['outdent', T('Girinti azalt')],
+            ['number', T('Numaralı liste')], ['quote', T('Alıntı')], ['strike', T('Üstü çizili')],
+            ['link', T('Bağlantı')], ['wikilink', T('Not bağlantısı')], ['code', T('Kod')]
         ].forEach(function (item) {
             var name = item[0];
             bar.appendChild(button('m-fmt-' + name, name, item[1], function () {
@@ -624,10 +624,10 @@
         sheet.className = 'm-sheet';
         var head = doc.createElement('div');
         head.className = 'm-sheet-head';
-        head.appendChild(button('m-switch-close', 'back', 'Kapat', closeSwitcher));
+        head.appendChild(button('m-switch-close', 'back', T('Kapat'), closeSwitcher));
         var input = doc.createElement('input');
         input.type = 'search';
-        input.placeholder = 'Not ara…';
+        input.placeholder = T('Not ara…');
         input.autocomplete = 'off';
         input.spellcheck = false;
         input.enterKeyHint = 'go';
@@ -654,7 +654,7 @@
         notes.forEach(function (n) { n.key = Notes.fold(n.name.replace(/\.(md|markdown)$/i, '')); });
 
         function place(dir) {
-            return notesDir && Notes.pathUnder(dir, notesDir) ? 'Notlarım' + dir.slice(notesDir.length) : dir;
+            return notesDir && Notes.pathUnder(dir, notesDir) ? T('Notlarım') + dir.slice(notesDir.length) : dir;
         }
         var pins = Notes.pins().map(function (p) {
             return { name: basename(p), path: p, dir: place(dirname(p)), pin: true };
@@ -710,7 +710,7 @@
                 if (!files.length) return;
                 var empty = list.querySelector('.empty-state');
                 if (empty) empty.remove();
-                searchBox.appendChild(label('Not içinde' + (r.truncated ? ' (ilk ' + files.length + ')' : '')));
+                searchBox.appendChild(label(r.truncated ? T('Not içinde (ilk {n})', { n: files.length }) : T('Not içinde')));
                 files.forEach(function (n) {
                     var b = row({ name: n.name, path: n.path, dir: n.snippet, find: query });
                     b.classList.add('m-hit');
@@ -736,17 +736,17 @@
                 });
                 shown = starts.concat(contains);
             } else if (recents.length || pins.length) {
-                if (pins.length) list.appendChild(label('Sabitlenenler'));
+                if (pins.length) list.appendChild(label(T('Sabitlenenler')));
                 pins.forEach(function (n) { list.appendChild(row(n)); });
-                if (recents.length) list.appendChild(label('Son açılanlar'));
+                if (recents.length) list.appendChild(label(T('Son açılanlar')));
                 recents.slice(0, 5).forEach(function (n) { list.appendChild(row(n)); });
-                list.appendChild(label('Bütün notlar'));
+                list.appendChild(label(T('Bütün notlar')));
             }
             shown.slice(0, 200).forEach(function (n) { list.appendChild(row(n)); });
             if (!shown.length) {
                 var empty = doc.createElement('span');
                 empty.className = 'empty-state';
-                empty.textContent = q ? 'Eşleşen not yok' : 'Bu klasörde not yok';
+                empty.textContent = q ? T('Eşleşen not yok') : T('Bu klasörde not yok');
                 list.appendChild(empty);
             }
             searchBox = doc.createElement('div');
@@ -777,7 +777,7 @@
         else if (a.action === 'search') openSwitcher();
         else if (a.action === 'share' && a.text) {
             var first = String(a.subject || a.text.split('\n')[0]).replace(/^#+\s*/, '').trim().slice(0, 60);
-            Notes.create(null, /^https?:/.test(first) ? 'Bağlantı' : first, a.text);
+            Notes.create(null, /^https?:/.test(first) ? T('Bağlantı') : first, a.text);
         }
     }
 
@@ -798,8 +798,8 @@
     api.installUpdate = async function (result) {
         if (!android) return true;
         if (!android.canInstall()) {
-            var ok = await UiDialog.confirm('Güncellemeyi kurabilmek için MD Flow Viewer\'a "bilinmeyen uygulama yükleme" izni gerekiyor.',
-                { okText: 'İzin ver', cancelText: 'Vazgeç' });
+            var ok = await UiDialog.confirm(T('Güncellemeyi kurabilmek için MD Flow Viewer\'a "bilinmeyen uygulama yükleme" izni gerekiyor.'),
+                { okText: T('İzin ver'), cancelText: T('Vazgeç') });
             if (!ok) return false;
             var granted = once('install-permission');
             android.requestInstall();

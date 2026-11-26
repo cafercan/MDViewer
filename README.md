@@ -38,6 +38,7 @@ Notlarınız diskinizde düz `.md` dosyaları olarak kalır. Hesap ve sunucu ger
 | **Notlar** | Klasör gezgini, sabitlenen notlar, günün notu, `[[wikilink]]` ve nota bağlananlar |
 | **Bulma** | Komut paleti, bütün notların içinde arama, sayfa içi arama, son açılanlar |
 | **Görünüm** | 60 tema, kendi temanı yapma, vurgu rengi, yazı ve aralık ayarları, özel CSS |
+| **Diller** | Türkçe, English, Azərbaycanca, Deutsch, Français, Español, Português, Русский, 日本語, 简体中文 (Ayarlar › Görünüm › Dil) |
 | **Diğer** | PDF'e aktarma, telefonla eşitleme, uygulama içinden güncelleme |
 
 ### Komut paleti

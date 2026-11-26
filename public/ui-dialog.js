@@ -14,6 +14,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     /** @param {function(object): Promise<boolean>} show  kutuyu gösterip yanıtı döndürür */
     function create(show) {
@@ -31,8 +34,8 @@
                 return enqueue({
                     kind: 'confirm',
                     message: String(message),
-                    okText: opts.okText || 'Evet',
-                    cancelText: opts.cancelText || 'Vazgeç'
+                    okText: opts.okText || T('Evet'),
+                    cancelText: opts.cancelText || T('Vazgeç')
                 }).then(Boolean, function () { return false; });
             },
             prompt: function (message, opts) {
@@ -42,12 +45,12 @@
                     message: String(message),
                     value: opts.value || '',
                     placeholder: opts.placeholder || '',
-                    okText: opts.okText || 'Tamam',
-                    cancelText: opts.cancelText || 'Vazgeç'
+                    okText: opts.okText || T('Tamam'),
+                    cancelText: opts.cancelText || T('Vazgeç')
                 }).then(function (v) { return typeof v === 'string' ? v : null; }, function () { return null; });
             },
             alert: function (message) {
-                return enqueue({ kind: 'alert', message: String(message), okText: 'Tamam' })
+                return enqueue({ kind: 'alert', message: String(message), okText: T('Tamam') })
                     .then(function () {}, function () {});
             }
         };

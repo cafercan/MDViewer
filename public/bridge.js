@@ -11,6 +11,8 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); yoksa (testler) Türkçe metin olduğu gibi.
+    var T = root.I18N ? root.I18N.t : function (s) { return s; };
 
     var tauri = root.__TAURI__;
     if (!tauri || !tauri.core) return;
@@ -58,7 +60,7 @@
             unlistenChange = unlisten;
             var result = await call('watch_file', { path: file });
             if (gen === watchGen && (!result || result.success !== true)) {
-                if (onError) onError((result && result.error) || 'İzleme başlatılamadı.');
+                if (onError) onError((result && result.error) || T('İzleme başlatılamadı.'));
             }
             return function stop() {
                 if (gen !== watchGen) return;       // yerini yenisi aldı; ona dokunma

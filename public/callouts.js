@@ -10,6 +10,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     // tür -> [görünüm, Türkçe başlık]. Görünüm adı features.css'teki renktir.
     var TYPES = {
@@ -47,7 +50,7 @@
         if (!type) return null;
         return {
             raw: m[0], kind: type[0], fold: h[2],
-            title: (h[3] || '').trim() || type[1],
+            title: (h[3] || '').trim() || T(type[1]),
             body: inner.slice(h[0].length)
         };
     }

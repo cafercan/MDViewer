@@ -4,6 +4,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     var WORDS_PER_MINUTE = 200;
 
@@ -25,9 +28,10 @@
     }
 
     function parts(s) {
-        var out = [s.words.toLocaleString('tr') + ' kelime'];
-        if (s.minutes) out.push(s.minutes + ' dk okuma');
-        if (s.tasks) out.push(s.done + '/' + s.tasks + ' görev');
+        var locale = root.I18N ? root.I18N.locale : 'tr';
+        var out = [T('{w} kelime', { w: s.words.toLocaleString(locale), n: s.words })];
+        if (s.minutes) out.push(T('{n} dk okuma', { n: s.minutes }));
+        if (s.tasks) out.push(T('{done}/{n} görev', { done: s.done, n: s.tasks }));
         return out;
     }
 

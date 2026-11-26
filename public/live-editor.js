@@ -10,6 +10,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     var CM = root.CM;
     var D = CM.Decoration;
@@ -90,8 +93,8 @@
         var b = doc.createElement('button');
         b.type = 'button';
         b.className = 'lp-source';
-        b.textContent = 'Kaynak';
-        b.title = 'Markdown kaynağını düzenle';
+        b.textContent = T('Kaynak');
+        b.title = T('Markdown kaynağını düzenle');
         b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); enter(v, box); });
         box.appendChild(b);
         box.addEventListener('mousedown', function (e) { if (!e.target.closest('input, summary')) e.preventDefault(); });
@@ -156,7 +159,7 @@
             var input = doc.createElement('input');
             input.className = 'lp-cell';
             input.value = old.replace(/\\\|/g, '|');
-            input.setAttribute('aria-label', 'Hücre');
+            input.setAttribute('aria-label', T('Hücre'));
             cell.textContent = '';
             cell.appendChild(input);
             input.focus();
@@ -307,7 +310,7 @@
             el.type = 'checkbox';
             el.className = 'lp-task';
             el.checked = this.data !== ' ';
-            el.setAttribute('aria-label', 'Görev');
+            el.setAttribute('aria-label', T('Görev'));
             el.addEventListener('mousedown', function (e) { e.preventDefault(); });
             el.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -434,7 +437,7 @@
                         if (!url) return true;
                         var href = state.sliceDoc(url.from, url.to).replace(/^<|>$/g, '');
                         var marks = n.node.getChildren('LinkMark');
-                        out.push(D.mark({ class: 'lp-link', attributes: { 'data-href': href, title: href + ' · Ctrl+tık' } }).range(n.from, n.to));
+                        out.push(D.mark({ class: 'lp-link', attributes: { 'data-href': href, title: href + ' · ' + T('Ctrl+tık') } }).range(n.from, n.to));
                         if (marks.length >= 2 && text.lineAt(n.from).to >= n.to) {
                             if (touches(state, n.from, n.to)) {
                                 out.push(SYNTAX.range(marks[0].from, marks[0].to));
@@ -672,7 +675,7 @@
             focusField, blockField, inline, findField,
             gutter.of(lineNumbersOn ? numbers() : []),
             attrs.of(contentAttrs()),
-            CM.placeholder('Yazmaya başla…'),
+            CM.placeholder(T('Yazmaya başla…')),
             CM.Prec.high(CM.keymap.of([
                 { key: 'Mod-b', run: function () { return format('bold'); } },
                 { key: 'Mod-i', run: function () { return format('italic'); } },
@@ -714,7 +717,7 @@
     function contentAttrs() {
         return CM.EditorView.contentAttributes.of({
             spellcheck: spell ? 'true' : 'false', autocorrect: 'on', autocapitalize: 'sentences',
-            'aria-label': 'Not', class: 'markdown-body'
+            'aria-label': T('Not'), class: 'markdown-body'
         });
     }
 

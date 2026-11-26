@@ -27,12 +27,12 @@
             var b = doc.createElement('button');
             b.type = 'button';
             b.className = 'code-copy';
-            b.title = 'Kodu kopyala';
-            b.setAttribute('aria-label', 'Kodu kopyala');
+            b.title = T('Kodu kopyala');
+            b.setAttribute('aria-label', T('Kodu kopyala'));
             b.innerHTML = COPY;
             b.addEventListener('click', async function () {
                 if (!(await copyToClipboard(code.textContent.replace(/\n$/, '')))) {
-                    showToast('Panoya kopyalanamadı');
+                    showToast(T('Panoya kopyalanamadı'));
                     return;
                 }
                 b.innerHTML = DONE;
@@ -56,7 +56,7 @@
         var next = MdFormat.toggleTask(currentContent, index, shown);
         if (next === null) {
             box.checked = !box.checked;
-            showToast('Bu kutu yalnız düzenleme modunda değiştirilebilir');
+            showToast(T('Bu kutu yalnız düzenleme modunda değiştirilebilir'));
             return;
         }
         // Bellek hemen, disk sırayla: hızlı tıklamalar birbirini ezmesin.
@@ -68,7 +68,7 @@
             if (path !== currentFilePath || !hasUnsavedChanges) return;
             await saveFile(currentContent);
             if (hasUnsavedChanges) {
-                showToast('Kaydedilemedi');
+                showToast(T('Kaydedilemedi'));
                 markSaved();
                 await loadFile(path, { pushHistory: false });
             }
@@ -96,7 +96,7 @@
         if (!el) return;
         var pane = isEditMode ? LiveEditor.scroller() : paneRead;
         var max = pane.scrollHeight - pane.clientHeight;
-        el.textContent = max > 40 ? '%' + Math.round(Math.min(1, pane.scrollTop / max) * 100) : '';
+        el.textContent = max > 40 ? T('%{n}', { n: Math.round(Math.min(1, pane.scrollTop / max) * 100) }) : '';
     }
 
     // --- geri bağlantılar: açılınca aranır (her belgede klasör taranmasın) ------------
@@ -115,17 +115,17 @@
     async function loadBacklinks(box) {
         var gen = ++backGen;
         var list = box.querySelector('.backlinks-list');
-        list.textContent = 'Aranıyor…';
+        list.textContent = T('Aranıyor…');
         var r = null;
         try { r = await nativeApi().backlinks(currentFilePath); } catch (e) { console.error('Geri bağlantılar:', e); }
         if (gen !== backGen) return;
         list.textContent = '';
         if (!r || !r.success) {
-            list.textContent = 'Bağlantılar okunamadı.';
+            list.textContent = T('Bağlantılar okunamadı.');
             return;
         }
         if (!r.files.length) {
-            list.textContent = 'Bu nota bağlanan başka not yok.';
+            list.textContent = T('Bu nota bağlanan başka not yok.');
             return;
         }
         r.files.forEach(function (n) {
@@ -149,7 +149,7 @@
     function setZen(on) {
         if (on === isZen()) return;
         html.classList.toggle('zen', on);
-        if (on && !html.classList.contains('mobile')) showToast('Odak modu · çıkmak için Esc');
+        if (on && !html.classList.contains('mobile')) showToast(T('Odak modu · çıkmak için Esc'));
         updateProgress();
     }
 

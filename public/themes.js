@@ -7,6 +7,9 @@
  */
 (function (root) {
     'use strict';
+    // Arayüz dili (i18n.js); Node'da (testler) hep Türkçe.
+    var T = root.I18N ? root.I18N.t
+        : typeof require === 'function' ? require('./i18n.js').t : function (s) { return s; };
 
     // [kimlik, ad, zemin, yazı, vurgu, ikinci vurgu]; css: renkleri style.css'te
     var CSS = [
@@ -140,7 +143,8 @@
     }
 
     function toTheme(kind) {
-        return function (r) { return { id: r[0], name: r[1], bg: r[2], fg: r[3], ac: r[4], ac2: r[5], kind: kind }; };
+        // Yerleşik temaların Türkçe adları çevrilir; marka adları sözlükte yoktur, aynen kalır.
+        return function (r) { return { id: r[0], name: T(r[1]), bg: r[2], fg: r[3], ac: r[4], ac2: r[5], kind: kind }; };
     }
     var builtin = CSS.map(toTheme('css')).concat(GENERATED.map(toTheme('generated')));
     // Aynı dizi nesnesi kalır: diğer dosyalar THEMES'i doğrudan kullanır.
@@ -163,7 +167,7 @@
             return ok;
         }).slice(0, MAX_CUSTOM).map(function (t) {
             var name = typeof t.name === 'string' ? t.name.trim().slice(0, 40) : '';
-            return { id: t.id, name: name || 'Temam', bg: t.bg, fg: t.fg, ac: t.ac, ac2: t.ac2, kind: 'custom' };
+            return { id: t.id, name: name || T('Temam'), bg: t.bg, fg: t.fg, ac: t.ac, ac2: t.ac2, kind: 'custom' };
         });
     }
 
