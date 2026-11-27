@@ -513,7 +513,7 @@ function buildRow(row) {
             const b = document.createElement('button');
             b.type = 'button';
             b.dataset.value = v;
-            b.textContent = T(label);
+            b.textContent = b.title = T(label);
             b.addEventListener('click', () => setPref(row.pref, v));
             box.appendChild(b);
         });
