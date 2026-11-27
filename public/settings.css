@@ -66,6 +66,11 @@ html:not(.mobile) [data-only="mobile"], html.mobile [data-only="desktop"] { disp
 html:not(.mobile) #settings-sync > .settings-section:first-of-type > h3 { margin-top: 0; }
 .settings-dialog .settings-row { padding: 0.7rem 0; min-height: 3.1rem; }
 .settings-dialog .settings-row select { max-width: 230px; padding: 0.42rem 1.8rem 0.42rem 0.6rem; border-radius: 9px; }
+/* Sağdaki seçiciler alt alta aynı genişlikte dursun: düğmeler kutuyu eşit böler. */
+html:not(.mobile) .settings-dialog .settings-row > :is(.seg, select) { flex: 0 0 auto; width: min(320px, 55%); max-width: none; }
+html:not(.mobile) .settings-dialog .settings-row > .seg button { flex: 1 1 0; min-width: 0; padding-inline: 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.mobile .settings-dialog .settings-row > .seg { flex: 1 1 100%; flex-wrap: nowrap; }
+html.mobile .settings-dialog .settings-row > .seg button { flex: 1 1 0; min-width: 0; padding-inline: 0.3rem; }
 .settings-label { min-width: 0; }
 .settings-foot { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border-color); }
 .seg button.active, .ui-dialog-btn.primary, .icon-btn.active, .primary-btn { color: var(--on-accent, #fff); }
